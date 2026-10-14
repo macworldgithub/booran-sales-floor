@@ -1,0 +1,342 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/lib/auth';
+import {
+  Bell,
+  Menu,
+  Radio,
+  Sparkles,
+  User,
+  ShieldCheck,
+  LogOut,
+  Search,
+  Users,
+  Car,
+  Calendar,
+  X,
+  AlertTriangle,
+  ChevronDown,
+} from 'lucide-react';
+import { unifiedApi } from '@/lib/api';
+import { Lead, Vehicle, ActionItem } from '@/lib/types';
+
+interface HeaderProps {
+  role: 'consultant' | 'manager' | 'principal' | 'super_admin';
+  setRole: (role: 'consultant' | 'manager' | 'principal' | 'super_admin') => void;
+  onOpenMobileNav: () => void;
+  onOpenNotifications: () => void;
+  onSelectLead?: (lead: Lead) => void;
+  onSelectVehicle?: (vehicle: Vehicle) => void;
+  unreadNotifications?: boolean;
+  isOnline?: boolean;
+  onOpenAddProspect?: () => void;
+}
+
+export function Header({
+  role,
+  setRole,
+  onOpenMobileNav,
+  onOpenNotifications,
+  onSelectLead,
+  onSelectVehicle,
+  unreadNotifications = true,
+  isOnline = true,
+  onOpenAddProspect,
+}: HeaderProps) {
+  const { user, logout, switchRole } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{
+    leads: Lead[];
+    vehicles: Vehicle[];
+    actionItems: ActionItem[];
+  } | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Debounced omni-search query
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 2) {
+      setSearchResults(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await unifiedApi.search(searchQuery.trim());
+        if (res.success && res.data) {
+          setSearchResults(res.data);
+          setIsSearchOpen(true);
+        }
+      } catch (err) {
+        console.error('Search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Close search when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <header className="sticky top-0 z-30 flex items-center justify-between h-[72px] px-4 md:px-8 bg-white border-b border-slate-200/80 shadow-sm backdrop-blur-md">
+      {/* Left: Mobile Nav & Brand Lockup */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onOpenMobileNav}
+          className="md:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
+        {/* Global Omni-Search Bar */}
+        <div ref={searchRef} className="relative w-72 lg:w-96">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => {
+                if (searchResults) setIsSearchOpen(true);
+              }}
+              placeholder="Search leads, VIN, stock#, customer..."
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-100 hover:bg-slate-100/80 focus:bg-white text-slate-900 rounded-xl border border-transparent focus:border-red-500/30 focus:ring-2 focus:ring-red-500/10 focus:outline-none transition-all placeholder:text-slate-400 font-sans"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults(null);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Dropdown Results */}
+          {isSearchOpen && searchResults && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 max-h-[420px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+              {searchResults.leads.length === 0 &&
+              searchResults.vehicles.length === 0 &&
+              searchResults.actionItems.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500 font-medium">
+                  No records matching &ldquo;{searchQuery}&rdquo; across CRM or Inventory.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* CRM Leads */}
+                  {searchResults.leads.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+                        <Users className="w-3 h-3 text-red-500" />
+                        CRM Leads ({searchResults.leads.length})
+                      </div>
+                      <div className="space-y-0.5">
+                        {searchResults.leads.map((lead) => (
+                          <button
+                            key={lead._id}
+                            onClick={() => {
+                              onSelectLead?.(lead);
+                              setIsSearchOpen(false);
+                            }}
+                            className="w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-900 truncate">
+                                {lead.name || lead.customer_name}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {lead.vehicle || `${lead.make} ${lead.model}`} · {lead.dealership}
+                              </p>
+                            </div>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">
+                              {lead.status}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inventory Vehicles */}
+                  {searchResults.vehicles.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
+                        <Car className="w-3 h-3 text-cyan-600" />
+                        Live Inventory ({searchResults.vehicles.length})
+                      </div>
+                      <div className="space-y-0.5">
+                        {searchResults.vehicles.map((v) => (
+                          <button
+                            key={v._id}
+                            onClick={() => {
+                              onSelectVehicle?.(v);
+                              setIsSearchOpen(false);
+                            }}
+                            className="w-full text-left p-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-between"
+                          >
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-900 truncate">
+                                {v.year} {v.make} {v.model} {v.variant}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate font-mono">
+                                Stock: {v.stockNumber} · VIN: {v.vin} · {v.daysInStock} DIS
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-600">
+                              ${v.advertisedPrice?.toLocaleString() || 'POA'}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Controls: Role, Live Status, Add Lead, Profile */}
+      <div className="flex items-center gap-3">
+        {/* Live Network Telemetry */}
+        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 border border-slate-200 text-slate-600 text-[11px] font-semibold">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live Telemetry</span>
+          <span className="text-slate-300">|</span>
+          <span className="font-mono text-[10px] text-slate-500">Sign365 Cluster</span>
+        </div>
+
+        {/* Quick Add Lead Button */}
+        {onOpenAddProspect && (
+          <button
+            onClick={onOpenAddProspect}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>+ New Lead</span>
+          </button>
+        )}
+
+        {/* Notification Bell */}
+        <button
+          onClick={onOpenNotifications}
+          className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          title="Notification Center"
+        >
+          <Bell className="w-4 h-4" />
+          {unreadNotifications && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600 ring-2 ring-white" />
+          )}
+        </button>
+
+        {/* Role & User Profile Switcher */}
+        <div className="relative">
+          <button
+            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+            className="flex items-center gap-2 p-1.5 pl-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-left"
+          >
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white font-bold text-xs flex items-center justify-center">
+              {user?.avatar || 'MT'}
+            </div>
+            <div className="hidden sm:block leading-tight text-left">
+              <p className="text-xs font-bold text-slate-900 truncate">
+                {user?.name || 'Megan Taylor'}
+              </p>
+              <p className="text-[10px] text-slate-500 capitalize">
+                {role === 'principal' ? 'Dealer Principal' : role === 'manager' ? 'Group Manager' : 'Consultant'}
+              </p>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+          </button>
+
+          {/* Role Dropdown */}
+          {isRoleDropdownOpen && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50">
+              <div className="px-3 py-2 border-b border-slate-100">
+                <p className="text-xs font-bold text-slate-900">{user?.name}</p>
+                <p className="text-[10px] text-slate-500">{user?.email}</p>
+              </div>
+
+              <div className="p-1 space-y-1">
+                <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase px-2 pt-1 font-mono">
+                  Switch Scope
+                </p>
+                <button
+                  onClick={() => {
+                    setRole('principal');
+                    switchRole('principal');
+                    setIsRoleDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+                    role === 'principal' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>Paul Booran (Principal)</span>
+                  {role === 'principal' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setRole('manager');
+                    switchRole('manager');
+                    setIsRoleDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+                    role === 'manager' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>Megan Taylor (Manager)</span>
+                  {role === 'manager' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
+                </button>
+                <button
+                  onClick={() => {
+                    setRole('consultant');
+                    switchRole('consultant');
+                    setIsRoleDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
+                    role === 'consultant' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>Lewis Dannock (Consultant)</span>
+                  {role === 'consultant' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
+                </button>
+              </div>
+
+              <div className="pt-1 border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsRoleDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
