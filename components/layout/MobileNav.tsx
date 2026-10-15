@@ -51,15 +51,15 @@ export function MobileNav({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex md:hidden">
+    <div className="fixed inset-0 z-50 flex lg:hidden">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="relative flex flex-col w-4/5 max-w-sm bg-[#171b22] text-slate-200 p-4 shadow-2xl">
+      <div className="relative flex flex-col w-4/5 max-w-xs sm:max-w-sm bg-[#171b22] text-slate-200 p-4 shadow-2xl h-full">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-white text-sm">

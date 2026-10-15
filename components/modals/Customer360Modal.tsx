@@ -80,33 +80,34 @@ export function Customer360Modal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95">
+      <div className="relative w-full max-w-full sm:max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/80">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 text-white font-bold text-sm flex items-center justify-center shadow-md shadow-red-900/20">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-red-600 to-red-800 text-white font-bold text-xs sm:text-sm flex items-center justify-center shadow-md shadow-red-900/20 shrink-0">
               {lead.initials || 'PR'}
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900">{lead.name || lead.customer_name}</h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">{lead.name || lead.customer_name}</h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold shrink-0">
                   {lead.deal_id || 'CRM Lead'}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                {lead.dealership} · Allocated to {lead.owner_name || 'Sales Floor'}
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate">
+                {lead.dealership} · Host: {lead.owner_name || 'Sales Floor'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors shrink-0"
+            aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>

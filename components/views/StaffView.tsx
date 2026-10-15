@@ -73,11 +73,11 @@ export function StaffView() {
       </div>
 
       {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {filteredStaff.map((member) => (
           <div
             key={member._id}
-            className="surface-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 hover:shadow-md transition-shadow"
+            className="surface-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm space-y-3.5 sm:space-y-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-slate-900 text-white font-bold text-sm flex items-center justify-center">

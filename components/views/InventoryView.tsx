@@ -131,9 +131,9 @@ export function InventoryView({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          <div className="relative flex-1 max-w-md">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -142,12 +142,12 @@ export function InventoryView({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search by Stock#, VIN, Make, Model, Rego, Colour..."
+              placeholder="Search by Stock#, VIN, Make, Model, Rego..."
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500 font-sans"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             {/* Category Filter */}
             <select
               value={categoryFilter}
@@ -155,7 +155,7 @@ export function InventoryView({
                 setCategoryFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
+              className="flex-1 sm:flex-initial text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
             >
               <option value="all">All Categories</option>
               <option value="New">New Vehicles</option>
@@ -171,7 +171,7 @@ export function InventoryView({
                 setRooftopFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
+              className="flex-1 sm:flex-initial text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
             >
               <option value="all">All Dealerships</option>
               <option value="Booran Cheltenham">Booran Cheltenham</option>
@@ -182,7 +182,7 @@ export function InventoryView({
 
             <button
               onClick={() => fetchVehicles()}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 shrink-0"
               title="Refresh Stock"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -190,9 +190,9 @@ export function InventoryView({
           </div>
         </div>
 
-        {/* Aging Buckets Filter */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase font-mono mr-1">
+        {/* Aging Buckets Filter (Scrollable on Mobile) */}
+        <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar pb-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase font-mono mr-1 shrink-0">
             Aging:
           </span>
           {[
@@ -209,7 +209,7 @@ export function InventoryView({
                 setAgingFilter(bucket.id);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
                 agingFilter === bucket.id
                   ? bucket.red
                     ? 'bg-red-600 text-white shadow-sm'
@@ -225,9 +225,108 @@ export function InventoryView({
         </div>
       </div>
 
-      {/* Inventory Table */}
+      {/* Inventory Table & Mobile Cards */}
       <div className="surface-card rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: High-Density Vehicle Cards (< md) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {isLoading && vehicles.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 text-xs">
+              <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-600" />
+              <span>Loading vehicles from booran_inventory_tracker...</span>
+            </div>
+          ) : vehicles.length === 0 ? (
+            <div className="py-12 text-center text-slate-500 text-xs">
+              No vehicles found matching your criteria.
+            </div>
+          ) : (
+            vehicles.map((v) => {
+              const isHeld = v.status === 'Soft Hold' || v.softHold?.held;
+              return (
+                <div
+                  key={v._id}
+                  onClick={() => onSelectVehicle(v)}
+                  className="p-3.5 space-y-2.5 active:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  {/* Top: Year Make Model & Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 text-sm">
+                        {v.year} {v.make} {v.model}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {v.variant || 'Standard'} · {v.category}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                        isHeld
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                    >
+                      {isHeld ? 'SOFT HOLD' : 'IN STOCK'}
+                    </span>
+                  </div>
+
+                  {/* Identification */}
+                  <div className="text-[11px] font-mono text-slate-500 flex items-center justify-between">
+                    <span>Stock #{v.stockNumber}</span>
+                    <span className="truncate max-w-[160px]">VIN: {v.vin}</span>
+                  </div>
+
+                  {/* Financial & Aging Metrics Strip */}
+                  <div className="grid grid-cols-3 gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                    <div>
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block font-mono">
+                        Price
+                      </span>
+                      <span className="text-xs font-bold text-slate-900">
+                        ${v.advertisedPrice ? v.advertisedPrice.toLocaleString() : 'POA'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block font-mono">
+                        Aging
+                      </span>
+                      <span
+                        className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold ${getAgingBadgeColor(
+                          v.agingBucket
+                        )}`}
+                      >
+                        {v.daysInStock} DIS
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block font-mono">
+                        Hold Cost
+                      </span>
+                      <span className="text-xs font-semibold text-amber-700 font-mono">
+                        ${v.accumulatedHoldingCost?.toLocaleString() || 0}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom: Dealership & Action */}
+                  <div className="flex items-center justify-between pt-1 gap-2">
+                    <span className="text-[11px] text-slate-500 truncate">{v.rooftopName}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectVehicle(v);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 shrink-0 transition-colors"
+                    >
+                      Details & Hold
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Data Table (md+) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-mono uppercase text-[10px] tracking-wider">
@@ -353,18 +452,15 @@ export function InventoryView({
         </div>
 
         {/* Pagination Bar */}
-        <div className="p-4 border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs text-slate-500">
-            Showing Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({totalUnits.toLocaleString()} vehicles)
-          </p>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalUnits}
-            pageSize={20}
-            onPageChange={(page) => setCurrentPage(page)}
-          />
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalUnits}
+          pageSize={20}
+          onPageChange={(page) => setCurrentPage(page)}
+          itemName="vehicles"
+          isLoading={isLoading}
+        />
       </div>
     </div>
   );

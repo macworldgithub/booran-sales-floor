@@ -76,27 +76,27 @@ export function RooftopsView({ onSelectRooftopFilter }: RooftopsViewProps) {
       </div>
 
       {/* Rooftops Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         {rooftopCards.map((r) => (
           <div
             key={r.id}
-            className="surface-card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition-shadow space-y-4"
+            className="surface-card rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow space-y-3.5 sm:space-y-4"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold shrink-0">
                   <Building className="w-5 h-5 text-red-500" />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{r.name}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{r.location}</span>
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-slate-900 truncate">{r.name}</h3>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5 truncate">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{r.location}</span>
                   </div>
                 </div>
               </div>
 
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
                 Active Tier Pro
               </span>
             </div>

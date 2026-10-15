@@ -93,20 +93,21 @@ export function Header({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-[72px] px-4 md:px-8 bg-white border-b border-slate-200/80 shadow-sm backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-16 lg:h-[72px] px-3 sm:px-6 lg:px-8 bg-white/95 border-b border-slate-200/80 shadow-sm backdrop-blur-md">
       {/* Left: Mobile Nav & Brand Lockup */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
         <button
           onClick={onOpenMobileNav}
-          className="md:hidden p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg"
+          className="lg:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+          aria-label="Open Navigation Menu"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
         {/* Global Omni-Search Bar */}
-        <div ref={searchRef} className="relative w-72 lg:w-96">
+        <div ref={searchRef} className="relative flex-1 min-w-0 max-w-[200px] xs:max-w-xs sm:max-w-sm lg:w-96">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 shrink-0" />
             <input
               type="text"
               value={searchQuery}
@@ -114,8 +115,8 @@ export function Header({
               onFocus={() => {
                 if (searchResults) setIsSearchOpen(true);
               }}
-              placeholder="Search leads, VIN, stock#, customer..."
-              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-100 hover:bg-slate-100/80 focus:bg-white text-slate-900 rounded-xl border border-transparent focus:border-red-500/30 focus:ring-2 focus:ring-red-500/10 focus:outline-none transition-all placeholder:text-slate-400 font-sans"
+              placeholder="Search leads, VIN, stock..."
+              className="w-full pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 text-xs bg-slate-100 hover:bg-slate-100/80 focus:bg-white text-slate-900 rounded-xl border border-transparent focus:border-red-500/30 focus:ring-2 focus:ring-red-500/10 focus:outline-none transition-all placeholder:text-slate-400 font-sans"
             />
             {searchQuery && (
               <button
@@ -216,9 +217,9 @@ export function Header({
       </div>
 
       {/* Right Controls: Role, Live Status, Add Lead, Profile */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         {/* Live Network Telemetry */}
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 border border-slate-200 text-slate-600 text-[11px] font-semibold">
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/80 border border-slate-200 text-slate-600 text-[11px] font-semibold">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Live Telemetry</span>
           <span className="text-slate-300">|</span>
@@ -229,10 +230,11 @@ export function Header({
         {onOpenAddProspect && (
           <button
             onClick={onOpenAddProspect}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-all cursor-pointer"
+            title="Create New Lead"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>+ New Lead</span>
+            <span className="hidden sm:inline">+ New Lead</span>
           </button>
         )}
 
@@ -252,12 +254,12 @@ export function Header({
         <div className="relative">
           <button
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-            className="flex items-center gap-2 p-1.5 pl-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-left"
+            className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 sm:pl-2.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 transition-all text-left"
           >
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white font-bold text-xs flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
               {user?.avatar || 'MT'}
             </div>
-            <div className="hidden sm:block leading-tight text-left">
+            <div className="hidden md:block leading-tight text-left">
               <p className="text-xs font-bold text-slate-900 truncate">
                 {user?.name || 'Megan Taylor'}
               </p>
@@ -265,7 +267,7 @@ export function Header({
                 {role === 'principal' ? 'Dealer Principal' : role === 'manager' ? 'Group Manager' : 'Consultant'}
               </p>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xs:block" />
           </button>
 
           {/* Role Dropdown */}

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { BottomNav } from '@/components/layout/BottomNav';
 import { TodayView } from '@/components/views/TodayView';
 import { LeadsView } from '@/components/views/LeadsView';
 import { InventoryView } from '@/components/views/InventoryView';
@@ -242,6 +243,16 @@ export default function BooranSalesFloorApp() {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         onNavigateTab={(tab) => setActiveTab(tab)}
+      />
+
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenMore={() => setIsMobileNavOpen(true)}
+        leadsCount={unifiedSummary?.crm?.totalLeads || 1727}
+        inventoryCount={unifiedSummary?.inventory?.totalVehicles || 2477}
+        actionItemsCount={unifiedSummary?.inventory?.openActionItems || 1022}
       />
 
       <MobileNav

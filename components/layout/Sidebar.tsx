@@ -74,7 +74,7 @@ export function Sidebar({
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-[#171b22] text-slate-200 h-screen sticky top-0 shrink-0 border-r border-white/10 z-40">
+    <aside className="hidden lg:flex flex-col w-64 bg-[#171b22] text-slate-200 h-screen sticky top-0 shrink-0 border-r border-white/10 z-40">
       {/* Brand Header */}
       <div className="p-4 pb-3 border-b border-white/10 bg-[#12161c]">
         <div className="flex items-center gap-3">
