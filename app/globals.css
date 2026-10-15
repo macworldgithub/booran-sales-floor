@@ -56,6 +56,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+    /* Prevent horizontal scroll at the root */
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Next.js root wrapper — must also be clamped */
+  body > #__next,
+  body > div:first-child {
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   button {
@@ -79,7 +89,9 @@
   padding-bottom: 6rem;
   position: relative;
   overflow-y: auto;
+  overflow-x: hidden; /* Kill horizontal scroll in the main content area */
   scroll-behavior: smooth;
+  max-width: 100%;
 }
 
 @media (min-width: 640px) {

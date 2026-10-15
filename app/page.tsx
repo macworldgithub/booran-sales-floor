@@ -109,7 +109,7 @@ export default function BooranSalesFloorApp() {
   };
 
   return (
-    <div className="flex h-screen bg-[#f4f5f7] text-slate-900 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-[#f4f5f7] text-slate-900 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -135,7 +135,7 @@ export default function BooranSalesFloorApp() {
         />
 
         {/* View Container */}
-        <main className="app-main flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="app-main flex-1 overflow-x-hidden">
           {activeTab === 'today' && (
             <TodayView
               leads={leads}
