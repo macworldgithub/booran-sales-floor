@@ -23,7 +23,7 @@ Deploy the two directories as separate Vercel projects. Deploy the backend first
 
 1. Frontend root directory: `booran-sales-floor`; framework: Next.js; Node.js 22.
 2. Set `API_URL` to the deployed backend URL ending in `/api` for the appropriate Preview and Production environments.
-3. Run `npm run typecheck`, `npm test`, and `npm run build` before deployment. `vercel.json` uses `npm ci` and the normal Next.js build.
+3. Run `npm run typecheck`, `npm test`, and `npm run build` before deployment. `vercel.json` uses `npm ci --include=dev` and the normal Next.js build. Tailwind, PostCSS, Autoprefixer, and TypeScript are required during the build, even when `NODE_ENV=production` or npm is configured to omit development dependencies. If your Vercel project overrides the install command, use `npm ci --include=dev` there too. After changing the install command, redeploy without the existing build cache.
 4. Verify both accounts over HTTPS: unauthenticated API calls return 401, site users cannot read another location by ID or filter, and signing out revokes the session.
 
 The API proxy uses the App Router Node.js runtime and a 30-second maximum duration. See [Vercel function duration configuration](https://vercel.com/docs/functions/configuring-functions/duration).
