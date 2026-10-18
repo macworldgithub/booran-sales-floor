@@ -19,7 +19,10 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname === '/api' || url.pathname.startsWith('/api/') || request.headers.has('authorization')) return;
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).catch(async () => (await caches.match(OFFLINE)) || Response.error()));
+    event.respondWith(fetch(request).catch(async () => {
+      try { return (await caches.match(OFFLINE)) || Response.error(); }
+      catch { return Response.error(); }
+    }));
     return;
   }
   if (!url.pathname.startsWith('/_next/static/') && !ASSETS.includes(url.pathname)) return;

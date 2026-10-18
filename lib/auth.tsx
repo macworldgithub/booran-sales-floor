@@ -2,6 +2,7 @@
 import { createContext, Fragment, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { advanceSessionGeneration, authApi, leadApi, inventoryApi } from './api';
 import { LoginScreen } from '@/components/auth/LoginScreen';
+import { useRefreshOnResume } from './use-refresh-on-resume';
 export interface AuthUser {
   id: string; email: string; name: string;
   role: 'principal' | 'manager' | 'consultant' | 'super_admin';
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const scopeKey = user ? JSON.stringify([user.id, user.role, user.site, user.allowedSites]) : 'signed-out';
   const sessionVersion = useRef(0);
   const [revision, setRevision] = useState(0);
+  useRefreshOnResume(() => { if (user) setLocationsRevision((value) => value + 1); });
   useEffect(() => {
     let active = true;
     const version = sessionVersion.current;

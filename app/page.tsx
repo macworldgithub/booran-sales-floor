@@ -1,4 +1,6 @@
 'use client';
+import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
+import { localDate, localDayRange } from '@/lib/dates';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -51,6 +53,13 @@ export default function BooranSalesFloorApp() {
     return () => window.removeEventListener('popstate', sync);
   }, [user?.role]);
   const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
+  const [today, setToday] = useState(localDate);
+  useEffect(() => {
+    const sync = () => setToday(localDate());
+    const timer = window.setInterval(sync, 60000);
+    document.addEventListener('visibilitychange', sync);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', sync); };
+  }, []);
   const role = user?.role || 'manager';
   const [actionTarget, setActionTarget] = useState({ search: '', status: 'open', version: 0 });
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
@@ -92,7 +101,7 @@ export default function BooranSalesFloorApp() {
         leadApi.getLeads({ limit: 30, dealership: selectedRooftop, attention: 'true' }).catch(() => ({ success: false, data: [] })),
         inventoryApi.getVehicles({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
         inventoryApi.getActionItems({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
-        appointmentApi.getAppointments({ rooftop: selectedRooftop, limit: 30, from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), to: new Date(new Date().setHours(24, 0, 0, 0)).toISOString() }).catch(() => ({ success: false, data: [] })),
+        appointmentApi.getAppointments({ rooftop: selectedRooftop, limit: 30, ...localDayRange(today) }).catch(() => ({ success: false, data: [] })),
         unifiedApi.getSummary(selectedRooftop).catch(() => ({ success: false, data: undefined })),
       ]);
 
@@ -118,7 +127,9 @@ export default function BooranSalesFloorApp() {
     } finally {
       if (version === loadVersion.current) setIsLoading(false);
     }
-  }, [selectedRooftop]);
+  }, [selectedRooftop, today]);
+
+  useRefreshOnResume(loadInitialData);
 
   useEffect(() => {
     loadInitialData();

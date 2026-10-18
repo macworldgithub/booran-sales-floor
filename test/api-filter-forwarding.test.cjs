@@ -24,3 +24,16 @@ test('API proxy forwards every filter, sort and page parameter without caching',
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   assert.deepEqual((await response.json()).data, []);
 });
+
+test('API proxy returns a controlled unavailable response for invalid upstream configuration', async () => {
+  const compiled = ts.transpileModule(readFileSync('app/api/[...path]/route.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+  const module = { exports: {} };
+  new Function('module', 'exports', 'fetch', 'process', compiled)(module, module.exports, () => { throw new Error('Unexpected request'); }, { env: { API_URL: 'invalid-url', NODE_ENV: 'production' } });
+  const nextUrl = new URL('https://floor.test/api/leads');
+  const response = await module.exports.GET({ nextUrl, method: 'GET', headers: new Headers() }, { params: Promise.resolve({ path: ['leads'] }) });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).success, false);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+});

@@ -1,4 +1,5 @@
 'use client';
+import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserCheck, Users, Search, RefreshCw, CheckCircle2, TrendingUp, Award, Shield } from 'lucide-react';
@@ -37,6 +38,8 @@ export function StaffView({ selectedRooftop, onRooftopChange }: { selectedRoofto
       if (version === requestVersion.current) setIsLoading(false);
     }
   }, [selectedRooftop]);
+
+  useRefreshOnResume(fetchStaff);
 
   useEffect(() => {
     setPage(1);

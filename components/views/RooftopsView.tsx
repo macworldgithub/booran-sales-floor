@@ -1,4 +1,5 @@
 'use client';
+import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { useEffect, useState } from 'react';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { leadApi, inventoryApi } from '@/lib/api';
@@ -14,6 +15,12 @@ export function RooftopsView({ onSelectRooftopFilter, selectedRooftop }: { selec
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  useRefreshOnResume(() => setRevision((value) => value + 1));
+  useEffect(() => {
+    const updated = () => setRevision((value) => value + 1);
+    window.addEventListener('booran:data-changed', updated);
+    return () => window.removeEventListener('booran:data-changed', updated);
+  }, []);
   useEffect(() => {
     let active = true;
     setLoading(true); setError(null); setRooftops([]); setPage(1);

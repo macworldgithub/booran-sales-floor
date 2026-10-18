@@ -1,6 +1,7 @@
 'use client';
 
 import { BooranLogo } from '@/components/ui/BooranLogo';
+import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import {
@@ -60,6 +61,7 @@ export function Header({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [resolvedSearch, setResolvedSearch] = useState('');
   const [searchRevision, setSearchRevision] = useState(0);
+  useRefreshOnResume(() => setSearchRevision((value) => value + 1));
   const searchKey = JSON.stringify([selectedRooftop, searchQuery.trim(), searchRevision]);
   const visibleResults = resolvedSearch === searchKey ? searchResults : null;
   const visibleError = resolvedSearch === searchKey ? searchError : null;

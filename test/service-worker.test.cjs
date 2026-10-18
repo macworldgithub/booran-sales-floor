@@ -47,6 +47,13 @@ test('offline navigation resolves to a real cached response', async () => {
   assert.equal(await result, offline);
 });
 
+test('offline navigation with disabled cache storage resolves to a network error response', async () => {
+  const { events } = worker(async () => { throw new Error('offline'); }, { match: async () => { throw new Error('Cache unavailable'); } });
+  let result;
+  events.fetch({ request: { url: 'https://floor.test/', method: 'GET', mode: 'navigate', headers: new Headers() }, respondWith: (response) => { result = response; } });
+  assert.equal((await result).type, 'error');
+});
+
 test('manifest icons have actual PNG encoding and the declared dimensions', () => {
   const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8'));
   assert.equal(manifest.id, '/');

@@ -10,10 +10,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   if (!['GET', 'HEAD'].includes(request.method) && origin && origin !== request.nextUrl.origin) {
     return Response.json({ success: false, error: 'Request origin is not allowed.' }, { status: 403 });
   }
-  const base = process.env.API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001/api' : 'https://booran-sales-floor-backend.vercel.app/api');
-  const url = new URL(`${base.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}`);
-  url.search = request.nextUrl.search;
   try {
+    const base = process.env.API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001/api' : 'https://booran-sales-floor-backend.vercel.app/api');
+    const url = new URL(`${base.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}`);
+    url.search = request.nextUrl.search;
     const headers = new Headers({ 'Content-Type': 'application/json' });
     const cookie = request.headers.get('cookie');
     if (cookie) headers.set('cookie', cookie);

@@ -8,7 +8,13 @@ function load(filename, bindings = {}, mocks = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', ...Object.keys(bindings), compiled)((id) => id in mocks ? mocks[id] : require(id), module, module.exports, ...Object.values(bindings));
+  const resolve = (id) => {
+    if (id in mocks) return mocks[id];
+    if (id.startsWith('@/lib/')) return load(id.replace('@/', '') + '.ts', bindings, mocks);
+    if (id.startsWith('./') && filename.startsWith('lib/')) return load('lib/' + id.slice(2) + '.ts', bindings, mocks);
+    return require(id);
+  };
+  new Function('require', 'module', 'exports', ...Object.keys(bindings), compiled)(resolve, module, module.exports, ...Object.values(bindings));
   return module.exports;
 }
 test('local date inputs validate real calendar days and never throw for malformed input', () => {
@@ -75,7 +81,7 @@ test('booking options exclude location groups and daylight-saving gaps cannot sh
 test('pagination ignores superseded results and hides the previous filter results immediately', async () => {
   const { hookHarness, fakeTimers } = require('./helpers/hook-harness.cjs');
   const harness = hookHarness(), timers = fakeTimers(), window = new EventTarget();
-  const { usePaginatedQuery } = load('lib/use-paginated-query.ts', { window, setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout }, { react: harness.react });
+  const { usePaginatedQuery } = load('lib/use-paginated-query.ts', { window, document: new EventTarget(), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout }, { react: harness.react });
   const pending = [];
   const loader = (params, options) => new Promise((resolve) => pending.push({ params, options, resolve }));
   let query = { page: 1, limit: 20, status: 'new_lead' };
@@ -91,10 +97,31 @@ test('pagination ignores superseded results and hides the previous filter result
   pending[1].resolve(response('current'));
   await new Promise(setImmediate);
   assert.deepEqual(render().data, [{ id: 'current' }]);
+  window.dispatchEvent(new Event('booran:data-changed'));
+  assert.deepEqual(render().data, []);
+  assert.equal(render().isLoading, true);
   query = { ...query, status: 'lost' };
   assert.deepEqual(render().data, []);
   assert.equal(render().pagination.total, 0);
   harness.cleanup();
+});
+
+test('resume refresh uses the latest callback, ignores hidden tabs, and removes listeners on unmount', () => {
+  const { hookHarness } = require('./helpers/hook-harness.cjs');
+  const harness = hookHarness(), window = new EventTarget(), document = new EventTarget();
+  const { useRefreshOnResume } = load('lib/use-refresh-on-resume.ts', { window, document }, { react: harness.react });
+  const calls = [];
+  harness.render(() => useRefreshOnResume(() => calls.push('old')));
+  document.visibilityState = 'hidden';
+  document.dispatchEvent(new Event('visibilitychange'));
+  assert.deepEqual(calls, []);
+  harness.render(() => useRefreshOnResume(() => calls.push('current')));
+  window.dispatchEvent(new Event('online'));
+  document.visibilityState = 'visible';
+  document.dispatchEvent(new Event('visibilitychange'));
+  assert.deepEqual(calls, ['current', 'current']);
+  harness.cleanup(); window.dispatchEvent(new Event('online'));
+  assert.equal(calls.length, 2);
 });
 
 test('search stays closed after Escape and shows action-only results and errors', async () => {
@@ -130,25 +157,56 @@ test('search stays closed after Escape and shows action-only results and errors'
   assert.ok(!nodes(tree).some((node) => node.props?.role === 'alert'));
   harness.cleanup();
 });
-test('service worker reloads an accepted update even after first installation in this tab', async () => {
-  let effect;
-  let reloads = 0;
-  const listeners = {};
-  const worker = { controller: null, register: async () => ({ addEventListener() {} }), addEventListener: (name, callback) => { listeners[name] = callback; }, removeEventListener() {} };
-  const registrar = load('components/pwa/ServiceWorkerRegistrar.tsx', {
-    navigator: { onLine: true, serviceWorker: worker }, process: { env: { NODE_ENV: 'production' } },
-    window: { addEventListener() {}, removeEventListener() {}, location: { reload: () => { reloads += 1; } } },
-    document: { addEventListener() {}, removeEventListener() {} },
-  }, { react: { useState: (initial) => [initial, () => {}], useEffect: (callback) => { effect = callback; } } });
-  registrar.default();
-  const cleanup = effect();
-  await Promise.resolve();
-  listeners.controllerchange();
+test('PWA updates detect an already installing worker and reload only after local approval', async () => {
+  const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
+  const harness = hookHarness(), window = new EventTarget(), document = new EventTarget();
+  let reloads = 0, message;
+  window.location = { reload: () => { reloads += 1; } };
+  const installing = new EventTarget();
+  installing.state = 'installing';
+  installing.postMessage = (value) => { message = value; };
+  const registration = new EventTarget();
+  registration.installing = installing;
+  const worker = new EventTarget();
+  worker.controller = {}; worker.register = async () => registration;
+  const registrar = load('components/pwa/ServiceWorkerRegistrar.tsx', { navigator: { onLine: true, serviceWorker: worker }, process: { env: { NODE_ENV: 'production' } }, window, document }, { react: harness.react });
+  const render = () => harness.render(() => registrar.default());
+  render(); await new Promise(setImmediate);
+  installing.state = 'installed';
+  installing.dispatchEvent(new Event('statechange'));
+  let tree = render();
+  const button = nodes(tree).find((node) => node.type === 'button');
+  assert.ok(button, 'An update in progress before registration resolved must be detected');
   assert.equal(reloads, 0);
-  listeners.controllerchange();
+  button.props.onClick();
+  assert.deepEqual(message, { type: 'SKIP_WAITING' });
+  worker.dispatchEvent(new Event('controllerchange'));
   assert.equal(reloads, 1);
-  cleanup();
+  harness.cleanup();
 });
+
+test('an update accepted in another PWA tab preserves the current form until Reload is clicked', async () => {
+  const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
+  const harness = hookHarness(), window = new EventTarget(), document = new EventTarget();
+  let reloads = 0;
+  window.location = { reload: () => { reloads += 1; } };
+  const worker = new EventTarget();
+  worker.controller = null; worker.register = async () => new EventTarget();
+  const registrar = load('components/pwa/ServiceWorkerRegistrar.tsx', { navigator: { onLine: true, serviceWorker: worker }, process: { env: { NODE_ENV: 'production' } }, window, document }, { react: harness.react });
+  const render = () => harness.render(() => registrar.default());
+  render(); await new Promise(setImmediate);
+  worker.controller = {};
+  worker.dispatchEvent(new Event('controllerchange')); // first install
+  assert.equal(render(), null);
+  worker.dispatchEvent(new Event('controllerchange')); // update from another tab
+  assert.equal(reloads, 0);
+  const button = nodes(render()).find((node) => node.type === 'button');
+  assert.equal(button.props.children, 'Reload now');
+  button.props.onClick();
+  assert.equal(reloads, 1);
+  harness.cleanup();
+});
+
 test('semantic theme colors resolve to valid CSS variables', () => {
   const config = require('../tailwind.config');
   const css = readFileSync('app/globals.css', 'utf8');
@@ -227,13 +285,14 @@ test('late lead and vehicle updates cannot reopen closed dialogs or replace anot
   const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
   const harness = hookHarness(), window = new EventTarget();
   window.location = { href: 'https://floor.test/' };
+  window.setInterval = () => 0;
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { role: 'manager' } }) } };
   for (const name of ['layout/Sidebar', 'layout/Header', 'layout/MobileNav', 'layout/BottomNav', 'views/TodayView', 'views/LeadsView', 'views/InventoryView', 'views/ActionItemsView', 'views/CalendarView', 'views/RooftopsView', 'views/StaffView', 'views/FeedLogsView', 'modals/Customer360Modal', 'modals/VehicleDetailModal', 'modals/AddProspectModal', 'modals/BookTestDriveModal', 'modals/NotificationCenterModal']) {
     mocks[`@/components/${name}`] = { [name.split('/').at(-1)]: () => null };
   }
   const pending = () => new Promise(() => {});
   mocks['@/lib/api'] = { leadApi: { getLeads: pending }, inventoryApi: { getVehicles: pending, getActionItems: pending }, appointmentApi: { getAppointments: pending }, unifiedApi: { getSummary: pending } };
-  const App = load('app/page.tsx', { window }, mocks).default;
+  const App = load('app/page.tsx', { window, document: new EventTarget() }, mocks).default;
   const render = () => harness.render(() => App());
   let tree = render();
   const find = (name) => nodes(tree).find((node) => node.type === mocks[`@/components/${name}`][name.split('/').at(-1)]);
