@@ -38,6 +38,8 @@ Leads, inventory, actions, appointments, and feed logs use server pagination, bo
 
 The app has a stable manifest identity, standalone display, home-screen shortcuts, existing 192/512 icons, platform-aware installation guidance, offline status, and an explicit update action. Shortcuts select the correct app tab and browser back/forward restores tabs.
 
+PWA icons, maskable Android icons, the Apple touch icon, favicons, and the Apple splash use the exact Booran Motors logo artwork on black. Re-export these assets with `node scripts/generate-brand-icons.cjs` after changing `public/images/booran-motors-logo.png`. The manifest and page metadata use brand-specific asset URLs, and the service-worker cache version changes when replacing cached icons.
+
 The production-only service worker caches a standalone offline document and public immutable assets. It never caches customer API responses, authenticated HTML, or React server responses, and it removes the old API/page caches during activation. Offline writes are not queued: reconnect to load or save customer information. Updates wait for the user so an open form is not silently replaced. Bump the cache version in `public/sw.js` when changing the offline shell.
 
 ## Validation

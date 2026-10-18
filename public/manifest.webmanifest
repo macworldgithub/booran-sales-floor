@@ -17,52 +17,64 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/images/icon-72x72.png",
+      "src": "/images/booran-icon-72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-96x96.png",
+      "src": "/images/booran-icon-96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-128x128.png",
+      "src": "/images/booran-icon-128.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-144x144.png",
+      "src": "/images/booran-icon-144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-152x152.png",
+      "src": "/images/booran-icon-152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-192x192.png",
+      "src": "/images/booran-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-384x384.png",
+      "src": "/images/booran-icon-384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/images/icon-512x512.png",
+      "src": "/images/booran-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/images/booran-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/images/booran-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -73,7 +85,7 @@
       "url": "/?tab=today",
       "icons": [
         {
-          "src": "/images/icon-96x96.png",
+          "src": "/images/booran-icon-96.png",
           "sizes": "96x96"
         }
       ]
@@ -85,7 +97,7 @@
       "url": "/?tab=leads",
       "icons": [
         {
-          "src": "/images/icon-96x96.png",
+          "src": "/images/booran-icon-96.png",
           "sizes": "96x96"
         }
       ]
@@ -97,7 +109,7 @@
       "url": "/?tab=inventory",
       "icons": [
         {
-          "src": "/images/icon-96x96.png",
+          "src": "/images/booran-icon-96.png",
           "sizes": "96x96"
         }
       ]

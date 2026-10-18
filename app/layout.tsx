@@ -16,28 +16,25 @@ export const metadata: Metadata = {
     title: 'Booran Floor',
     startupImage: [
       {
-        url: '/images/splash-screen.jpg',
+        url: '/images/booran-splash-screen.png',
         media: '(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)',
       },
     ],
   },
   icons: {
     icon: [
-      { url: '/images/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/images/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/images/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/images/booran-favicon-16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/images/booran-favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/images/booran-icon-192.png', sizes: '192x192', type: 'image/png' },
     ],
     apple: [
-      { url: '/images/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      { rel: 'mask-icon', url: '/images/icon-512x512.png' },
+      { url: '/images/booran-apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
     ],
   },
   other: {
     'mobile-web-app-capable': 'yes',
     'msapplication-TileColor': '#171b22',
-    'msapplication-TileImage': '/images/icon-144x144.png',
+    'msapplication-TileImage': '/images/booran-icon-144.png',
     'msapplication-config': 'none',
   },
 };

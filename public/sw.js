@@ -1,7 +1,7 @@
 /* Public assets only. CRM responses and page HTML are never cached. */
-const CACHE = 'booran-pwa-v2';
+const CACHE = 'booran-pwa-v3';
 const OFFLINE = '/offline.html';
-const ASSETS = [OFFLINE, '/images/icon-192x192.png', '/images/icon-512x512.png'];
+const ASSETS = [OFFLINE, '/images/booran-icon-192.png', '/images/booran-icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));
 });
