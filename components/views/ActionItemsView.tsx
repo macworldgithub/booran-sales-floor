@@ -1,4 +1,5 @@
 'use client';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -16,6 +17,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { ActionItem } from '@/lib/types';
+import { usePaginatedQuery } from '@/lib/use-paginated-query';
+import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { inventoryApi } from '@/lib/api';
 
@@ -28,7 +31,6 @@ export function ActionItemsView({
   initialItems = [],
   selectedRooftop,
 }: ActionItemsViewProps) {
-  const [actionItems, setActionItems] = useState<ActionItem[]>(initialItems);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionTypeFilter, setActionTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('open');
@@ -36,9 +38,6 @@ export function ActionItemsView({
     selectedRooftop !== 'All Locations' ? selectedRooftop : 'all'
   );
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(1022);
-  const [isLoading, setIsLoading] = useState(false);
   const [resolvedToast, setResolvedToast] = useState<string | null>(null);
 
   // Sync rooftopFilter if selectedRooftop changes globally
@@ -51,39 +50,25 @@ export function ActionItemsView({
     setCurrentPage(1);
   }, [selectedRooftop]);
 
-  const fetchActionItems = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        limit: 20,
-      };
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-      if (actionTypeFilter !== 'all') params.actionType = actionTypeFilter;
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (rooftopFilter !== 'all') params.rooftop = rooftopFilter;
-
-      const res = await inventoryApi.getActionItems(params);
-      if (res.success && res.data) {
-        setActionItems(res.data);
-        if (res.pagination) {
-          setTotalPages(res.pagination.totalPages || 1);
-          setTotalCount(res.pagination.total || 0);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch action items:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, searchQuery, actionTypeFilter, statusFilter, rooftopFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchActionItems();
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchActionItems]);
+  const [pageSize, setPageSize] = useState(20);
+  const [sort, setSort] = useState('createdAt:desc');
+  const { data: actionItems, pagination, isLoading, error, refresh: fetchActionItems } = usePaginatedQuery(
+    inventoryApi.getActionItems,
+    { page: currentPage, limit: pageSize, search: searchQuery.trim(), actionType: actionTypeFilter,
+    status: statusFilter,
+    rooftop: rooftopFilter, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    setCurrentPage,
+  );
+  const totalPages = pagination.totalPages;
+  const totalCount = pagination.total;
+  const resetFilters = () => {
+    setSearchQuery('');
+    setActionTypeFilter('all');
+    setStatusFilter('open');
+    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    setSort('createdAt:desc');
+    setCurrentPage(1);
+  };
 
   const handleResolveAction = async (item: ActionItem) => {
     try {
@@ -97,6 +82,7 @@ export function ActionItemsView({
         setTimeout(() => setResolvedToast(null), 3000);
       }
     } catch (err) {
+      setResolvedToast(err instanceof Error ? err.message : 'Unable to resolve action.');
       console.error('Failed to resolve action item:', err);
     }
   };
@@ -137,7 +123,8 @@ export function ActionItemsView({
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              type="text"
+              aria-label="Search results"
+              type="search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -151,6 +138,7 @@ export function ActionItemsView({
           <div className="flex items-center gap-2">
             {/* Rooftop Filter */}
             <select
+              aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
                 setRooftopFilter(e.target.value);
@@ -166,7 +154,7 @@ export function ActionItemsView({
             </select>
 
             <button
-              onClick={() => fetchActionItems()}
+              onClick={fetchActionItems}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 shrink-0"
               title="Refresh Actions"
             >
@@ -226,9 +214,22 @@ export function ActionItemsView({
       </div>
 
       {/* Action Items Content: Mobile Cards + Desktop Table */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+        <p className="text-sm text-slate-600" role="status">{isLoading ? 'Updating results…' : `${totalCount.toLocaleString()} matching results`}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
+            <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <RooftopOptions />
+            </select>
+          </label>
+          <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>
+        </div>
+      </div>
+      <QueryStatus error={error} isLoading={isLoading} onRetry={fetchActionItems} />
+
       <div className="surface-card rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Mobile View: High-Priority Action Cards (< md) */}
-        <div className="md:hidden divide-y divide-slate-100">
+        <div className="lg:hidden divide-y divide-slate-100">
           {isLoading && actionItems.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-amber-600" />
@@ -288,7 +289,7 @@ export function ActionItemsView({
         </div>
 
         {/* Desktop View: Full Table (md+) */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-mono uppercase text-[10px] tracking-wider">
@@ -382,7 +383,8 @@ export function ActionItemsView({
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalCount}
-          pageSize={20}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           onPageChange={(page) => setCurrentPage(page)}
           itemName="action alerts"
           isLoading={isLoading}

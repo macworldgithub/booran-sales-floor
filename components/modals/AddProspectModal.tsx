@@ -1,5 +1,7 @@
 'use client';
 
+import { useDialog } from '@/lib/use-dialog';
+
 import React, { useState } from 'react';
 import { X, Sparkles, User, Phone, Mail, Car, MapPin, CheckCircle2 } from 'lucide-react';
 import { leadApi } from '@/lib/api';
@@ -28,6 +30,8 @@ export function AddProspectModal({
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const dialogRef = useDialog(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -70,7 +74,7 @@ export function AddProspectModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
+      <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="AddProspect" tabIndex={-1} className="relative w-full max-w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0">

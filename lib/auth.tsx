@@ -1,131 +1,76 @@
 'use client';
-
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi, setToken, clearToken, getToken } from './api';
-
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { authApi, leadApi, inventoryApi } from './api';
+import { LoginScreen } from '@/components/auth/LoginScreen';
 export interface AuthUser {
-  id: string;
-  email: string;
-  name: string;
+  id: string; email: string; name: string;
   role: 'principal' | 'manager' | 'consultant' | 'super_admin';
-  title?: string;
-  site?: string;
-  avatar?: string;
+  site: string; allowedSites: string[]; avatar?: string; title?: string;
 }
-
-const DEFAULT_USER: AuthUser = {
-  id: 'user-megan-1',
-  name: 'Megan Taylor',
-  email: 'megant@booranmotors.com.au',
-  role: 'manager',
-  title: 'Group Marketing & Operations',
-  site: 'Booran Motors Group - All Locations',
-  avatar: 'MT',
-};
-
 interface AuthContextValue {
-  user: AuthUser | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password?: string) => Promise<void>;
+  user: AuthUser | null; isAuthenticated: boolean; isLoading: boolean;
+  authError: string | null;
+  locations: string[];
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  switchRole: (role: 'principal' | 'manager' | 'consultant') => void;
+  retry: () => void;
 }
-
 const AuthContext = createContext<AuthContextValue | null>(null);
-
+function isAuthUser(value: unknown): value is AuthUser {
+  if (!value || typeof value !== 'object') return false;
+  const user = value as AuthUser;
+  return typeof user.id === 'string' && typeof user.site === 'string' &&
+    ['super_admin', 'manager'].includes(user.role) && Array.isArray(user.allowedSites) && user.allowedSites.length > 0;
+}
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(DEFAULT_USER);
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [revision, setRevision] = useState(0);
   useEffect(() => {
-    const init = async () => {
-      const token = getToken();
-      if (!token) {
-        setUser(DEFAULT_USER);
-        return;
-      }
-      try {
-        const res = await authApi.me();
-        if (res.success && res.data) {
-          setUser(res.data);
-        } else {
-          setUser(DEFAULT_USER);
-        }
-      } catch {
-        setUser(DEFAULT_USER);
-      }
-    };
-    init();
+    let active = true;
+    setIsLoading(true);
+    setAuthError(null);
+    authApi.me().then((result) => {
+      if (!active) return;
+      if (!result.success || !isAuthUser(result.data)) throw new Error('The authentication service is not configured correctly.');
+      setUser(result.data);
+    })
+      .catch((error) => { if (active && error.status !== 401) setAuthError(error.message); })
+      .finally(() => { if (active) setIsLoading(false); });
+    const expired = () => { setUser(null); setAuthError(null); };
+    window.addEventListener('booran:unauthorized', expired);
+    return () => { active = false; window.removeEventListener('booran:unauthorized', expired); };
+  }, [revision]);
+  useEffect(() => {
+    let active = true;
+    if (!user) { setLocations([]); return; }
+    setLocations(user.role === 'super_admin' ? [] : [user.site]);
+    Promise.allSettled([leadApi.getCrmRooftops(), inventoryApi.getInventoryRooftops()]).then((results) => {
+      if (!active) return;
+      const names = results.flatMap((result) => result.status === 'fulfilled' && result.value.success ? (result.value.data || []).map((rooftop) => rooftop.name) : []).filter((name): name is string => Boolean(name));
+      if (user.role !== 'super_admin') names.push(user.site);
+      setLocations(Array.from(new Set(names)).filter((name) => user.role === 'super_admin' || name.toLowerCase().includes(user.site.toLowerCase())).sort());
+    });
+    return () => { active = false; };
+  }, [user?.id, user?.role, user?.site]);
+  const login = useCallback(async (email: string, password: string) => {
+    const result = await authApi.login(email.trim().toLowerCase(), password);
+    if (!result.success || !isAuthUser(result.data?.user)) throw new Error(result.error || 'Unable to sign in.');
+    setAuthError(null);
+    setUser(result.data.user);
   }, []);
-
-  const login = useCallback(async (email: string, password?: string) => {
-    try {
-      const res = await authApi.login(email, password);
-      if (res.success && res.data) {
-        setToken(res.data.access_token);
-        setUser(res.data.user);
-      }
-    } catch {
-      // Local fallback
-      setUser({
-        id: 'user-megan-1',
-        name: email.toLowerCase().includes('paul') ? 'Paul Booran' : 'Megan Taylor',
-        email: email || 'megant@booranmotors.com.au',
-        role: email.toLowerCase().includes('paul') ? 'principal' : 'manager',
-        title: email.toLowerCase().includes('paul') ? 'Dealer Principal' : 'Group Marketing & Operations',
-        site: 'Booran Motors Group - All Locations',
-        avatar: email.toLowerCase().includes('paul') ? 'PB' : 'MT',
-      });
-    }
-  }, []);
-
   const logout = useCallback(async () => {
     await authApi.logout();
-    clearToken();
     setUser(null);
+    setAuthError(null);
   }, []);
-
-  const switchRole = useCallback((role: 'principal' | 'manager' | 'consultant') => {
-    if (role === 'principal') {
-      setUser({
-        id: 'user-paul-1',
-        name: 'Paul Booran',
-        email: 'paul.booran@booranmotors.com.au',
-        role: 'principal',
-        title: 'Dealer Principal',
-        site: 'Booran Motors Group - All Locations',
-        avatar: 'PB',
-      });
-    } else if (role === 'manager') {
-      setUser(DEFAULT_USER);
-    } else {
-      setUser({
-        id: 'user-lewis-1',
-        name: 'Lewis Dannock',
-        email: 'lewis.dannock@booranmotors.com.au',
-        role: 'consultant',
-        title: 'Senior Automotive Consultant',
-        site: 'BYD South Morang',
-        avatar: 'LD',
-      });
-    }
-  }, []);
-
-  const value: AuthContextValue = {
-    user,
-    isAuthenticated: !!user,
-    isLoading,
-    login,
-    logout,
-    switchRole,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const value = { user, isAuthenticated: Boolean(user), isLoading, authError, locations, login, logout, retry: () => setRevision((current) => current + 1) };
+  return <AuthContext.Provider value={value}>{isLoading ? <div role="status" className="min-h-dvh grid place-items-center bg-[#171b22] text-white">Verifying your session...</div> : user ? children : <LoginScreen />}</AuthContext.Provider>;
 }
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
+export function useAuth() {
+  const value = useContext(AuthContext);
+  if (!value) throw new Error('useAuth must be used inside AuthProvider.');
+  return value;
 }

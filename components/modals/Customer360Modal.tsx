@@ -1,5 +1,8 @@
 'use client';
 
+import { useAuth } from '@/lib/auth';
+import { useDialog } from '@/lib/use-dialog';
+
 import React, { useState } from 'react';
 import {
   X,
@@ -41,6 +44,9 @@ export function Customer360Modal({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const dialogRef = useDialog(isOpen, onClose);
+
   if (!isOpen || !lead) return null;
 
   const handleAddNote = async (e: React.FormEvent) => {
@@ -48,7 +54,7 @@ export function Customer360Modal({
     if (!newNote.trim()) return;
     setIsSubmittingNote(true);
     try {
-      const res = await leadApi.addNote(lead._id, newNote.trim(), 'Megan Taylor');
+      const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name);
       if (res.success && res.data) {
         onLeadUpdated?.(res.data);
         setToastMessage('Note added to customer timeline');
@@ -56,7 +62,7 @@ export function Customer360Modal({
         setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
-      console.error('Failed to add note:', err);
+      setToastMessage(err.message || 'Unable to save note.');
     } finally {
       setIsSubmittingNote(false);
     }
@@ -73,7 +79,8 @@ export function Customer360Modal({
         setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
-      console.error('Failed to update status:', err);
+      setSelectedStatus(lead.status);
+      setToastMessage(err.message || 'Unable to update status.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -85,7 +92,7 @@ export function Customer360Modal({
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-full sm:max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
+      <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="Customer360" tabIndex={-1} className="relative w-full max-w-full sm:max-w-3xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">

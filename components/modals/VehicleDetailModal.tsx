@@ -1,5 +1,8 @@
 'use client';
 
+import { useAuth } from '@/lib/auth';
+import { useDialog } from '@/lib/use-dialog';
+
 import React, { useState } from 'react';
 import {
   X,
@@ -36,6 +39,9 @@ export function VehicleDetailModal({
   const [isSubmittingHold, setIsSubmittingHold] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const { user } = useAuth();
+  const dialogRef = useDialog(isOpen, onClose);
+
   if (!isOpen || !vehicle) return null;
 
   const isHeld = vehicle.status === 'Soft Hold' || vehicle.softHold?.held;
@@ -54,7 +60,7 @@ export function VehicleDetailModal({
         const res = await inventoryApi.softHold(vehicle._id, {
           prospectName: prospectName.trim() || 'Floor Customer',
           notes: holdNotes.trim() || '48-hour customer showroom hold',
-          consultant: 'Megan Taylor',
+          consultant: user?.name,
         });
         if (res.success && res.data) {
           onVehicleUpdated?.(res.data);
@@ -91,7 +97,7 @@ export function VehicleDetailModal({
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
+      <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="VehicleDetail" tabIndex={-1} className="relative w-full max-w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">

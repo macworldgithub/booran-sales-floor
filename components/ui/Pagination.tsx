@@ -9,6 +9,7 @@ interface PaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  onPageSizeChange?: (size: number) => void;
   itemName?: string;
   isLoading?: boolean;
 }
@@ -19,13 +20,14 @@ export function Pagination({
   totalItems,
   pageSize,
   onPageChange,
+  onPageSizeChange,
   itemName = 'items',
   isLoading = false,
 }: PaginationProps) {
-  if (totalItems === 0) return null;
+
 
   const validCurrentPage = Math.max(1, Math.min(currentPage || 1, Math.max(1, totalPages || 1)));
-  const startItem = Math.min((validCurrentPage - 1) * pageSize + 1, totalItems);
+  const startItem = totalItems === 0 ? 0 : Math.min((validCurrentPage - 1) * pageSize + 1, totalItems);
   const endItem = Math.min(validCurrentPage * pageSize, totalItems);
 
   // Generate smart pagination range with ellipsis
@@ -61,7 +63,7 @@ export function Pagination({
   const pages = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-t border-slate-100 bg-white/95 rounded-b-xl backdrop-blur-xs">
+    <nav aria-label={`${itemName} pagination`} className="pagination flex flex-col xl:flex-row items-center justify-between gap-3 px-4 sm:px-5 py-3.5 border-t border-slate-100 bg-white/95 rounded-b-xl backdrop-blur-xs">
       {/* Range text */}
       <div className="text-xs text-slate-500 font-medium text-center sm:text-left flex items-center gap-2">
         <span>
@@ -73,6 +75,11 @@ export function Pagination({
         )}
       </div>
 
+      {onPageSizeChange && <label className="flex items-center gap-2 text-xs text-slate-600">Per page
+        <select aria-label="Results per page" value={pageSize} disabled={isLoading} onChange={(event) => onPageSizeChange(Number(event.target.value))} className="min-h-11 rounded-lg border border-slate-200 px-2">
+          {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+        </select>
+      </label>}
       {/* Controls */}
       {totalPages > 1 && (
         <div className="flex items-center gap-1.5 flex-wrap justify-center">
@@ -102,8 +109,9 @@ export function Pagination({
             <ChevronLeft className="w-4 h-4" />
           </button>
 
+          <span className="sm:hidden px-2 text-xs">{validCurrentPage} / {Math.max(1, totalPages)}</span>
           {/* Page numbers */}
-          <div className="flex items-center gap-1">
+          <div className="hidden sm:flex items-center gap-1">
             {pages.map((p, idx) => {
               if (p === '...') {
                 return (
@@ -120,6 +128,8 @@ export function Pagination({
               const isActive = pageNum === validCurrentPage;
               return (
                 <button
+                  aria-label={`Page ${pageNum}`}
+                  aria-current={isActive ? 'page' : undefined}
                   key={`page-${pageNum}`}
                   type="button"
                   onClick={() => onPageChange(pageNum)}
@@ -163,7 +173,7 @@ export function Pagination({
           )}
         </div>
       )}
-    </div>
+    </nav>
   );
 }
 

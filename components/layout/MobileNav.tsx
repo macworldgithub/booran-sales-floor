@@ -1,6 +1,9 @@
 'use client';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React from 'react';
+import { useAuth } from '@/lib/auth';
+import { useDialog } from '@/lib/use-dialog';
 import {
   LayoutDashboard,
   Calendar,
@@ -37,6 +40,8 @@ export function MobileNav({
   inventoryCount = 2477,
   actionItemsCount = 1022,
 }: MobileNavProps) {
+  const { user } = useAuth();
+  const dialogRef = useDialog(isOpen, onClose);
   if (!isOpen) return null;
 
   const navItems = [
@@ -59,7 +64,7 @@ export function MobileNav({
       />
 
       {/* Drawer */}
-      <div className="relative flex flex-col w-4/5 max-w-xs sm:max-w-sm bg-[#171b22] text-slate-200 p-4 shadow-2xl h-full">
+      <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="Navigation menu" tabIndex={-1} className="relative flex flex-col w-4/5 max-w-xs sm:max-w-sm bg-[#171b22] text-slate-200 p-4 shadow-2xl h-full">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-white text-sm">
@@ -91,20 +96,13 @@ export function MobileNav({
             }}
             className="w-full bg-[#1c222b] text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-white/10 focus:outline-none"
           >
-            <option value="All Locations">All Dealerships (Group View)</option>
-            <option value="BYD South Morang">BYD South Morang</option>
-            <option value="Booran Cheltenham">Booran Cheltenham</option>
-            <option value="Chery South Morang">Chery South Morang</option>
-            <option value="South Morang Hyundai">South Morang Hyundai</option>
-            <option value="South Morang Kia">South Morang Kia</option>
-            <option value="Cranbourne Hyundai">Cranbourne Hyundai</option>
-            <option value="Berwick MG">Berwick MG Hyundai</option>
+            <RooftopOptions allValue="All Locations" />
           </select>
         </div>
 
         {/* Nav Links */}
         <nav className="flex-1 overflow-y-auto space-y-1 py-2">
-          {navItems.map((item) => {
+          {navItems.filter((item) => item.id !== 'feed-logs' || user?.role === 'super_admin').map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

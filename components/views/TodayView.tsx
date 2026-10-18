@@ -65,11 +65,11 @@ export function TodayView({
     .filter((a) => a.status === 'open')
     .slice(0, 3);
 
-  const totalLeadsCount = stats?.crm?.totalLeads || leads.length || 1727;
-  const followUpCount = stats?.crm?.followingUp || leads.filter(l => l.status === 'following_up').length || 102;
-  const stockCount = stats?.inventory?.totalVehicles || vehicles.length || 2477;
-  const agingCount = stats?.inventory?.agingOver90Days || 640;
-  const actionItemsCount = stats?.inventory?.openActionItems || actionItems.length || 1022;
+  const totalLeadsCount = stats?.crm?.totalLeads ?? 0;
+  const followUpCount = stats?.crm?.followingUp ?? 0;
+  const stockCount = stats?.inventory?.totalVehicles ?? 0;
+  const agingCount = stats?.inventory?.agingOver90Days ?? 0;
+  const actionItemsCount = stats?.inventory?.openActionItems ?? 0;
 
   return (
     <div className="view-stack space-y-4 sm:space-y-6">

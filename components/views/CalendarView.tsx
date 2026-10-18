@@ -2,6 +2,10 @@
 
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, Clock, Car, Plus, User, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { appointmentApi } from '@/lib/api';
+import { usePaginatedQuery } from '@/lib/use-paginated-query';
+import { QueryStatus } from '@/components/ui/QueryStatus';
+import { Pagination } from '@/components/ui/Pagination';
 import { Appointment } from '@/lib/types';
 
 interface CalendarViewProps {
@@ -10,7 +14,17 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
+
+  const [type, setType] = useState('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const from = new Date(`${selectedDate}T00:00:00`);
+  const to = new Date(from);
+  to.setDate(to.getDate() + 1);
+  const { data: filteredAppointments, pagination, isLoading, error, refresh } = usePaginatedQuery(
+    appointmentApi.getAppointments, { page, limit: pageSize, from: from.toISOString(), to: to.toISOString(), type }, setPage,
+  );
 
   return (
     <div className="view-stack space-y-5">
@@ -37,25 +51,31 @@ export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProp
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <label className="flex items-center gap-2 text-sm">Date<input aria-label="Appointment date" type="date" value={selectedDate} onChange={(event) => { if (event.target.value) { setSelectedDate(event.target.value); setPage(1); } }} className="min-w-0 rounded-lg border p-2" /></label>
+        <select aria-label="Appointment type" value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className="rounded-lg border p-2 text-sm"><option value="all">All visit types</option><option>Test Drive</option><option>Showroom Visit</option><option>Delivery Handover</option><option>Callback</option></select>
+        <button onClick={() => { setSelectedDate(new Date().toLocaleDateString('en-CA')); setType('all'); setPage(1); }} className="text-sm text-red-700">Today</button>
+      </div>
+      <QueryStatus error={error} isLoading={isLoading} onRetry={refresh} />
       {/* Timeline Card */}
       <div className="surface-card rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="flex flex-wrap gap-3 items-center justify-between pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-4 h-4 text-red-600" />
-            <h3 className="text-sm font-bold text-slate-900">Today&apos;s Showroom Activity</h3>
+            <h3 className="text-sm font-bold text-slate-900">Showroom Activity</h3>
           </div>
           <span className="text-xs text-slate-500 font-mono">
-            {new Date().toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-AU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </span>
         </div>
 
         <div className="space-y-3">
-          {appointments.length === 0 ? (
+          {filteredAppointments.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-500">
               No appointments scheduled. Click &quot;+ Schedule Drive / Visit&quot; above to book.
             </div>
           ) : (
-            appointments.map((appt) => (
+            filteredAppointments.map((appt) => (
               <div
                 key={appt._id}
                 className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-100/70 transition-colors"
@@ -65,7 +85,7 @@ export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProp
                     <Clock className="w-5 h-5 text-red-500" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-bold text-slate-900">{appt.prospectName}</h4>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-800">
                         {appt.type}
@@ -94,6 +114,7 @@ export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProp
           )}
         </div>
       </div>
+      <Pagination currentPage={page} totalPages={pagination.totalPages} totalItems={pagination.total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemName="appointments" isLoading={isLoading} />
     </div>
   );
 }

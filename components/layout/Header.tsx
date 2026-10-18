@@ -23,7 +23,6 @@ import { Lead, Vehicle, ActionItem } from '@/lib/types';
 
 interface HeaderProps {
   role: 'consultant' | 'manager' | 'principal' | 'super_admin';
-  setRole: (role: 'consultant' | 'manager' | 'principal' | 'super_admin') => void;
   onOpenMobileNav: () => void;
   onOpenNotifications: () => void;
   onSelectLead?: (lead: Lead) => void;
@@ -35,7 +34,6 @@ interface HeaderProps {
 
 export function Header({
   role,
-  setRole,
   onOpenMobileNav,
   onOpenNotifications,
   onSelectLead,
@@ -44,7 +42,7 @@ export function Header({
   isOnline = true,
   onOpenAddProspect,
 }: HeaderProps) {
-  const { user, logout, switchRole } = useAuth();
+  const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{
     leads: Lead[];
@@ -63,22 +61,24 @@ export function Header({
       return;
     }
 
+    let active = true;
+    setSearchResults(null);
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         const res = await unifiedApi.search(searchQuery.trim());
-        if (res.success && res.data) {
+        if (active && res.success && res.data) {
           setSearchResults(res.data);
           setIsSearchOpen(true);
         }
       } catch (err) {
         console.error('Search error:', err);
       } finally {
-        setIsSearching(false);
+        if (active) setIsSearching(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => { active = false; clearTimeout(timer); };
   }, [searchQuery]);
 
   // Close search when clicking outside
@@ -93,7 +93,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 lg:h-[72px] px-3 sm:px-6 lg:px-8 bg-white/95 border-b border-slate-200/80 shadow-sm backdrop-blur-md">
+    <header className="sticky top-0 z-30 flex items-center justify-between min-h-16 shrink-0 lg:min-h-[72px] px-3 sm:px-6 lg:px-8 bg-white/95 border-b border-slate-200/80 shadow-sm backdrop-blur-md">
       {/* Left: Mobile Nav & Brand Lockup */}
       <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
         <button
@@ -133,7 +133,7 @@ export function Header({
 
           {/* Search Dropdown Results */}
           {isSearchOpen && searchResults && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 max-h-[420px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
+            <div className="fixed top-16 left-3 right-3 sm:absolute sm:top-full sm:left-0 sm:right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 max-h-[420px] overflow-y-auto animate-in fade-in slide-in-from-top-2">
               {searchResults.leads.length === 0 &&
               searchResults.vehicles.length === 0 &&
               searchResults.actionItems.length === 0 ? (
@@ -264,7 +264,7 @@ export function Header({
                 {user?.name || 'Megan Taylor'}
               </p>
               <p className="text-[10px] text-slate-500 capitalize">
-                {role === 'principal' ? 'Dealer Principal' : role === 'manager' ? 'Group Manager' : 'Consultant'}
+                {role === 'super_admin' ? 'Super Admin' : role === 'manager' ? 'Site Manager' : 'Consultant'}
               </p>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xs:block" />
@@ -278,55 +278,11 @@ export function Header({
                 <p className="text-[10px] text-slate-500">{user?.email}</p>
               </div>
 
-              <div className="p-1 space-y-1">
-                <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase px-2 pt-1 font-mono">
-                  Switch Scope
-                </p>
-                <button
-                  onClick={() => {
-                    setRole('principal');
-                    switchRole('principal');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
-                    role === 'principal' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>Paul Booran (Principal)</span>
-                  {role === 'principal' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
-                </button>
-                <button
-                  onClick={() => {
-                    setRole('manager');
-                    switchRole('manager');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
-                    role === 'manager' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>Megan Taylor (Manager)</span>
-                  {role === 'manager' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
-                </button>
-                <button
-                  onClick={() => {
-                    setRole('consultant');
-                    switchRole('consultant');
-                    setIsRoleDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between ${
-                    role === 'consultant' ? 'bg-red-50 text-red-700' : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span>Lewis Dannock (Consultant)</span>
-                  {role === 'consultant' && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
-                </button>
-              </div>
-
+              <div className="px-3 py-3 text-xs text-slate-600">{user?.role === 'super_admin' ? 'All locations' : user?.site}</div>
               <div className="pt-1 border-t border-slate-100">
                 <button
                   onClick={() => {
-                    logout();
+                    logout().catch((error) => window.alert(error.message || 'Unable to sign out. Please retry.'));
                     setIsRoleDropdownOpen(false);
                   }}
                   className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"

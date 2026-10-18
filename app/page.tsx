@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { MobileNav } from '@/components/layout/MobileNav';
@@ -33,9 +33,25 @@ export default function BooranSalesFloorApp() {
   const { user } = useAuth();
 
   // Navigation & Scope
-  const [activeTab, setActiveTab] = useState<string>('today');
-  const [selectedRooftop, setSelectedRooftop] = useState<string>('All Locations');
-  const [role, setRole] = useState<'consultant' | 'manager' | 'principal' | 'super_admin'>('manager');
+  const [activeTab, updateActiveTab] = useState<string>('today');
+  const setActiveTab = (tab: string) => {
+    updateActiveTab(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.pushState({}, '', url);
+    document.getElementById('main-content')?.scrollTo({ top: 0 });
+  };
+  useEffect(() => {
+    const sync = () => {
+      const tab = new URL(window.location.href).searchParams.get('tab') || 'today';
+      updateActiveTab(tab === 'feed-logs' && user?.role !== 'super_admin' ? 'today' : ['today', 'leads', 'inventory', 'action-items', 'calendar', 'rooftops', 'staff', 'feed-logs'].includes(tab) ? tab : 'today');
+    };
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, [user?.role]);
+  const [selectedRooftop, setSelectedRooftop] = useState<string>(user?.role === 'super_admin' ? 'All Locations' : user?.site || 'South Morang');
+  const role = user?.role || 'manager';
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Data Stores
@@ -45,6 +61,7 @@ export default function BooranSalesFloorApp() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [unifiedSummary, setUnifiedSummary] = useState<UnifiedSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Modals
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -54,18 +71,24 @@ export default function BooranSalesFloorApp() {
   const [isAddProspectOpen, setIsAddProspectOpen] = useState<boolean>(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
 
+  const loadVersion = useRef(0);
+
   // Fetch initial telemetry
   const loadInitialData = useCallback(async () => {
+    const version = ++loadVersion.current;
     setIsLoading(true);
+    setLoadError(false);
     try {
       const [leadsRes, vehiclesRes, actionsRes, apptsRes, summaryRes] = await Promise.all([
-        leadApi.getLeads({ limit: 30 }).catch(() => ({ success: false, data: [] })),
-        inventoryApi.getVehicles({ limit: 30 }).catch(() => ({ success: false, data: [] })),
-        inventoryApi.getActionItems({ limit: 30 }).catch(() => ({ success: false, data: [] })),
-        appointmentApi.getAppointments().catch(() => ({ success: false, data: [] })),
-        unifiedApi.getSummary().catch(() => ({ success: false, data: undefined })),
+        leadApi.getLeads({ limit: 30, dealership: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        inventoryApi.getVehicles({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        inventoryApi.getActionItems({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        appointmentApi.getAppointments({ limit: 30, from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), to: new Date(new Date().setHours(24, 0, 0, 0)).toISOString() }).catch(() => ({ success: false, data: [] })),
+        unifiedApi.getSummary(selectedRooftop).catch(() => ({ success: false, data: undefined })),
       ]);
 
+      if (version !== loadVersion.current) return;
+      setLoadError(!leadsRes.success || !vehiclesRes.success || !actionsRes.success || !apptsRes.success || !summaryRes.success);
       if (leadsRes.success && leadsRes.data) {
         setLeads(leadsRes.data);
       }
@@ -84,12 +107,14 @@ export default function BooranSalesFloorApp() {
     } catch (err) {
       console.error('Data load error:', err);
     } finally {
-      setIsLoading(false);
+      if (version === loadVersion.current) setIsLoading(false);
     }
-  }, []);
+  }, [selectedRooftop]);
 
   useEffect(() => {
     loadInitialData();
+    window.addEventListener('booran:data-changed', loadInitialData);
+    return () => window.removeEventListener('booran:data-changed', loadInitialData);
   }, [loadInitialData]);
 
   // Handle lead update from modal
@@ -109,7 +134,8 @@ export default function BooranSalesFloorApp() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-[#f4f5f7] text-slate-900 overflow-hidden font-sans">
+    <div className="app-shell flex w-full bg-[#f4f5f7] text-slate-900 overflow-hidden font-sans">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
@@ -117,16 +143,15 @@ export default function BooranSalesFloorApp() {
         role={role}
         selectedRooftop={selectedRooftop}
         setSelectedRooftop={setSelectedRooftop}
-        leadsCount={unifiedSummary?.crm?.totalLeads || 1727}
-        inventoryCount={unifiedSummary?.inventory?.totalVehicles || 2477}
-        actionItemsCount={unifiedSummary?.inventory?.openActionItems || 1022}
+        leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
+        actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+      <div className="app-content flex-1 flex flex-col overflow-hidden min-w-0">
         <Header
           role={role}
-          setRole={setRole}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onSelectLead={(l) => setSelectedLead(l)}
@@ -135,7 +160,9 @@ export default function BooranSalesFloorApp() {
         />
 
         {/* View Container */}
-        <main className="app-main flex-1 overflow-x-hidden">
+        <main id="main-content" tabIndex={-1} className="app-main flex-1 overflow-x-hidden">
+          {isLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
+          {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
           {activeTab === 'today' && (
             <TodayView
               leads={leads}
@@ -193,16 +220,16 @@ export default function BooranSalesFloorApp() {
             />
           )}
 
-          {activeTab === 'rooftops' && <RooftopsView />}
+          {activeTab === 'rooftops' && <RooftopsView onSelectRooftopFilter={(rooftop) => { setSelectedRooftop(rooftop); setActiveTab('inventory'); }} />}
 
           {activeTab === 'staff' && <StaffView />}
 
-          {activeTab === 'feed-logs' && <FeedLogsView />}
+          {activeTab === 'feed-logs' && user?.role === 'super_admin' && <FeedLogsView />}
         </main>
       </div>
 
       {/* Global Modals */}
-      <Customer360Modal
+      <Customer360Modal key={selectedLead?._id || 'closed'}
         lead={selectedLead}
         isOpen={!!selectedLead}
         onClose={() => setSelectedLead(null)}
@@ -220,7 +247,7 @@ export default function BooranSalesFloorApp() {
         onVehicleUpdated={handleVehicleUpdated}
       />
 
-      <AddProspectModal
+      <AddProspectModal key={`${isAddProspectOpen}-${selectedRooftop}`}
         isOpen={isAddProspectOpen}
         onClose={() => setIsAddProspectOpen(false)}
         onLeadCreated={(newLead) => {
@@ -230,7 +257,7 @@ export default function BooranSalesFloorApp() {
         defaultDealership={selectedRooftop !== 'All Locations' ? selectedRooftop : 'BYD South Morang'}
       />
 
-      <BookTestDriveModal
+      <BookTestDriveModal key={`${bookDriveLead?._id || 'new'}-${isBookDriveOpen}`}
         lead={bookDriveLead}
         isOpen={isBookDriveOpen}
         onClose={() => setIsBookDriveOpen(false)}
@@ -250,9 +277,9 @@ export default function BooranSalesFloorApp() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenMore={() => setIsMobileNavOpen(true)}
-        leadsCount={unifiedSummary?.crm?.totalLeads || 1727}
-        inventoryCount={unifiedSummary?.inventory?.totalVehicles || 2477}
-        actionItemsCount={unifiedSummary?.inventory?.openActionItems || 1022}
+        leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
+        actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
 
       <MobileNav
@@ -262,9 +289,9 @@ export default function BooranSalesFloorApp() {
         setActiveTab={setActiveTab}
         selectedRooftop={selectedRooftop}
         setSelectedRooftop={setSelectedRooftop}
-        leadsCount={unifiedSummary?.crm?.totalLeads || 1727}
-        inventoryCount={unifiedSummary?.inventory?.totalVehicles || 2477}
-        actionItemsCount={unifiedSummary?.inventory?.openActionItems || 1022}
+        leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
+        actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
     </div>
   );

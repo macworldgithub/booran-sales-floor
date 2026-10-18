@@ -1,4 +1,5 @@
 'use client';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -17,6 +18,8 @@ import {
   Layers,
 } from 'lucide-react';
 import { Vehicle } from '@/lib/types';
+import { usePaginatedQuery } from '@/lib/use-paginated-query';
+import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { inventoryApi } from '@/lib/api';
 
@@ -31,7 +34,6 @@ export function InventoryView({
   selectedRooftop,
   onSelectVehicle,
 }: InventoryViewProps) {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [agingFilter, setAgingFilter] = useState('all');
@@ -39,9 +41,6 @@ export function InventoryView({
     selectedRooftop !== 'All Locations' ? selectedRooftop : 'all'
   );
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalUnits, setTotalUnits] = useState(2477);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Sync rooftopFilter if selectedRooftop changes globally
   useEffect(() => {
@@ -53,39 +52,25 @@ export function InventoryView({
     setCurrentPage(1);
   }, [selectedRooftop]);
 
-  const fetchVehicles = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        limit: 20,
-      };
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-      if (categoryFilter !== 'all') params.category = categoryFilter;
-      if (agingFilter !== 'all') params.agingBucket = agingFilter;
-      if (rooftopFilter !== 'all') params.rooftop = rooftopFilter;
-
-      const res = await inventoryApi.getVehicles(params);
-      if (res.success && res.data) {
-        setVehicles(res.data);
-        if (res.pagination) {
-          setTotalPages(res.pagination.totalPages || 1);
-          setTotalUnits(res.pagination.total || 0);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch inventory vehicles:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, searchQuery, categoryFilter, agingFilter, rooftopFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchVehicles();
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchVehicles]);
+  const [pageSize, setPageSize] = useState(20);
+  const [sort, setSort] = useState('daysInStock:desc');
+  const { data: vehicles, pagination, isLoading, error, refresh: fetchVehicles } = usePaginatedQuery(
+    inventoryApi.getVehicles,
+    { page: currentPage, limit: pageSize, search: searchQuery.trim(), category: categoryFilter,
+    agingBucket: agingFilter,
+    rooftop: rooftopFilter, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    setCurrentPage,
+  );
+  const totalPages = pagination.totalPages;
+  const totalUnits = pagination.total;
+  const resetFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setAgingFilter('all');
+    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    setSort('daysInStock:desc');
+    setCurrentPage(1);
+  };
 
   const getAgingBadgeColor = (bucket: string) => {
     switch (bucket) {
@@ -125,7 +110,7 @@ export function InventoryView({
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-right">
             <p className="text-[10px] text-slate-400 uppercase font-mono">Aging 90+ Traps</p>
-            <p className="text-sm font-bold text-red-600">640 units</p>
+            <p className="text-sm font-bold text-red-600">See aging filter</p>
           </div>
         </div>
       </div>
@@ -136,7 +121,8 @@ export function InventoryView({
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              type="text"
+              aria-label="Search results"
+              type="search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -150,6 +136,7 @@ export function InventoryView({
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
             {/* Category Filter */}
             <select
+              aria-label="Vehicle category"
               value={categoryFilter}
               onChange={(e) => {
                 setCategoryFilter(e.target.value);
@@ -166,6 +153,7 @@ export function InventoryView({
 
             {/* Rooftop Filter */}
             <select
+              aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
                 setRooftopFilter(e.target.value);
@@ -181,7 +169,7 @@ export function InventoryView({
             </select>
 
             <button
-              onClick={() => fetchVehicles()}
+              onClick={fetchVehicles}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 shrink-0"
               title="Refresh Stock"
             >
@@ -226,9 +214,22 @@ export function InventoryView({
       </div>
 
       {/* Inventory Table & Mobile Cards */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+        <p className="text-sm text-slate-600" role="status">{isLoading ? 'Updating results…' : `${totalUnits.toLocaleString()} matching results`}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
+            <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <RooftopOptions />
+            </select>
+          </label>
+          <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>
+        </div>
+      </div>
+      <QueryStatus error={error} isLoading={isLoading} onRetry={fetchVehicles} />
+
       <div className="surface-card rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Mobile View: High-Density Vehicle Cards (< md) */}
-        <div className="md:hidden divide-y divide-slate-100">
+        <div className="lg:hidden divide-y divide-slate-100">
           {isLoading && vehicles.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-cyan-600" />
@@ -326,7 +327,7 @@ export function InventoryView({
         </div>
 
         {/* Desktop View: Full Data Table (md+) */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-mono uppercase text-[10px] tracking-wider">
@@ -456,7 +457,8 @@ export function InventoryView({
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalUnits}
-          pageSize={20}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           onPageChange={(page) => setCurrentPage(page)}
           itemName="vehicles"
           isLoading={isLoading}

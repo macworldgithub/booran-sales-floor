@@ -3,29 +3,19 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle2, AlertTriangle, Database, Activity, ShieldCheck, Clock } from 'lucide-react';
 import { FeedLog } from '@/lib/types';
+import { Pagination } from '@/components/ui/Pagination';
+import { QueryStatus } from '@/components/ui/QueryStatus';
+import { usePaginatedQuery } from '@/lib/use-paginated-query';
 import { inventoryApi } from '@/lib/api';
 
 export function FeedLogsView() {
-  const [logs, setLogs] = useState<FeedLog[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchLogs = async () => {
-    setIsLoading(true);
-    try {
-      const res = await inventoryApi.getFeedLogs();
-      if (res.success && res.data) {
-        setLogs(res.data);
-      }
-    } catch (err) {
-      console.error('Failed to load feed logs:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLogs();
-  }, []);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [status, setStatus] = useState('all');
+  const [search, setSearch] = useState('');
+  const { data: logs, pagination, isLoading, error, refresh: fetchLogs } = usePaginatedQuery(
+    inventoryApi.getFeedLogs, { page, limit: pageSize, status, search }, setPage,
+  );
 
   return (
     <div className="view-stack space-y-5">
@@ -51,6 +41,14 @@ export function FeedLogsView() {
         </button>
       </div>
 
+      <div className="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <input aria-label="Search feed logs" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search feed type or notes" className="min-w-0 flex-1 rounded-lg border p-2 text-sm" />
+        <select aria-label="Feed status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }} className="rounded-lg border p-2 text-sm">
+          <option value="all">All statuses</option><option>SUCCESS</option><option>WARNING</option><option>ERROR</option>
+        </select>
+        <button onClick={() => { setSearch(''); setStatus('all'); setPage(1); }} className="text-sm text-red-700">Reset filters</button>
+      </div>
+      <QueryStatus error={error} isLoading={isLoading} onRetry={fetchLogs} />
       {/* Logs Table */}
       <div className="surface-card rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
         <h3 className="text-sm font-bold text-slate-900 uppercase font-heading tracking-wide">
@@ -109,6 +107,7 @@ export function FeedLogsView() {
           )}
         </div>
       </div>
+      <Pagination currentPage={page} totalPages={pagination.totalPages} totalItems={pagination.total} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemName="feed logs" isLoading={isLoading} />
     </div>
   );
 }

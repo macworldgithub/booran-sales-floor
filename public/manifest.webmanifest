@@ -8,7 +8,10 @@
   "orientation": "any",
   "background_color": "#171b22",
   "theme_color": "#171b22",
-  "categories": ["business", "productivity"],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "lang": "en-AU",
   "dir": "ltr",
   "prefer_related_applications": false,
@@ -47,7 +50,7 @@
       "src": "/images/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/icon-384x384.png",
@@ -59,16 +62,7 @@
       "src": "/images/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/images/og-image.png",
-      "sizes": "1200x630",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Booran Motors Sales Floor Dashboard"
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -77,21 +71,41 @@
       "short_name": "Today",
       "description": "Jump to today's sales snapshot",
       "url": "/?tab=today",
-      "icons": [{ "src": "/images/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/images/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "Leads",
       "short_name": "Leads",
       "description": "View and manage all active leads",
       "url": "/?tab=leads",
-      "icons": [{ "src": "/images/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/images/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "Inventory",
       "short_name": "Stock",
       "description": "Live vehicle inventory tracker",
       "url": "/?tab=inventory",
-      "icons": [{ "src": "/images/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/images/icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
     }
+  ],
+  "id": "/",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }

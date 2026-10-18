@@ -29,17 +29,19 @@ export default function PWAInstallPrompt() {
     }
 
     // Detect iOS
-    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    const ios = (/iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
     setIsIOS(ios);
 
     // Check if user has dismissed it before
-    const dismissed = localStorage.getItem('pwa-install-dismissed');
-    const dismissedAt = dismissed ? parseInt(dismissed) : 0;
+    let dismissed: string | null = null;
+    try { dismissed = localStorage.getItem('pwa-install-dismissed'); } catch {}
+    let bannerTimer: ReturnType<typeof setTimeout> | undefined;
+    const dismissedAt = Number(dismissed) || 0;
     const sevenDays = 7 * 24 * 60 * 60 * 1000;
 
     // On iOS, show banner after 2 seconds if not dismissed within 7 days
     if (ios && Date.now() - dismissedAt > sevenDays) {
-      setTimeout(() => setShowBanner(true), 2500);
+      bannerTimer = setTimeout(() => setShowBanner(true), 2500);
     }
 
     // Listen for the native install prompt (Chrome/Android/Desktop)
@@ -47,20 +49,21 @@ export default function PWAInstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       if (Date.now() - dismissedAt > sevenDays) {
-        setTimeout(() => setShowBanner(true), 2500);
+        bannerTimer = setTimeout(() => setShowBanner(true), 2500);
       }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
 
     // Detect if installed via event
-    window.addEventListener('appinstalled', () => {
+    const installed = () => {
       setIsInstalled(true);
       setShowBanner(false);
       setDeferredPrompt(null);
-    });
+    };
+    window.addEventListener('appinstalled', installed);
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => { clearTimeout(bannerTimer); window.removeEventListener('beforeinstallprompt', handler); window.removeEventListener('appinstalled', installed); };
   }, []);
 
   const handleInstall = async () => {
@@ -75,10 +78,14 @@ export default function PWAInstallPrompt() {
     try {
       await deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setShowBanner(false);
-        setDeferredPrompt(null);
+      setShowBanner(false);
+      setDeferredPrompt(null);
+      if (outcome === 'dismissed') {
+        try { localStorage.setItem('pwa-install-dismissed', Date.now().toString()); } catch {}
       }
+    } catch {
+      setShowBanner(false);
+      setDeferredPrompt(null);
     } finally {
       setInstalling(false);
     }
@@ -87,7 +94,7 @@ export default function PWAInstallPrompt() {
   const handleDismiss = () => {
     setShowBanner(false);
     setShowIOSGuide(false);
-    localStorage.setItem('pwa-install-dismissed', Date.now().toString());
+    try { localStorage.setItem('pwa-install-dismissed', Date.now().toString()); } catch {}
   };
 
   if (isInstalled || (!showBanner && !showIOSGuide)) return null;
@@ -110,7 +117,7 @@ export default function PWAInstallPrompt() {
                   <p className="text-xs" style={{ color: '#8892a4' }}>Add to Home Screen</p>
                 </div>
               </div>
-              <button onClick={handleDismiss} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <button aria-label="Dismiss install prompt" onClick={handleDismiss} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
                 <X size={16} className="text-gray-400" />
               </button>
             </div>
@@ -153,7 +160,7 @@ export default function PWAInstallPrompt() {
   // Standard install banner (Android/Desktop)
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-[9999] flex items-center gap-4 px-4 py-4 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-sm lg:rounded-2xl"
+      className="pwa-install fixed left-0 right-0 z-[45] flex items-center gap-4 px-4 py-4 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-sm lg:rounded-2xl"
       style={{
         background: 'linear-gradient(135deg, #1e2330 0%, #252c3d 100%)',
         borderTop: '1px solid rgba(255,255,255,0.06)',

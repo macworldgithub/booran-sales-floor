@@ -1,4 +1,5 @@
 'use client';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React from 'react';
 import {
@@ -74,7 +75,7 @@ export function Sidebar({
   ];
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-[#171b22] text-slate-200 h-screen sticky top-0 shrink-0 border-r border-white/10 z-40">
+    <aside className="hidden lg:flex flex-col w-64 bg-[#171b22] text-slate-200 h-dvh sticky top-0 shrink-0 border-r border-white/10 z-40">
       {/* Brand Header */}
       <div className="p-4 pb-3 border-b border-white/10 bg-[#12161c]">
         <div className="flex items-center gap-3">
@@ -101,14 +102,7 @@ export function Sidebar({
             onChange={(e) => setSelectedRooftop(e.target.value)}
             className="w-full bg-[#1c222b] text-slate-200 text-xs rounded-lg px-2.5 py-1.5 border border-white/10 focus:outline-none focus:border-red-500 font-sans cursor-pointer transition-colors"
           >
-            <option value="All Locations">All Dealerships (Group View)</option>
-            <option value="BYD South Morang">BYD South Morang</option>
-            <option value="Booran Cheltenham">Booran Cheltenham</option>
-            <option value="Chery South Morang">Chery South Morang</option>
-            <option value="South Morang Hyundai">South Morang Hyundai</option>
-            <option value="South Morang Kia">South Morang Kia</option>
-            <option value="Cranbourne Hyundai">Cranbourne Hyundai</option>
-            <option value="Berwick MG">Berwick MG Hyundai</option>
+            <RooftopOptions allValue="All Locations" />
           </select>
         </div>
       </div>
@@ -170,7 +164,7 @@ export function Sidebar({
             </span>
           </div>
           <nav className="space-y-1">
-            {managementNavItems.map((item) => {
+            {managementNavItems.filter((item) => item.id !== 'feed-logs' || role === 'super_admin').map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -206,14 +200,14 @@ export function Sidebar({
                 <span className="truncate">flwup_crm</span>
                 <span className="flex items-center gap-1 text-emerald-400 text-[9px] font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  1,727
+                  {leadsCount.toLocaleString()}
                 </span>
               </div>
               <div className="flex items-center justify-between text-slate-400">
                 <span className="truncate">booran_inventory</span>
                 <span className="flex items-center gap-1 text-emerald-400 text-[9px] font-bold">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  2,477
+                  {inventoryCount.toLocaleString()}
                 </span>
               </div>
             </div>

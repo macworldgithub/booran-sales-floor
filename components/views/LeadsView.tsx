@@ -1,4 +1,5 @@
 'use client';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -16,6 +17,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
+import { usePaginatedQuery } from '@/lib/use-paginated-query';
+import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { leadApi } from '@/lib/api';
 
@@ -34,14 +37,10 @@ export function LeadsView({
   onOpenBookDrive,
   onOpenAddProspect,
 }: LeadsViewProps) {
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [rooftopFilter, setRooftopFilter] = useState(selectedRooftop !== 'All Locations' ? selectedRooftop : 'all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalLeads, setTotalLeads] = useState(1727);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Sync rooftopFilter if selectedRooftop changes from Header/Sidebar
   useEffect(() => {
@@ -53,38 +52,23 @@ export function LeadsView({
     setCurrentPage(1);
   }, [selectedRooftop]);
 
-  const fetchLeads = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params: Record<string, string | number> = {
-        page: currentPage,
-        limit: 20,
-      };
-      if (searchQuery.trim()) params.search = searchQuery.trim();
-      if (statusFilter !== 'all') params.status = statusFilter;
-      if (rooftopFilter !== 'all') params.dealership = rooftopFilter;
-
-      const res = await leadApi.getLeads(params);
-      if (res.success && res.data) {
-        setLeads(res.data);
-        if (res.pagination) {
-          setTotalPages(res.pagination.totalPages || 1);
-          setTotalLeads(res.pagination.total || 0);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch leads:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentPage, searchQuery, statusFilter, rooftopFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchLeads();
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [fetchLeads]);
+  const [pageSize, setPageSize] = useState(20);
+  const [sort, setSort] = useState('created_at:desc');
+  const { data: leads, pagination, isLoading, error, refresh: fetchLeads } = usePaginatedQuery(
+    leadApi.getLeads,
+    { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
+    dealership: rooftopFilter, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    setCurrentPage,
+  );
+  const totalPages = pagination.totalPages;
+  const totalLeads = pagination.total;
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    setSort('created_at:desc');
+    setCurrentPage(1);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -139,7 +123,8 @@ export function LeadsView({
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              type="text"
+              aria-label="Search results"
+              type="search"
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -153,6 +138,7 @@ export function LeadsView({
           {/* Dealership Filter & Refresh */}
           <div className="flex items-center gap-2">
             <select
+              aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
                 setRooftopFilter(e.target.value);
@@ -168,7 +154,7 @@ export function LeadsView({
             </select>
 
             <button
-              onClick={() => fetchLeads()}
+              onClick={fetchLeads}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-200 shrink-0"
               title="Refresh Leads"
             >
@@ -206,9 +192,22 @@ export function LeadsView({
       </div>
 
       {/* Leads Content: Mobile Cards + Desktop Table */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+        <p className="text-sm text-slate-600" role="status">{isLoading ? 'Updating results…' : `${totalLeads.toLocaleString()} matching results`}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
+            <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <RooftopOptions />
+            </select>
+          </label>
+          <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>
+        </div>
+      </div>
+      <QueryStatus error={error} isLoading={isLoading} onRetry={fetchLeads} />
+
       <div className="surface-card rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Mobile View: High-Performance Touch Cards (< sm) */}
-        <div className="sm:hidden divide-y divide-slate-100">
+        <div className="lg:hidden divide-y divide-slate-100">
           {isLoading && leads.length === 0 ? (
             <div className="py-12 text-center text-slate-500 text-xs">
               <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-red-600" />
@@ -294,7 +293,7 @@ export function LeadsView({
         </div>
 
         {/* Desktop View: Full Data Table (sm+) */}
-        <div className="hidden sm:block overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-mono uppercase text-[10px] tracking-wider">
@@ -417,7 +416,8 @@ export function LeadsView({
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalLeads}
-          pageSize={20}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           onPageChange={(page) => setCurrentPage(page)}
           itemName="leads"
           isLoading={isLoading}

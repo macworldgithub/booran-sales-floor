@@ -1,44 +1,47 @@
-# Booran Motors Sales Floor OS - Frontend
+# Booran Sales Floor
 
-Executive Sales Floor & Inventory Tracking Platform for Booran Motors Group Victoria. Built with Next.js 16, TypeScript, Tailwind CSS, Lucide icons, and Framer Motion.
+Next.js 16 frontend for the sales floor, inventory, appointments, and location management.
 
-## Features
-- **Executive Command Center (Today)**: Real-time telemetry, 5 KPI cards, urgent lead callbacks, and showroom test drive schedule.
-- **Leads Centre (CRM)**: Powered by `flwup_crm` (1,727 active leads), multi-rooftop filter, status pills (`new_lead`, `following_up`, `sold`), search, and Customer 360 modal with diary entries.
-- **Live Inventory**: Powered by `booran_inventory_tracker` (2,477 stock units), Days in Stock (DIS) aging buckets (<30, 31-45, 46-60, 61-90, 90+), price/cost breakdown, and 48-hour soft-hold workflow.
-- **Capital Trap Radar**: 1,022 deterministic action alerts (Wholesale recommendations, price compression reviews).
-- **Showroom Floor**: Daily appointments and test drives calendar.
-- **Locations & Rooftops**: Network intelligence across Booran Cheltenham, BYD South Morang, Cranbourne Hyundai, Berwick MG, South Morang Kia & Chery.
-- **Staff & Allocation**: Consultant pipeline load capacity meter and conversion metrics.
-- **DMS & Feed Sync**: Pentana DMS feed logs and reconciliation audits.
+## Local development
 
-## Vercel Deployment
+Use Node.js 22. Run `npm ci`, copy `.env.example` to `.env.local`, then run `npm run dev`. Start the backend separately on port 5001.
 
-### 1. Import to Vercel
-1. Push this repository to GitHub or import in the [Vercel Dashboard](https://vercel.com/new).
-2. Framework Preset: **Next.js** (automatically detected).
+`API_URL` is a **server-only** variable pointing to the backend, including `/api`. The browser always uses the same-origin `/api` proxy; the old `NEXT_PUBLIC_API_URL` setting is no longer used. Never put MongoDB credentials in this frontend project.
 
-### 2. Configure Environment Variables in Vercel
-Set the following environment variable in your Vercel Project Settings (`Settings` > `Environment Variables`):
+## Authentication and location access
 
-| Variable | Description | Example |
-| :--- | :--- | :--- |
-| `NEXT_PUBLIC_API_URL` | Your deployed backend URL | `https://booran-sales-floor-backend.vercel.app/api` |
+The dashboard mounts only after the server verifies an HttpOnly session cookie. The backend enforces the role and site on lists, individual records, searches, aggregates, and writes.
 
-*(Note: If omitted, the client automatically defaults to `https://booran-sales-floor-backend.vercel.app/api` in production, or `http://localhost:5001/api` on localhost).*
+- `devs@omnisuiteai.com`: super admin, all locations.
+- `southmorang@booran.com`: manager, South Morang location group (including its BYD, Chery, Hyundai, and Kia dealerships).
 
-### 3. Deploy
-Click **Deploy**. Next.js will automatically create an optimized production build.
+There is no client-side role switch or offline login fallback. Global DMS feed logs are available only to the super admin. Password provisioning is described in the backend README. Passwords are never stored in this repository.
 
----
+## Vercel deployment
 
-## Local Development
-```bash
-# Install dependencies
-npm install
+Deploy the two directories as separate Vercel projects. Deploy the backend first, then this frontend.
 
-# Start development server (port 3000)
-npm run dev
-```
+1. Frontend root directory: `booran-sales-floor`; framework: Next.js; Node.js 22.
+2. Set `API_URL` to the deployed backend URL ending in `/api` for the appropriate Preview and Production environments.
+3. Run `npm run typecheck`, `npm test`, and `npm run build` before deployment. `vercel.json` uses `npm ci` and the normal Next.js build.
+4. Verify both accounts over HTTPS: unauthenticated API calls return 401, site users cannot read another location by ID or filter, and signing out revokes the session.
 
-Visit: `http://localhost:3000`
+The API proxy uses the App Router Node.js runtime and a 30-second maximum duration. See [Vercel function duration configuration](https://vercel.com/docs/functions/configuring-functions/duration).
+
+## Responsive interface and data lists
+
+Layouts use dynamic viewport height and device safe areas. Compact layouts use record cards, large layouts use scrollable tables, and the mobile navigation stays clear of install/status notices. Dialogs support keyboard focus containment, Escape, and focus restoration. Browser zoom remains enabled.
+
+Leads, inventory, actions, appointments, and feed logs use server pagination, bounded page sizes, request cancellation, and visible error/retry controls. Search and filter changes reset the page; deleted/resolved final-page records move back to a valid page. Staff and locations paginate their complete filtered directory data locally. Appointment date/type controls query the selected day. Real counts replace demonstration totals.
+
+## PWA
+
+The app has a stable manifest identity, standalone display, home-screen shortcuts, existing 192/512 icons, platform-aware installation guidance, offline status, and an explicit update action. Shortcuts select the correct app tab and browser back/forward restores tabs.
+
+The production-only service worker caches a standalone offline document and public immutable assets. It never caches customer API responses, authenticated HTML, or React server responses, and it removes the old API/page caches during activation. Offline writes are not queued: reconnect to load or save customer information. Updates wait for the user so an open form is not silently replaced. Bump the cache version in `public/sw.js` when changing the offline shell.
+
+## Validation
+
+`npm test` checks that the service worker excludes customer requests and resolves offline navigation to an actual cached response. The backend has separate tests for pagination, password hashing, and location boundaries. HTTP smoke checks cover login, HttpOnly cookies, unauthenticated access, cross-location reads/filter tampering, cross-origin writes, and session revocation.
+
+Phone/tablet visual review and installation on actual iOS/Android devices should be performed against the HTTPS deployment; no browser was connected to the implementation session.
