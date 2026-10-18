@@ -1,4 +1,5 @@
 'use client';
+import { BooranLogo } from '@/components/ui/BooranLogo';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React from 'react';
@@ -36,9 +37,9 @@ export function MobileNav({
   setActiveTab,
   selectedRooftop,
   setSelectedRooftop,
-  leadsCount = 1727,
-  inventoryCount = 2477,
-  actionItemsCount = 1022,
+  leadsCount = 0,
+  inventoryCount = 0,
+  actionItemsCount = 0,
 }: MobileNavProps) {
   const { user } = useAuth();
   const dialogRef = useDialog(isOpen, onClose);
@@ -66,16 +67,12 @@ export function MobileNav({
       {/* Drawer */}
       <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="Navigation menu" tabIndex={-1} className="relative flex flex-col w-4/5 max-w-xs sm:max-w-sm bg-[#171b22] text-slate-200 p-4 shadow-2xl h-full">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center font-bold text-white text-sm">
-              BM
-            </div>
-            <div>
-              <p className="text-sm font-bold text-white uppercase font-heading">Booran Motors</p>
-              <p className="text-[10px] text-slate-400">Sales Floor OS</p>
-            </div>
+          <div className="min-w-0 space-y-2">
+            <BooranLogo className="w-44" sizes="176px" />
+            <p className="text-[10px] font-medium text-slate-400">Sales Floor OS</p>
           </div>
           <button
+            aria-label="Close navigation"
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
           >

@@ -9,6 +9,9 @@ import {
   UnifiedSummary,
 } from './types';
 
+let sessionGeneration = 0;
+export function advanceSessionGeneration() { sessionGeneration += 1; }
+
 // Same-origin proxy keeps the HttpOnly session cookie on the frontend origin.
 export function getBaseUrl(): string { return '/api'; }
 
@@ -16,6 +19,7 @@ export async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; message?: string; pagination?: import('./use-paginated-query').PageMetadata; error?: string }> {
+  const requestGeneration = sessionGeneration;
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
 
@@ -31,14 +35,14 @@ export async function fetchApi<T>(
     });
 
     const json = await response.json().catch(() => null);
-    if (response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:unauthorized'));
-    if (!response.ok) {
+    if (requestGeneration === sessionGeneration && response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:unauthorized'));
+    if (!response.ok || json?.success === false) {
       const error = new Error(json?.message || json?.error || `Request failed (${response.status}). Please retry.`) as Error & { status: number };
       error.status = response.status;
       throw error;
     }
-    if (!json) throw new Error('The server returned an invalid response. Please retry.');
-    if (options.method && options.method !== 'GET' && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
+    if (!json || Array.isArray(json) || json.success !== true) throw new Error('The server returned an invalid response. Please retry.');
+    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes((options.method || 'GET').toUpperCase()) && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
     return json;
   } catch (err: any) {
     console.error(`API Error on ${endpoint}:`, err);
@@ -56,7 +60,7 @@ export const authApi = {
     });
     return res;
   },
-  me: () => fetchApi<any>('/auth/me'),
+  me: (options?: RequestInit) => fetchApi<any>('/auth/me', options),
   logout: () => fetchApi('/auth/logout', { method: 'POST' }),
 };
 
@@ -72,15 +76,15 @@ export const leadApi = {
       : '';
     return fetchApi<Lead[]>(`/leads${query}`, options);
   },
-  getLead: (id: string) => fetchApi<Lead>(`/leads/${id}`),
+  getLead: (id: string) => fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`),
   createLead: (data: Partial<Lead>) =>
     fetchApi<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }),
   updateLead: (id: string, data: Partial<Lead>) =>
-    fetchApi<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   addNote: (id: string, note: string, author?: string) =>
-    fetchApi<Lead>(`/leads/${id}`, { method: 'PATCH', body: JSON.stringify({ newNote: note, author }) }),
+    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ newNote: note, author }) }),
   getCrmStats: () => fetchApi<any>('/crm/stats'),
-  getCrmRooftops: () => fetchApi<Rooftop[]>('/crm/rooftops'),
+  getCrmRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/crm/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getOrganization: () => fetchApi<any>('/crm/organization'),
 };
 
@@ -96,14 +100,14 @@ export const inventoryApi = {
       : '';
     return fetchApi<Vehicle[]>(`/inventory/vehicles${query}`, options);
   },
-  getVehicle: (id: string) => fetchApi<Vehicle>(`/inventory/vehicles/${id}`),
+  getVehicle: (id: string) => fetchApi<Vehicle>(`/inventory/vehicles/${encodeURIComponent(id)}`),
   softHold: (id: string, payload: { prospectName: string; notes?: string; consultant?: string }) =>
-    fetchApi<any>(`/inventory/vehicles/${id}/soft-hold`, {
+    fetchApi<any>(`/inventory/vehicles/${encodeURIComponent(id)}/soft-hold`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  releaseHold: (id: string) =>
-    fetchApi<any>(`/inventory/vehicles/${id}/release-hold`, { method: 'POST' }),
+  releaseHold: (id: string, expected: { holdId?: string; heldAt?: string }) =>
+    fetchApi<Vehicle>(`/inventory/vehicles/${encodeURIComponent(id)}/release-hold`, { method: 'POST', body: JSON.stringify(expected) }),
   getActionItems: (params?: Record<string, string | number>, options?: RequestInit) => {
     const query = params
       ? '?' +
@@ -114,8 +118,8 @@ export const inventoryApi = {
     return fetchApi<ActionItem[]>(`/inventory/action-items${query}`, options);
   },
   updateActionItem: (id: string, data: { status: string; resolvedNotes?: string }) =>
-    fetchApi<any>(`/inventory/action-items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  getInventoryRooftops: () => fetchApi<Rooftop[]>('/inventory/rooftops'),
+    fetchApi<any>(`/inventory/action-items/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getInventoryRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/inventory/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getInventoryStats: () => fetchApi<any>('/inventory/stats'),
   getFeedLogs: (params?: Record<string, string | number>, options?: RequestInit) => fetchApi<FeedLog[]>(`/inventory/feed-logs?${new URLSearchParams(Object.entries(params || {}).map(([key, value]) => [key, String(value)]))}`, options),
 };
@@ -131,15 +135,15 @@ export const appointmentApi = {
 // ─── STAFF ───────────────────────────────────────────────────────────────────
 
 export const staffApi = {
-  getStaff: () => fetchApi<StaffMember[]>('/staff'),
+  getStaff: (rooftop?: string, options?: RequestInit) => fetchApi<StaffMember[]>(`/staff?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`, options),
 };
 
 // ─── UNIFIED DASHBOARD & SEARCH ──────────────────────────────────────────────
 
 export const unifiedApi = {
   getSummary: (rooftop?: string) => fetchApi<UnifiedSummary>(`/unified/summary?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
-  search: (query: string) =>
+  search: (query: string, rooftop?: string, options?: RequestInit) =>
     fetchApi<{ leads: Lead[]; vehicles: Vehicle[]; actionItems: ActionItem[] }>(
-      `/unified/search?q=${encodeURIComponent(query)}`
+      `/unified/search?q=${encodeURIComponent(query)}&rooftop=${encodeURIComponent(rooftop || 'All Locations')}`, options
     ),
 };

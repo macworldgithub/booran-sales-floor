@@ -1,17 +1,20 @@
 'use client';
 
+import type { UnifiedSummary } from '@/lib/types';
 import { useDialog } from '@/lib/use-dialog';
 
 import React from 'react';
 import { X, Bell, AlertTriangle, Users, Car, CheckCircle2 } from 'lucide-react';
 
 interface NotificationCenterModalProps {
+  summary: UnifiedSummary | null;
   isOpen: boolean;
   onClose: () => void;
   onNavigateTab: (tab: string) => void;
 }
 
 export function NotificationCenterModal({
+  summary,
   isOpen,
   onClose,
   onNavigateTab,
@@ -21,30 +24,9 @@ export function NotificationCenterModal({
   if (!isOpen) return null;
 
   const notifications = [
-    {
-      id: 'notif-1',
-      title: 'Capital Trap Threshold Exceeded',
-      body: '640 vehicles in Booran inventory have crossed 90 Days in Stock. Recommended for wholesale or price adjustments.',
-      tab: 'action-items',
-      time: '12 min ago',
-      type: 'warning',
-    },
-    {
-      id: 'notif-2',
-      title: 'New Lead Allocated from flwup_crm',
-      body: 'Cameron Bale requested an evaluation on BYD Atto 2 Dmi at BYD South Morang.',
-      tab: 'leads',
-      time: '24 min ago',
-      type: 'lead',
-    },
-    {
-      id: 'notif-3',
-      title: 'Pentana DMS Sync Reconciliation Completed',
-      body: 'Feed cycle reconciled 2,477 active vehicle units across all Victorian dealer rooftops.',
-      tab: 'feed-logs',
-      time: '1 hour ago',
-      type: 'sync',
-    },
+    ...(summary?.inventory.openActionItems ? [{ id: 'open-actions', title: 'Inventory Actions Need Attention', body: `${summary.inventory.openActionItems.toLocaleString()} open action items in the selected locations.`, tab: 'action-items' }] : []),
+    ...(summary?.crm.newLeads ? [{ id: 'new-leads', title: 'New Leads', body: `${summary.crm.newLeads.toLocaleString()} new leads in the selected locations.`, tab: 'leads' }] : []),
+    ...(summary?.inventory.agingOver90Days ? [{ id: 'aging-stock', title: 'Aged Stock', body: `${summary.inventory.agingOver90Days.toLocaleString()} vehicles have been in stock for more than 90 days in the selected locations.`, tab: 'inventory' }] : []),
   ];
 
   return (
@@ -62,21 +44,22 @@ export function NotificationCenterModal({
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          {!notifications.length && <p className="p-4 text-center text-sm text-slate-500">{summary ? 'No alerts in the selected locations.' : 'Load showroom data to view current alerts.'}</p>}
           {notifications.map((n) => (
-            <div
+            <button type="button"
               key={n.id}
               onClick={() => {
                 onNavigateTab(n.tab);
                 onClose();
               }}
-              className="p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 cursor-pointer transition-colors space-y-1"
+              className="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 cursor-pointer transition-colors space-y-1"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-900">{n.title}</span>
-                <span className="text-[10px] text-slate-400 font-mono">{n.time}</span>
+
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">{n.body}</p>
-            </div>
+            </button>
           ))}
         </div>
       </div>

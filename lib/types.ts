@@ -88,6 +88,7 @@ export interface Vehicle {
   recommendedAction?: string;
   rego?: string;
   softHold?: {
+    holdId?: string;
     held: boolean;
     prospectName: string;
     notes?: string;
@@ -147,6 +148,7 @@ export interface FeedLog {
 }
 
 export interface Appointment {
+  dealership?: string;
   _id: string;
   leadId?: string;
   prospectName: string;

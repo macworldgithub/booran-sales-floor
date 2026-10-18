@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import { localDate, localDayRange, validLocalDate } from '@/lib/dates';
+import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, Car, Plus, User, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { appointmentApi } from '@/lib/api';
 import { usePaginatedQuery } from '@/lib/use-paginated-query';
@@ -9,21 +10,21 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Appointment } from '@/lib/types';
 
 interface CalendarViewProps {
+  selectedRooftop: string;
   appointments: Appointment[];
   onOpenBookDrive: () => void;
 }
 
-export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
+export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop }: CalendarViewProps) {
+  const [selectedDate, setSelectedDate] = useState(localDate());
 
   const [type, setType] = useState('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const from = new Date(`${selectedDate}T00:00:00`);
-  const to = new Date(from);
-  to.setDate(to.getDate() + 1);
+  useEffect(() => { setPage(1); }, [selectedRooftop]);
+  const { from, to } = localDayRange(selectedDate);
   const { data: filteredAppointments, pagination, isLoading, error, refresh } = usePaginatedQuery(
-    appointmentApi.getAppointments, { page, limit: pageSize, from: from.toISOString(), to: to.toISOString(), type }, setPage,
+    appointmentApi.getAppointments, { rooftop: selectedRooftop, page, limit: pageSize, from, to, type }, setPage,
   );
 
   return (
@@ -52,9 +53,9 @@ export function CalendarView({ appointments, onOpenBookDrive }: CalendarViewProp
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
-        <label className="flex items-center gap-2 text-sm">Date<input aria-label="Appointment date" type="date" value={selectedDate} onChange={(event) => { if (event.target.value) { setSelectedDate(event.target.value); setPage(1); } }} className="min-w-0 rounded-lg border p-2" /></label>
+        <label className="flex items-center gap-2 text-sm">Date<input aria-label="Appointment date" type="date" value={selectedDate} onChange={(event) => { if (event.target.value) { if (validLocalDate(event.target.value)) setSelectedDate(event.target.value); setPage(1); } }} className="min-w-0 rounded-lg border p-2" /></label>
         <select aria-label="Appointment type" value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className="rounded-lg border p-2 text-sm"><option value="all">All visit types</option><option>Test Drive</option><option>Showroom Visit</option><option>Delivery Handover</option><option>Callback</option></select>
-        <button onClick={() => { setSelectedDate(new Date().toLocaleDateString('en-CA')); setType('all'); setPage(1); }} className="text-sm text-red-700">Today</button>
+        <button onClick={() => { setSelectedDate(localDate()); setType('all'); setPage(1); }} className="text-sm text-red-700">Today</button>
       </div>
       <QueryStatus error={error} isLoading={isLoading} onRetry={refresh} />
       {/* Timeline Card */}

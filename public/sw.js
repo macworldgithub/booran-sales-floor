@@ -17,24 +17,29 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const {request} = event;
   const url = new URL(request.url);
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || request.headers.has('authorization')) return;
+  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname === '/api' || url.pathname.startsWith('/api/') || request.headers.has('authorization')) return;
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(async () => (await caches.match(OFFLINE)) || Response.error()));
     return;
   }
   if (!url.pathname.startsWith('/_next/static/') && !ASSETS.includes(url.pathname)) return;
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE);
-    const cached = await cache.match(request);
-    if (cached) return cached;
+    let cache;
+    try {
+      cache = await caches.open(CACHE);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    } catch { /* Storage can be disabled or full; network assets must still load. */ }
     const response = await fetch(request);
-    if (response.ok && response.type === 'basic') {
-      await cache.put(request, response.clone());
-      const keys = await cache.keys();
-      if (keys.length > 100) {
-        const removable = keys.filter(key => !ASSETS.includes(new URL(key.url).pathname));
-        await Promise.all(removable.slice(0, keys.length - 100).map(key => cache.delete(key)));
-      }
+    if (cache && response.ok && response.type === 'basic') {
+      try {
+        await cache.put(request, response.clone());
+        const keys = await cache.keys();
+        if (keys.length > 100) {
+          const removable = keys.filter(key => !ASSETS.includes(new URL(key.url).pathname));
+          await Promise.all(removable.slice(0, keys.length - 100).map(key => cache.delete(key)));
+        }
+      } catch { /* Caching is optional when the network response succeeded. */ }
     }
     return response;
   })());

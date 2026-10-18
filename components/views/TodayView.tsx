@@ -21,6 +21,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { Lead, Vehicle, ActionItem, Appointment } from '@/lib/types';
+import { useAuth } from '@/lib/auth';
 import { MetricCard } from '@/components/ui/MetricCard';
 
 interface TodayViewProps {
@@ -50,6 +51,10 @@ export function TodayView({
   onNavigateTab,
   stats,
 }: TodayViewProps) {
+  const { user, locations } = useAuth();
+  const visibleLocations = selectedRooftop === 'All Locations' ? locations : locations.filter((name) => name === selectedRooftop);
+  const scopeLabel = selectedRooftop === 'All Locations' ? (user?.role === 'super_admin' ? 'Booran Group Network (Victoria)' : `${user?.site} dealerships`) : selectedRooftop;
+
   // Urgent leads needing attention (new_lead or priority)
   const urgentLeads = leads
     .filter((l) => l.status === 'new_lead' || l.status === 'following_up')
@@ -83,11 +88,11 @@ export function TodayView({
                 Live Sales Floor OS
               </span>
               <span className="text-xs text-slate-400">
-                {selectedRooftop === 'All Locations' ? 'Booran Group Network (Victoria)' : selectedRooftop}
+                {scopeLabel}
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight font-heading uppercase leading-tight">
-              Booran Group Sales Command
+              Sales Floor Command
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               Real-time synchronization across <strong>flwup_crm</strong> ({totalLeadsCount.toLocaleString()} leads) and <strong>booran_inventory_tracker</strong> ({stockCount.toLocaleString()} units).
@@ -131,9 +136,9 @@ export function TodayView({
           tone="cyan"
         />
         <MetricCard
-          label="Total Group Stock"
+          label="Stock in Selected Locations"
           value={stockCount.toLocaleString()}
-          change="Across 4 Victorian rooftops"
+          change={scopeLabel}
           icon={Car}
           tone="green"
         />
@@ -369,25 +374,16 @@ export function TodayView({
           {/* Dealership Network Snapshot */}
           <div className="surface-card rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
             <h3 className="text-sm font-bold text-slate-900 uppercase font-heading tracking-wide">
-              Victorian Rooftops Network
+              Dealerships in Current View
             </h3>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                <span className="font-semibold text-slate-800">BYD South Morang</span>
-                <span className="font-mono text-slate-500">Lead Centre & Showroom</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                <span className="font-semibold text-slate-800">Booran Cheltenham</span>
-                <span className="font-mono text-slate-500">Multi-Franchise Cluster</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                <span className="font-semibold text-slate-800">Cranbourne Hyundai</span>
-                <span className="font-mono text-slate-500">Volume Sales Floor</span>
-              </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
-                <span className="font-semibold text-slate-800">Berwick MG Hyundai</span>
-                <span className="font-mono text-slate-500">Metro Retail Hub</span>
-              </div>
+              {visibleLocations.map((name) => (
+                <div key={name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-2">
+                  <span className="font-semibold text-slate-800">{name}</span>
+                  <span className="font-mono text-slate-500">Authorised dealership</span>
+                </div>
+              ))}
+              {!visibleLocations.length && <p className="text-slate-500">No dealerships to show in this view.</p>}
             </div>
           </div>
         </div>

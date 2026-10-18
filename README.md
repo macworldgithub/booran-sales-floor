@@ -45,3 +45,19 @@ The production-only service worker caches a standalone offline document and publ
 `npm test` checks that the service worker excludes customer requests and resolves offline navigation to an actual cached response. The backend has separate tests for pagination, password hashing, and location boundaries. HTTP smoke checks cover login, HttpOnly cookies, unauthenticated access, cross-location reads/filter tampering, cross-origin writes, and session revocation.
 
 Phone/tablet visual review and installation on actual iOS/Android devices should be performed against the HTTPS deployment; no browser was connected to the implementation session.
+
+## Filter regression checks
+
+The active dealership is shared by the sidebar and list controls and applies to dashboard totals, leads, inventory, actions, staff, appointments, search, and the locations directory. Status/category/aging/search filters combine with that dealership instead of replacing it. List totals and pagination use the same filtered query as the records; changing a filter resets the page and hides previous results/counts until the new response arrives. Sort controls contain sort fields only.
+
+Dealership options and the dashboard network card use the authorised location directory. South Morang accounts see the South Morang dealerships, without sample group-wide location cards or fabricated notifications. Appointment forms record a specific authorised dealership so later location filters can find them.
+
+Frontend filter-control tests exercise the actual event handlers and outgoing query parameters. Backend fixtures cover combined predicates, exact dealership matching, South Morang boundaries, and matching result/count scopes. Live database checks during this change were blocked by DNS timeouts; device/browser interaction testing was unavailable in the session.
+
+## Runtime regression checks
+
+Session verification cannot overwrite a newer sign-in; stale requests cannot sign out a newer session. Open dashboards recheck sessions on visibility changes, reconnection, and every minute, and authentication changes propagate between tabs. Failed directory loads expose a retry action. Mutation failures appear as errors, and unsupported response failures do not trigger success refreshes.
+
+Runtime tests cover those session races, failed API responses, encoded record IDs, calendar date validation, CSS theme variables, and service-worker updates following a first installation in the same tab. Backend HTTP integration tests separately verify write validation, consistent lead responses, access boundaries, and safe vehicle holds.
+
+The second audit adds protection against delayed dialog updates and stale search results, clears protected UI state immediately when account permissions change, and uses actual vehicle status in stock badges. Search includes inventory actions and opens their matching status/filter. Booking forms exclude location groups and reject local times skipped by daylight saving. Failed PWA cache writes no longer prevent valid network assets from loading.

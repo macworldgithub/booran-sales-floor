@@ -30,7 +30,7 @@ import {
 import { Lead, Vehicle, ActionItem, Appointment, UnifiedSummary } from '@/lib/types';
 
 export default function BooranSalesFloorApp() {
-  const { user } = useAuth();
+  const { user, locationsError, reloadLocations } = useAuth();
 
   // Navigation & Scope
   const [activeTab, updateActiveTab] = useState<string>('today');
@@ -50,8 +50,9 @@ export default function BooranSalesFloorApp() {
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
   }, [user?.role]);
-  const [selectedRooftop, setSelectedRooftop] = useState<string>(user?.role === 'super_admin' ? 'All Locations' : user?.site || 'South Morang');
+  const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
   const role = user?.role || 'manager';
+  const [actionTarget, setActionTarget] = useState({ search: '', status: 'open', version: 0 });
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Data Stores
@@ -72,18 +73,26 @@ export default function BooranSalesFloorApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
 
   const loadVersion = useRef(0);
+  const setSelectedRooftop = (rooftop: string) => {
+    if (rooftop === selectedRooftop) return;
+    ++loadVersion.current;
+    setLeads([]); setVehicles([]); setActionItems([]); setAppointments([]); setUnifiedSummary(null);
+    setLoadError(false); setIsLoading(true);
+    updateSelectedRooftop(rooftop);
+  };
 
   // Fetch initial telemetry
   const loadInitialData = useCallback(async () => {
     const version = ++loadVersion.current;
     setIsLoading(true);
     setLoadError(false);
+    setLeads([]); setVehicles([]); setActionItems([]); setAppointments([]); setUnifiedSummary(null);
     try {
       const [leadsRes, vehiclesRes, actionsRes, apptsRes, summaryRes] = await Promise.all([
-        leadApi.getLeads({ limit: 30, dealership: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        leadApi.getLeads({ limit: 30, dealership: selectedRooftop, attention: 'true' }).catch(() => ({ success: false, data: [] })),
         inventoryApi.getVehicles({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
         inventoryApi.getActionItems({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
-        appointmentApi.getAppointments({ limit: 30, from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), to: new Date(new Date().setHours(24, 0, 0, 0)).toISOString() }).catch(() => ({ success: false, data: [] })),
+        appointmentApi.getAppointments({ rooftop: selectedRooftop, limit: 30, from: new Date(new Date().setHours(0, 0, 0, 0)).toISOString(), to: new Date(new Date().setHours(24, 0, 0, 0)).toISOString() }).catch(() => ({ success: false, data: [] })),
         unifiedApi.getSummary(selectedRooftop).catch(() => ({ success: false, data: undefined })),
       ]);
 
@@ -114,7 +123,7 @@ export default function BooranSalesFloorApp() {
   useEffect(() => {
     loadInitialData();
     window.addEventListener('booran:data-changed', loadInitialData);
-    return () => window.removeEventListener('booran:data-changed', loadInitialData);
+    return () => { loadVersion.current += 1; window.removeEventListener('booran:data-changed', loadInitialData); };
   }, [loadInitialData]);
 
   // Handle lead update from modal
@@ -122,7 +131,7 @@ export default function BooranSalesFloorApp() {
     setLeads((prev) =>
       prev.map((l) => (l._id === updatedLead._id ? { ...l, ...updatedLead } : l))
     );
-    setSelectedLead(updatedLead);
+    setSelectedLead((current) => current?._id === updatedLead._id ? updatedLead : current);
   };
 
   // Handle vehicle update from modal
@@ -130,7 +139,7 @@ export default function BooranSalesFloorApp() {
     setVehicles((prev) =>
       prev.map((v) => (v._id === updatedVehicle._id ? { ...v, ...updatedVehicle } : v))
     );
-    setSelectedVehicle(updatedVehicle);
+    setSelectedVehicle((current) => current?._id === updatedVehicle._id ? updatedVehicle : current);
   };
 
   return (
@@ -150,17 +159,20 @@ export default function BooranSalesFloorApp() {
 
       {/* Main Content Area */}
       <div className="app-content flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header
+        <Header selectedRooftop={selectedRooftop}
+          unreadNotifications={Boolean(unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
           role={role}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onSelectLead={(l) => setSelectedLead(l)}
           onSelectVehicle={(v) => setSelectedVehicle(v)}
+          onSelectAction={(item) => { setActionTarget((previous) => ({ search: item.stockNumber || item.vehicleTitle || '', status: item.status, version: previous.version + 1 })); setActiveTab('action-items'); }}
           onOpenAddProspect={() => setIsAddProspectOpen(true)}
         />
 
         {/* View Container */}
         <main id="main-content" tabIndex={-1} className="app-main flex-1 overflow-x-hidden">
+          {locationsError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-800">{locationsError}<button onClick={reloadLocations} className="font-bold underline">Retry dealerships</button></div>}
           {isLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
           {activeTab === 'today' && (
@@ -184,6 +196,7 @@ export default function BooranSalesFloorApp() {
 
           {activeTab === 'leads' && (
             <LeadsView
+              onRooftopChange={setSelectedRooftop}
               initialLeads={leads}
               selectedRooftop={selectedRooftop}
               onSelectLead={(l) => setSelectedLead(l)}
@@ -197,6 +210,7 @@ export default function BooranSalesFloorApp() {
 
           {activeTab === 'inventory' && (
             <InventoryView
+              onRooftopChange={setSelectedRooftop}
               initialVehicles={vehicles}
               selectedRooftop={selectedRooftop}
               onSelectVehicle={(v) => setSelectedVehicle(v)}
@@ -204,14 +218,17 @@ export default function BooranSalesFloorApp() {
           )}
 
           {activeTab === 'action-items' && (
-            <ActionItemsView
+            <ActionItemsView key={actionTarget.version}
+              initialSearch={actionTarget.search}
+              initialStatus={actionTarget.status}
+              onRooftopChange={setSelectedRooftop}
               initialItems={actionItems}
               selectedRooftop={selectedRooftop}
             />
           )}
 
           {activeTab === 'calendar' && (
-            <CalendarView
+            <CalendarView selectedRooftop={selectedRooftop}
               appointments={appointments}
               onOpenBookDrive={() => {
                 setBookDriveLead(null);
@@ -220,9 +237,9 @@ export default function BooranSalesFloorApp() {
             />
           )}
 
-          {activeTab === 'rooftops' && <RooftopsView onSelectRooftopFilter={(rooftop) => { setSelectedRooftop(rooftop); setActiveTab('inventory'); }} />}
+          {activeTab === 'rooftops' && <RooftopsView selectedRooftop={selectedRooftop} onSelectRooftopFilter={(rooftop) => { setSelectedRooftop(rooftop); setActiveTab('inventory'); }} />}
 
-          {activeTab === 'staff' && <StaffView />}
+          {activeTab === 'staff' && <StaffView selectedRooftop={selectedRooftop} onRooftopChange={setSelectedRooftop} />}
 
           {activeTab === 'feed-logs' && user?.role === 'super_admin' && <FeedLogsView />}
         </main>
@@ -240,7 +257,7 @@ export default function BooranSalesFloorApp() {
         }}
       />
 
-      <VehicleDetailModal
+      <VehicleDetailModal key={selectedVehicle?._id || 'closed'}
         vehicle={selectedVehicle}
         isOpen={!!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
@@ -257,16 +274,15 @@ export default function BooranSalesFloorApp() {
         defaultDealership={selectedRooftop !== 'All Locations' ? selectedRooftop : 'BYD South Morang'}
       />
 
-      <BookTestDriveModal key={`${bookDriveLead?._id || 'new'}-${isBookDriveOpen}`}
+      <BookTestDriveModal key={`${bookDriveLead?._id || 'new'}-${isBookDriveOpen}-${selectedRooftop}`}
+        defaultDealership={selectedRooftop}
         lead={bookDriveLead}
         isOpen={isBookDriveOpen}
         onClose={() => setIsBookDriveOpen(false)}
-        onAppointmentCreated={(newAppt) => {
-          setAppointments((prev) => [newAppt, ...prev]);
-        }}
       />
 
       <NotificationCenterModal
+        summary={unifiedSummary}
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         onNavigateTab={(tab) => setActiveTab(tab)}

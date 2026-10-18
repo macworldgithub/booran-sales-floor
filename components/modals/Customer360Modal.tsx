@@ -42,6 +42,7 @@ export function Customer360Modal({
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<string>(lead?.status || 'new_lead');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { user } = useAuth();
@@ -51,7 +52,8 @@ export function Customer360Modal({
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNote.trim()) return;
+    if (!newNote.trim() || isUpdatingStatus || isSubmittingNote) return;
+    setMutationError(null);
     setIsSubmittingNote(true);
     try {
       const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name);
@@ -62,13 +64,15 @@ export function Customer360Modal({
         setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
-      setToastMessage(err.message || 'Unable to save note.');
+      setMutationError(err.message || 'Unable to save note.');
     } finally {
       setIsSubmittingNote(false);
     }
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    if (isUpdatingStatus || isSubmittingNote) return;
+    setMutationError(null);
     setSelectedStatus(newStatus);
     setIsUpdatingStatus(true);
     try {
@@ -80,7 +84,7 @@ export function Customer360Modal({
       }
     } catch (err: any) {
       setSelectedStatus(lead.status);
-      setToastMessage(err.message || 'Unable to update status.');
+      setMutationError(err.message || 'Unable to update status.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -120,6 +124,7 @@ export function Customer360Modal({
           </button>
         </div>
 
+        {mutationError && <p role="alert" className="bg-red-50 p-4 text-sm text-red-700">{mutationError}</p>}
         {/* Toast Feedback */}
         {toastMessage && (
           <div className="bg-emerald-600 text-white text-xs px-4 py-2 font-medium flex items-center gap-2 animate-in fade-in">
@@ -170,7 +175,7 @@ export function Customer360Modal({
                   <button
                     key={st}
                     onClick={() => handleStatusChange(st)}
-                    disabled={isUpdatingStatus}
+                    disabled={isUpdatingStatus || isSubmittingNote}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                       selectedStatus === st
                         ? 'bg-red-600 text-white shadow-sm'
@@ -233,7 +238,7 @@ export function Customer360Modal({
               />
               <button
                 type="submit"
-                disabled={isSubmittingNote || !newNote.trim()}
+                disabled={isSubmittingNote || isUpdatingStatus || !newNote.trim()}
                 className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />

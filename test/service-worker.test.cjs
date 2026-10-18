@@ -3,18 +3,19 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { runInNewContext } = require('node:vm');
 
-function worker(fetch = async () => { throw new Error('offline'); }) {
+function worker(fetch = async () => { throw new Error('offline'); }, storage) {
   const events = {};
   const offline = new Response('<h1>Offline</h1>');
   runInNewContext(readFileSync('public/sw.js', 'utf8'), {
     self: { location: { origin: 'https://floor.test' }, addEventListener: (name, handler) => { events[name] = handler; } },
-    caches: { match: async () => offline }, URL, Response, fetch,
+    caches: storage || { match: async () => offline }, URL, Response, fetch,
   });
   return { events, offline };
 }
 test('worker never intercepts customer API requests, cross-origin data or writes', () => {
   const { events } = worker();
   for (const [url, method, headers] of [
+    ['https://floor.test/api', 'GET', {}],
     ['https://floor.test/api/leads', 'GET', {}],
     ['https://backend.test/api/leads', 'GET', {}],
     ['https://floor.test/api/leads', 'POST', {}],
@@ -24,6 +25,19 @@ test('worker never intercepts customer API requests, cross-origin data or writes
     let intercepted = false;
     events.fetch({ request: { url, method, headers: new Headers(headers) }, respondWith: () => { intercepted = true; } });
     assert.equal(intercepted, false, `${method} ${url}`);
+  }
+});
+
+test('asset loads survive disabled cache storage and cache quota failures', async () => {
+  for (const storage of [
+    { open: async () => { throw new Error('Storage disabled'); } },
+    { open: async () => ({ match: async () => null, put: async () => { throw new Error('Quota exceeded'); } }) },
+  ]) {
+    const response = { ok: true, type: 'basic', clone() { return this; } };
+    const { events } = worker(async () => response, storage);
+    let result;
+    events.fetch({ request: { url: 'https://floor.test/_next/static/chunk.js', method: 'GET', headers: new Headers() }, respondWith: (promise) => { result = promise; } });
+    assert.equal(await result, response);
   }
 });
 test('offline navigation resolves to a real cached response', async () => {

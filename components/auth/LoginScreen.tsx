@@ -1,5 +1,6 @@
 'use client';
 
+import { BooranLogo } from '@/components/ui/BooranLogo';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { LockKeyhole, Eye, EyeOff } from 'lucide-react';
@@ -13,7 +14,10 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   return <main className="min-h-dvh bg-[#171b22] px-4 py-10 text-white flex items-center justify-center">
     <div className="w-full max-w-md">
-      <div className="mb-8 flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-600 text-lg font-extrabold">BM</span><div><p className="text-xl font-bold">Booran Motors</p><p className="text-sm text-slate-400">Sales Floor OS</p></div></div>
+      <div className="mb-8 flex flex-col items-center gap-3">
+        <BooranLogo className="w-72 p-3" sizes="288px" priority />
+        <p className="text-sm font-medium tracking-wide text-slate-300">Sales Floor OS</p>
+      </div>
       <section className="rounded-3xl border border-white/10 bg-white p-6 text-slate-900 shadow-2xl sm:p-8">
         <LockKeyhole className="mb-4 text-red-600" size={28} />
         <h1 className="text-2xl font-bold">Sign in to your showroom</h1>

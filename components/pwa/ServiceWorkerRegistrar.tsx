@@ -11,9 +11,10 @@ export default function ServiceWorkerRegistrar() {
     let registration: ServiceWorkerRegistration | undefined;
     let disposed = false;
     let reloading = false;
-    const hadController = 'serviceWorker' in navigator && Boolean(navigator.serviceWorker.controller);
+    let hadController = 'serviceWorker' in navigator && Boolean(navigator.serviceWorker.controller);
     const onController = () => {
       if (hadController && !reloading) { reloading = true; window.location.reload(); }
+      hadController = true;
     };
     const check = () => { if (document.visibilityState === 'visible') registration?.update().catch(() => {}); };
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {

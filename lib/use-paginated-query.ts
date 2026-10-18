@@ -59,6 +59,7 @@ export function usePaginatedQuery<T>(
         if (controller.signal.aborted || currentKey.current !== queryKey) return;
         setData([]);
         setPagination({ total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 });
+        setResolvedKey(queryKey);
         setError(failure instanceof Error ? failure.message : 'Unable to load results.');
       } finally {
         if (!controller.signal.aborted && currentKey.current === queryKey) setIsLoading(false);
@@ -74,5 +75,6 @@ export function usePaginatedQuery<T>(
   }, []);
 
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
-  return { data: resolvedKey === queryKey ? data : [], pagination, isLoading: isLoading || (resolvedKey !== queryKey && !error), error, refresh };
+  const isCurrent = resolvedKey === queryKey;
+  return { data: isCurrent ? data : [], pagination: isCurrent ? pagination : { total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 }, isLoading: isLoading || !isCurrent, error: isCurrent ? error : null, refresh };
 }

@@ -1,13 +1,18 @@
 'use client';
 
+import { localDate, appointmentTime } from '@/lib/dates';
+import { specificDealerships } from '@/lib/locations';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
+import { useAuth } from '@/lib/auth';
 import { useDialog } from '@/lib/use-dialog';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, Car, User, CheckCircle2 } from 'lucide-react';
 import { appointmentApi } from '@/lib/api';
 import { Lead, Appointment } from '@/lib/types';
 
 interface BookTestDriveModalProps {
+  defaultDealership?: string;
   lead?: Lead | null;
   isOpen: boolean;
   onClose: () => void;
@@ -19,15 +24,20 @@ export function BookTestDriveModal({
   isOpen,
   onClose,
   onAppointmentCreated,
+  defaultDealership = 'All Locations',
 }: BookTestDriveModalProps) {
+  const { locations: directoryLocations, user } = useAuth();
+  const locations = specificDealerships(directoryLocations);
+  const [dealership, setDealership] = useState(lead?.dealership || lead?.dealership_name || defaultDealership);
+  useEffect(() => { if (locations.length && !locations.includes(dealership)) setDealership(locations.includes(lead?.dealership || lead?.dealership_name || defaultDealership) ? (lead?.dealership || lead?.dealership_name || defaultDealership) : locations[0]); }, [directoryLocations, dealership, defaultDealership, lead?.dealership, lead?.dealership_name]);
   const [prospectName, setProspectName] = useState(lead?.name || lead?.customer_name || '');
-  const [consultantName, setConsultantName] = useState(lead?.owner_name || 'Lewis Dannock');
-  const [vehicle, setVehicle] = useState(lead?.vehicle || `${lead?.make || 'BYD'} ${lead?.model || 'Range'}`.trim());
-  const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
+  const [consultantName, setConsultantName] = useState(lead?.owner_name || user?.name || '');
+  const [vehicle, setVehicle] = useState(lead?.vehicle || [lead?.make, lead?.model].filter(Boolean).join(' '));
+  const [dateStr, setDateStr] = useState(localDate());
   const [timeStr, setTimeStr] = useState('11:00');
   const [duration, setDuration] = useState('45');
   const [type, setType] = useState<'Test Drive' | 'Showroom Visit'>('Test Drive');
-  const [notes, setNotes] = useState('South Morang Demo Route · Valid Drivers Licence checked');
+  const [notes, setNotes] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,8 +50,10 @@ export function BookTestDriveModal({
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      const whenIso = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+      if (!locations.includes(dealership)) throw new Error('Select an available dealership.');
+      const whenIso = appointmentTime(dateStr, timeStr);
       const res = await appointmentApi.createAppointment({
+        dealership,
         leadId: lead?._id,
         prospectName: prospectName.trim() || 'Showroom Customer',
         consultantName,
@@ -78,13 +90,16 @@ export function BookTestDriveModal({
               <p className="text-[10px] text-slate-500">Schedule showroom floor drive</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors">
+          <button aria-label="Close booking" onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
           {submitError && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{submitError}</p>}
+          <label className="block text-xs font-bold text-slate-700">Dealership / Rooftop
+            <select aria-label="Appointment dealership" required value={dealership} onChange={(event) => setDealership(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"><RooftopOptions allowAll={false} /></select>
+          </label>
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">Prospect Name</label>
             <input
@@ -174,7 +189,7 @@ export function BookTestDriveModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !locations.includes(dealership)}
               className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 disabled:opacity-50"
             >
               {isSubmitting ? 'Booking...' : 'Confirm Booking'}

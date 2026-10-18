@@ -1,7 +1,9 @@
 'use client';
+import { BooranLogo } from '@/components/ui/BooranLogo';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React from 'react';
+import { useAuth } from '@/lib/auth';
 import {
   LayoutDashboard,
   Calendar,
@@ -35,12 +37,13 @@ export function Sidebar({
   activeTab,
   setActiveTab,
   role,
-  leadsCount = 1727,
-  inventoryCount = 2477,
-  actionItemsCount = 1022,
+  leadsCount = 0,
+  inventoryCount = 0,
+  actionItemsCount = 0,
   selectedRooftop,
   setSelectedRooftop,
 }: SidebarProps) {
+  const { user } = useAuth();
   const mainNavItems = [
     { id: 'today', label: 'Today', icon: LayoutDashboard },
     {
@@ -78,18 +81,9 @@ export function Sidebar({
     <aside className="hidden lg:flex flex-col w-64 bg-[#171b22] text-slate-200 h-dvh sticky top-0 shrink-0 border-r border-white/10 z-40">
       {/* Brand Header */}
       <div className="p-4 pb-3 border-b border-white/10 bg-[#12161c]">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-red-600 to-red-800 flex items-center justify-center shadow-lg shadow-red-900/40 text-white font-extrabold text-lg tracking-wider font-heading">
-            BM
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-sm font-bold text-white tracking-wide truncate font-heading uppercase">
-              Booran Motors
-            </h1>
-            <p className="text-[10px] text-slate-400 font-medium tracking-tight">
-              Sales Floor OS · VIC Group
-            </p>
-          </div>
+        <div className="space-y-2">
+          <BooranLogo className="w-full" sizes="224px" />
+          <p className="text-[10px] font-medium tracking-wide text-slate-400">Sales Floor OS - VIC Group</p>
         </div>
 
         {/* Global Rooftop Switcher */}
@@ -223,7 +217,7 @@ export function Sidebar({
           </div>
           <div className="min-w-0 flex-1">
             <strong className="block text-xs font-semibold text-white truncate">
-              {selectedRooftop === 'All Locations' ? 'Booran Group HQ' : selectedRooftop}
+              {selectedRooftop === 'All Locations' ? (role === 'super_admin' ? 'Booran Group HQ' : user?.site) : selectedRooftop}
             </strong>
             <span className="block text-[10px] text-slate-400 truncate">
               Victoria, Australia

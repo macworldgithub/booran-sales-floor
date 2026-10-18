@@ -1,6 +1,7 @@
 'use client';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
+import { vehicleStatus } from '@/lib/vehicle-status';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Car,
@@ -26,31 +27,23 @@ import { inventoryApi } from '@/lib/api';
 interface InventoryViewProps {
   initialVehicles?: Vehicle[];
   selectedRooftop: string;
+  onRooftopChange: (rooftop: string) => void;
   onSelectVehicle: (vehicle: Vehicle) => void;
 }
 
 export function InventoryView({
   initialVehicles = [],
   selectedRooftop,
+  onRooftopChange,
   onSelectVehicle,
 }: InventoryViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [agingFilter, setAgingFilter] = useState('all');
-  const [rooftopFilter, setRooftopFilter] = useState(
-    selectedRooftop !== 'All Locations' ? selectedRooftop : 'all'
-  );
+  const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Sync rooftopFilter if selectedRooftop changes globally
-  useEffect(() => {
-    if (selectedRooftop && selectedRooftop !== 'All Locations') {
-      setRooftopFilter(selectedRooftop);
-    } else {
-      setRooftopFilter('all');
-    }
-    setCurrentPage(1);
-  }, [selectedRooftop]);
+  useEffect(() => { setCurrentPage(1); }, [selectedRooftop]);
 
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState('daysInStock:desc');
@@ -67,7 +60,7 @@ export function InventoryView({
     setSearchQuery('');
     setCategoryFilter('all');
     setAgingFilter('all');
-    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    onRooftopChange('All Locations');
     setSort('daysInStock:desc');
     setCurrentPage(1);
   };
@@ -156,16 +149,12 @@ export function InventoryView({
               aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
-                setRooftopFilter(e.target.value);
+                onRooftopChange(e.target.value === 'all' ? 'All Locations' : e.target.value);
                 setCurrentPage(1);
               }}
               className="flex-1 sm:flex-initial text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
             >
-              <option value="all">All Dealerships</option>
-              <option value="Booran Cheltenham">Booran Cheltenham</option>
-              <option value="Cranbourne Hyundai">Cranbourne Hyundai</option>
-              <option value="South Morang Hyundai">South Morang Hyundai</option>
-              <option value="Berwick MG">Berwick MG Hyundai</option>
+              <RooftopOptions />
             </select>
 
             <button
@@ -219,7 +208,10 @@ export function InventoryView({
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
             <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <RooftopOptions />
+              <option value="daysInStock:desc">Oldest stock</option>
+              <option value="daysInStock:asc">Newest stock</option>
+              <option value="totalStockCost:asc">Cost: low to high</option>
+              <option value="totalStockCost:desc">Cost: high to low</option>
             </select>
           </label>
           <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>
@@ -241,7 +233,7 @@ export function InventoryView({
             </div>
           ) : (
             vehicles.map((v) => {
-              const isHeld = v.status === 'Soft Hold' || v.softHold?.held;
+              const { held: isHeld, available, label: stockStatus } = vehicleStatus(v);
               return (
                 <div
                   key={v._id}
@@ -262,10 +254,10 @@ export function InventoryView({
                       className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
                         isHeld
                           ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : available ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-700 border border-slate-200'
                       }`}
                     >
-                      {isHeld ? 'SOFT HOLD' : 'IN STOCK'}
+                      {stockStatus.toUpperCase()}
                     </span>
                   </div>
 
@@ -356,7 +348,7 @@ export function InventoryView({
                 </tr>
               ) : (
                 vehicles.map((v) => {
-                  const isHeld = v.status === 'Soft Hold' || v.softHold?.held;
+                  const { held: isHeld, available, label: stockStatus } = vehicleStatus(v);
                   return (
                     <tr
                       key={v._id}
@@ -428,10 +420,10 @@ export function InventoryView({
                           className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-bold uppercase font-mono mt-0.5 ${
                             isHeld
                               ? 'bg-amber-100 text-amber-800'
-                              : 'bg-emerald-50 text-emerald-700'
+                              : available ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-700'
                           }`}
                         >
-                          {isHeld ? 'SOFT HOLD' : 'IN STOCK'}
+                          {stockStatus.toUpperCase()}
                         </span>
                       </td>
 

@@ -1,6 +1,8 @@
 'use client';
 
+import { BooranLogo } from '@/components/ui/BooranLogo';
 import { useEffect, useState } from 'react';
+import { useDialog } from '@/lib/use-dialog';
 import { X, Download, Smartphone } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -16,6 +18,7 @@ export default function PWAInstallPrompt() {
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const guideRef = useDialog(showIOSGuide, () => setShowIOSGuide(false));
 
   useEffect(() => {
     // Check if already installed (standalone mode)
@@ -49,6 +52,7 @@ export default function PWAInstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       if (Date.now() - dismissedAt > sevenDays) {
+        clearTimeout(bannerTimer);
         bannerTimer = setTimeout(() => setShowBanner(true), 2500);
       }
     };
@@ -104,6 +108,7 @@ export default function PWAInstallPrompt() {
     return (
       <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}>
         <div
+          ref={guideRef} data-app-dialog role="dialog" aria-modal="true" aria-label="Install on iOS" tabIndex={-1}
           className="w-full max-w-sm rounded-3xl overflow-hidden"
           style={{ background: '#1e2330', border: '1px solid rgba(255,255,255,0.08)' }}
         >
@@ -111,7 +116,7 @@ export default function PWAInstallPrompt() {
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/icon-72x72.png" alt="App icon" className="w-10 h-10 rounded-xl" />
+                <BooranLogo className="w-32" sizes="128px" />
                 <div>
                   <p className="font-bold text-white text-sm">Install Booran Floor</p>
                   <p className="text-xs" style={{ color: '#8892a4' }}>Add to Home Screen</p>
@@ -160,7 +165,7 @@ export default function PWAInstallPrompt() {
   // Standard install banner (Android/Desktop)
   return (
     <div
-      className="pwa-install fixed left-0 right-0 z-[45] flex items-center gap-4 px-4 py-4 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-sm lg:rounded-2xl"
+      className="pwa-install fixed left-0 right-0 z-[45] grid grid-cols-[96px_minmax(0,1fr)] items-center gap-3 px-4 py-4 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-sm lg:rounded-2xl"
       style={{
         background: 'linear-gradient(135deg, #1e2330 0%, #252c3d 100%)',
         borderTop: '1px solid rgba(255,255,255,0.06)',
@@ -170,20 +175,19 @@ export default function PWAInstallPrompt() {
       {/* Red accent bar */}
       <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-full lg:rounded-t-2xl" style={{ background: '#e60012' }} />
 
-      {/* App Icon */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/images/icon-72x72.png" alt="Booran Floor App" className="w-12 h-12 rounded-2xl flex-shrink-0 shadow-lg" />
+      {/* Brand logo */}
+      <BooranLogo className="w-24 shrink-0" sizes="96px" />
 
       {/* Text */}
       <div className="flex-1 min-w-0">
         <p className="font-bold text-white text-sm truncate">Install Booran Floor OS</p>
         <p className="text-xs truncate mt-0.5" style={{ color: '#8892a4' }}>
-          {isIOS ? 'Add to your iPhone home screen' : 'Install as an app · Works offline'}
+          {isIOS ? 'Add to your iPhone home screen' : 'Install as an app · Live data needs internet'}
         </p>
       </div>
 
       {/* Buttons */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="col-span-2 flex items-center justify-end gap-2">
         <button
           onClick={handleDismiss}
           className="p-2 rounded-lg"

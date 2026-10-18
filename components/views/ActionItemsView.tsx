@@ -23,32 +23,30 @@ import { Pagination } from '@/components/ui/Pagination';
 import { inventoryApi } from '@/lib/api';
 
 interface ActionItemsViewProps {
+  initialSearch?: string;
+  initialStatus?: string;
   initialItems?: ActionItem[];
   selectedRooftop: string;
+  onRooftopChange: (rooftop: string) => void;
 }
 
 export function ActionItemsView({
   initialItems = [],
+  initialSearch = '',
+  initialStatus = 'open',
   selectedRooftop,
+  onRooftopChange,
 }: ActionItemsViewProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [actionTypeFilter, setActionTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('open');
-  const [rooftopFilter, setRooftopFilter] = useState(
-    selectedRooftop !== 'All Locations' ? selectedRooftop : 'all'
-  );
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [resolvedToast, setResolvedToast] = useState<string | null>(null);
 
-  // Sync rooftopFilter if selectedRooftop changes globally
-  useEffect(() => {
-    if (selectedRooftop && selectedRooftop !== 'All Locations') {
-      setRooftopFilter(selectedRooftop);
-    } else {
-      setRooftopFilter('all');
-    }
-    setCurrentPage(1);
-  }, [selectedRooftop]);
+  useEffect(() => { setCurrentPage(1); }, [selectedRooftop]);
 
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState('createdAt:desc');
@@ -65,12 +63,15 @@ export function ActionItemsView({
     setSearchQuery('');
     setActionTypeFilter('all');
     setStatusFilter('open');
-    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    onRooftopChange('All Locations');
     setSort('createdAt:desc');
     setCurrentPage(1);
   };
 
   const handleResolveAction = async (item: ActionItem) => {
+    if (resolvingId) return;
+    setResolvingId(item._id);
+    setResolveError(null);
     try {
       const res = await inventoryApi.updateActionItem(item._id, {
         status: 'resolved',
@@ -82,9 +83,9 @@ export function ActionItemsView({
         setTimeout(() => setResolvedToast(null), 3000);
       }
     } catch (err) {
-      setResolvedToast(err instanceof Error ? err.message : 'Unable to resolve action.');
+      setResolveError(err instanceof Error ? err.message : 'Unable to resolve action.');
       console.error('Failed to resolve action item:', err);
-    }
+    } finally { setResolvingId(null); }
   };
 
   return (
@@ -109,6 +110,7 @@ export function ActionItemsView({
         </div>
       </div>
 
+      {resolveError && <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">{resolveError}</p>}
       {/* Toast Feedback */}
       {resolvedToast && (
         <div className="p-3 rounded-xl bg-emerald-600 text-white text-xs font-semibold shadow-lg flex items-center gap-2 animate-in fade-in">
@@ -141,16 +143,12 @@ export function ActionItemsView({
               aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
-                setRooftopFilter(e.target.value);
+                onRooftopChange(e.target.value === 'all' ? 'All Locations' : e.target.value);
                 setCurrentPage(1);
               }}
               className="flex-1 sm:flex-initial text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
             >
-              <option value="all">All Dealerships</option>
-              <option value="Booran Cheltenham">Booran Cheltenham</option>
-              <option value="Cranbourne Hyundai">Cranbourne Hyundai</option>
-              <option value="South Morang Hyundai">South Morang Hyundai</option>
-              <option value="Berwick MG">Berwick MG Hyundai</option>
+              <RooftopOptions />
             </select>
 
             <button
@@ -170,6 +168,7 @@ export function ActionItemsView({
               { id: 'all', label: 'All Action Types' },
               { id: 'WHOLESALE', label: 'Wholesale Exit' },
               { id: 'PRICE', label: 'Price Reviews' },
+              { id: 'TRANSFER', label: 'Transfers' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -191,6 +190,7 @@ export function ActionItemsView({
           <div className="flex items-center gap-1.5 shrink-0">
             {[
               { id: 'open', label: 'Open' },
+              { id: 'in_progress', label: 'In progress' },
               { id: 'resolved', label: 'Resolved' },
               { id: 'all', label: 'All' },
             ].map((st) => (
@@ -219,7 +219,9 @@ export function ActionItemsView({
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
             <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <RooftopOptions />
+              <option value="createdAt:desc">Newest first</option>
+              <option value="createdAt:asc">Oldest first</option>
+              <option value="actionType:asc">Action type A-Z</option>
             </select>
           </label>
           <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>
@@ -270,9 +272,9 @@ export function ActionItemsView({
 
                 <div className="flex items-center justify-between pt-1 gap-2">
                   <span className="text-[11px] text-slate-500 truncate">{item.rooftopName}</span>
-                  {item.status === 'open' ? (
+                  {item.status !== 'resolved' ? (
                     <button
-                      onClick={() => handleResolveAction(item)}
+                      disabled={Boolean(resolvingId)} onClick={() => handleResolveAction(item)}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all"
                     >
                       Approve Action
@@ -358,9 +360,9 @@ export function ActionItemsView({
 
                     {/* Action Button */}
                     <td className="py-3 px-4 text-right">
-                      {item.status === 'open' ? (
+                      {item.status !== 'resolved' ? (
                         <button
-                          onClick={() => handleResolveAction(item)}
+                          disabled={Boolean(resolvingId)} onClick={() => handleResolveAction(item)}
                           className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-all"
                         >
                           Approve Action

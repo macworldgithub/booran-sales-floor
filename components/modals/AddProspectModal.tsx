@@ -1,8 +1,11 @@
 'use client';
 
+import { specificDealerships } from '@/lib/locations';
+import { RooftopOptions } from '@/components/ui/RooftopOptions';
+import { useAuth } from '@/lib/auth';
 import { useDialog } from '@/lib/use-dialog';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, User, Phone, Mail, Car, MapPin, CheckCircle2 } from 'lucide-react';
 import { leadApi } from '@/lib/api';
 import { Lead } from '@/lib/types';
@@ -20,16 +23,20 @@ export function AddProspectModal({
   onLeadCreated,
   defaultDealership = 'BYD South Morang',
 }: AddProspectModalProps) {
+  const { locations: directoryLocations, user } = useAuth();
+  const locations = specificDealerships(directoryLocations);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [vehicleMake, setVehicleMake] = useState('BYD');
-  const [vehicleModel, setVehicleModel] = useState('Sealion 7');
+  const [vehicleModel, setVehicleModel] = useState('');
   const [dealership, setDealership] = useState(defaultDealership);
-  const [owner, setOwner] = useState('Lewis Dannock');
+  const [owner, setOwner] = useState(user?.name || '');
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => { if (locations.length && !locations.includes(dealership)) setDealership(locations.includes(defaultDealership) ? defaultDealership : locations[0]); }, [directoryLocations, dealership, defaultDealership]);
 
   const dialogRef = useDialog(isOpen, onClose);
 
@@ -46,6 +53,7 @@ export function AddProspectModal({
     setError('');
 
     try {
+      if (!locations.includes(dealership)) throw new Error('Select an available dealership.');
       const res = await leadApi.createLead({
         customer_name: name.trim(),
         name: name.trim(),
@@ -164,30 +172,24 @@ export function AddProspectModal({
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Dealership / Rooftop</label>
               <select
+                required
+                aria-label="Prospect dealership"
                 value={dealership}
                 onChange={(e) => setDealership(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500"
               >
-                <option value="BYD South Morang">BYD South Morang</option>
-                <option value="Chery South Morang">Chery South Morang</option>
-                <option value="South Morang Hyundai">South Morang Hyundai</option>
-                <option value="South Morang Kia">South Morang Kia</option>
-                <option value="Booran Cheltenham">Booran Cheltenham</option>
+                <RooftopOptions allowAll={false} />
               </select>
             </div>
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">Assigned Consultant</label>
-              <select
+              <input
+                aria-label="Assigned consultant"
                 value={owner}
+                maxLength={200}
                 onChange={(e) => setOwner(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500"
-              >
-                <option value="Lewis Dannock">Lewis Dannock</option>
-                <option value="Denis Dzemailoski">Denis Dzemailoski</option>
-                <option value="Dylan K">Dylan K</option>
-                <option value="Elise Reuter">Elise Reuter</option>
-                <option value="Adrian Zuccala">Adrian Zuccala</option>
-              </select>
+              />
             </div>
           </div>
 
@@ -212,7 +214,7 @@ export function AddProspectModal({
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !locations.includes(dealership)}
               className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 disabled:opacity-50"
             >
               {isLoading ? 'Creating...' : 'Create Lead'}

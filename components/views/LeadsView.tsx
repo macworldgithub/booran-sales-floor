@@ -25,6 +25,7 @@ import { leadApi } from '@/lib/api';
 interface LeadsViewProps {
   initialLeads?: Lead[];
   selectedRooftop: string;
+  onRooftopChange: (rooftop: string) => void;
   onSelectLead: (lead: Lead) => void;
   onOpenBookDrive: (lead?: Lead) => void;
   onOpenAddProspect: () => void;
@@ -33,24 +34,17 @@ interface LeadsViewProps {
 export function LeadsView({
   initialLeads = [],
   selectedRooftop,
+  onRooftopChange,
   onSelectLead,
   onOpenBookDrive,
   onOpenAddProspect,
 }: LeadsViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [rooftopFilter, setRooftopFilter] = useState(selectedRooftop !== 'All Locations' ? selectedRooftop : 'all');
+  const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Sync rooftopFilter if selectedRooftop changes from Header/Sidebar
-  useEffect(() => {
-    if (selectedRooftop && selectedRooftop !== 'All Locations') {
-      setRooftopFilter(selectedRooftop);
-    } else {
-      setRooftopFilter('all');
-    }
-    setCurrentPage(1);
-  }, [selectedRooftop]);
+  useEffect(() => { setCurrentPage(1); }, [selectedRooftop]);
 
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState('created_at:desc');
@@ -65,7 +59,7 @@ export function LeadsView({
   const resetFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
-    setRooftopFilter(selectedRooftop === 'All Locations' ? 'all' : selectedRooftop);
+    onRooftopChange('All Locations');
     setSort('created_at:desc');
     setCurrentPage(1);
   };
@@ -130,7 +124,7 @@ export function LeadsView({
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search by customer, phone, email, VIN..."
+              placeholder="Search by customer, phone, email, vehicle..."
               className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500 font-sans"
             />
           </div>
@@ -141,16 +135,12 @@ export function LeadsView({
               aria-label="Dealership"
               value={rooftopFilter}
               onChange={(e) => {
-                setRooftopFilter(e.target.value);
+                onRooftopChange(e.target.value === 'all' ? 'All Locations' : e.target.value);
                 setCurrentPage(1);
               }}
               className="flex-1 sm:flex-initial text-xs font-medium px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-red-500"
             >
-              <option value="all">All Dealerships</option>
-              <option value="BYD South Morang">BYD South Morang</option>
-              <option value="Chery South Morang">Chery South Morang</option>
-              <option value="South Morang Hyundai">South Morang Hyundai</option>
-              <option value="South Morang Kia">South Morang Kia</option>
+              <RooftopOptions />
             </select>
 
             <button
@@ -197,7 +187,9 @@ export function LeadsView({
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-slate-600">Sort by
             <select value={sort} onChange={(event) => { setSort(event.target.value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <RooftopOptions />
+              <option value="created_at:desc">Newest first</option>
+              <option value="created_at:asc">Oldest first</option>
+              <option value="customer_name:asc">Customer A-Z</option>
             </select>
           </label>
           <button type="button" onClick={resetFilters} className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">Reset filters</button>

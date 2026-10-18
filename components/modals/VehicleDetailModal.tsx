@@ -1,5 +1,6 @@
 'use client';
 
+import { vehicleStatus } from '@/lib/vehicle-status';
 import { useAuth } from '@/lib/auth';
 import { useDialog } from '@/lib/use-dialog';
 
@@ -37,6 +38,7 @@ export function VehicleDetailModal({
   const [prospectName, setProspectName] = useState('');
   const [holdNotes, setHoldNotes] = useState('');
   const [isSubmittingHold, setIsSubmittingHold] = useState(false);
+  const [holdError, setHoldError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { user } = useAuth();
@@ -44,13 +46,15 @@ export function VehicleDetailModal({
 
   if (!isOpen || !vehicle) return null;
 
-  const isHeld = vehicle.status === 'Soft Hold' || vehicle.softHold?.held;
+  const { held: isHeld, available, label: stockStatus } = vehicleStatus(vehicle);
+  const expiresAt = vehicle.softHold?.expiresAt && Number.isFinite(Date.parse(vehicle.softHold.expiresAt)) ? new Date(vehicle.softHold.expiresAt).toLocaleString('en-AU') : 'unknown';
 
   const handleToggleHold = async () => {
+    setHoldError(null);
     setIsSubmittingHold(true);
     try {
       if (isHeld) {
-        const res = await inventoryApi.releaseHold(vehicle._id);
+        const res = await inventoryApi.releaseHold(vehicle._id, { holdId: vehicle.softHold?.holdId, heldAt: vehicle.softHold?.heldAt });
         if (res.success && res.data) {
           onVehicleUpdated?.(res.data);
           setToastMessage('Soft-hold released. Unit returned to open stock.');
@@ -71,7 +75,11 @@ export function VehicleDetailModal({
         }
       }
     } catch (err: any) {
-      console.error('Failed to update hold:', err);
+      setHoldError(err instanceof Error ? err.message : 'Unable to update hold. Please retry.');
+      if (err.status === 409) {
+        const latest = await inventoryApi.getVehicle(vehicle._id).catch(() => null);
+        if (latest?.data) onVehicleUpdated?.(latest.data);
+      }
     } finally {
       setIsSubmittingHold(false);
     }
@@ -98,6 +106,7 @@ export function VehicleDetailModal({
 
       {/* Modal Dialog */}
       <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="VehicleDetail" tabIndex={-1} className="relative w-full max-w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
+        {holdError && <p role="alert" className="bg-red-50 p-4 text-sm text-red-700">{holdError}</p>}
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -224,29 +233,29 @@ export function VehicleDetailModal({
                 <h4 className="text-xs font-bold text-slate-900">Showroom Soft-Hold Status</h4>
                 <p className="text-[11px] text-slate-500">
                   {isHeld
-                    ? `Held for ${vehicle.softHold?.prospectName || 'Customer'} (Expires in 48h)`
-                    : 'Place a 48-hour hold to protect this unit while customer finalises finance.'}
+                    ? `Held for ${vehicle.softHold?.prospectName || 'Customer'} (expires ${expiresAt})`
+                    : available ? 'Place a 48-hour hold to protect this unit while customer finalises finance.' : 'This vehicle is unavailable for a showroom hold.'}
                 </p>
               </div>
               <span
                 className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                  isHeld ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                  isHeld ? 'bg-amber-100 text-amber-800' : available ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                 }`}
               >
-                {isHeld ? 'SOFT HOLD' : 'AVAILABLE'}
+                {stockStatus.toUpperCase()}
               </span>
             </div>
 
             {isHeld ? (
               <button
                 onClick={handleToggleHold}
-                disabled={isSubmittingHold}
+                disabled={isSubmittingHold || (!isHeld && vehicle.status !== 'In Stock')}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2"
               >
                 <Unlock className="w-4 h-4" />
                 <span>Release Soft-Hold</span>
               </button>
-            ) : (
+            ) : available ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
@@ -266,14 +275,14 @@ export function VehicleDetailModal({
                 </div>
                 <button
                   onClick={handleToggleHold}
-                  disabled={isSubmittingHold}
+                  disabled={isSubmittingHold || (!isHeld && vehicle.status !== 'In Stock')}
                   className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
                 >
                   <Lock className="w-4 h-4" />
                   <span>Place 48-Hour Soft-Hold</span>
                 </button>
               </div>
-            )}
+            ) : <p className="text-xs text-slate-500">Holds cannot be placed on this vehicle.</p>}
           </div>
         </div>
       </div>
