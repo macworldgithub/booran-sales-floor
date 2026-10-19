@@ -28,6 +28,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
   const loadGeneration = useRef(0);
   const mutationPending = useRef(false);
   const refreshPending = useRef(false);
+  const latestInbound = useRef('');
   const fileInput = useRef<HTMLInputElement>(null);
   const phone = lead.phone || lead.customer_phone;
   const text = [body.trim(), ...selected.map((item) => item.url)].filter(Boolean).join('\n');
@@ -41,6 +42,8 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
       const [messages, uploads] = await Promise.allSettled([customerMessageApi.history(lead._id, page), customerMessageApi.media(lead._id)]);
       if (!active.current || generation !== loadGeneration.current) return;
       if (messages.status === 'fulfilled') {
+        const incoming = page === 1 ? messages.value.data?.messages.find((message) => message.direction === 'inbound') : undefined;
+        if (incoming && incoming.id !== latestInbound.current) { latestInbound.current = incoming.id; onMessageSent(); }
         setHistory(messages.value.data || null);
         setTotalPages(messages.value.pagination?.totalPages || 0);
         if (messages.value.pagination?.page && messages.value.pagination.page !== page) setPage(messages.value.pagination.page);
@@ -179,7 +182,9 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
         <div className="space-y-3 border-t border-slate-200 pt-4">
           <h5 className="text-xs font-bold text-slate-700">Booran Sales Floor SMS history</h5>
           {!history.messages.length && <p className="text-xs text-slate-500">No SMS recorded for this customer yet.</p>}
-          {history.messages.map((message) => <article key={message.id} className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs">
+          <p className="text-[11px] text-slate-500">Replies appear automatically while this card is open.</p>
+          {[...history.messages].reverse().map((message) => <article key={message.id} aria-label={message.direction === 'inbound' ? 'Incoming SMS' : 'Outgoing SMS'} className={`max-w-[92%] space-y-2 rounded-2xl border p-3 text-xs ${message.direction === 'inbound' ? 'mr-auto border-slate-200 bg-slate-50' : 'ml-auto border-red-100 bg-red-50'}`}>
+            <p className={`text-[11px] font-bold ${message.direction === 'inbound' ? 'text-slate-700' : 'text-red-700'}`}>{message.direction === 'inbound' ? 'Incoming · Customer' : 'Outgoing · Sales Floor'}</p>
             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{message.author} · {message.created_at ? new Date(message.created_at).toLocaleString('en-AU') : ''}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${['delivered', 'received'].includes(message.status) ? 'bg-emerald-100 text-emerald-800' : ['failed', 'error'].includes(message.status) ? 'bg-red-100 text-red-700' : ['sent', 'success'].includes(message.status) ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>{({ unknown: 'Unconfirmed', pending: 'Confirming', queued: 'Queued', accepted: 'Queued', scheduled: 'Scheduled', sent: 'Sent', success: 'Sent', delivered: 'Delivered', received: 'Received', failed: 'Failed', error: 'Failed', cancelled: 'Cancelled' } as Record<string, string>)[message.status] || 'Unconfirmed'}</span></div>
             <p className="text-[11px] text-slate-500">{message.direction === 'inbound' ? 'From' : 'To'} {message.phone} · {message.source || 'Sales Floor'}{message.dealership ? ` · ${message.dealership}` : ''}</p>
             <p className="whitespace-pre-wrap break-words text-slate-800">{message.body}</p>

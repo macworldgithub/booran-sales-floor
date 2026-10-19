@@ -5,6 +5,23 @@ const ts = require('typescript');
 const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
 
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+
+test('conversation shows incoming and outgoing messages with separate labels in chronological order', async () => {
+  const view = mount({ history: async () => ({ data: { sms_available: true, media_available: true, messages: [
+    { id: 'reply', direction: 'inbound', body: 'Customer reply', phone: '+61412345678', status: 'received', author: 'Alice', attachments: [], created_at: '2026-10-20T01:00:00Z' },
+    { id: 'sent', direction: 'outbound', body: 'Staff message', phone: '+61412345678', status: 'delivered', author: 'Staff', attachments: [], created_at: '2026-10-20T00:00:00Z' },
+  ] } }) });
+  view.render(); await settle(); const tree = view.render();
+  const articles = nodes(tree).filter(node => node.type === 'article');
+  assert.equal(articles[0].props['aria-label'], 'Outgoing SMS');
+  assert.equal(articles[1].props['aria-label'], 'Incoming SMS');
+  assert.match(view.text(articles[0]), /Outgoing.*Delivered/);
+  assert.match(view.text(articles[1]), /Incoming.*Received.*From/);
+  assert.match(articles[0].props.className, /ml-auto/);
+  assert.match(articles[1].props.className, /mr-auto/);
+  assert.equal(view.updates(), 1, 'new replies refresh the customer diary');
+  view.cleanup();
+});
 function mount(overrides = {}, leadOverrides = {}, environment = {}, extraProps = {}) {
   const harness = hookHarness();
   const media = { id: 'photo-1', name: 'vehicle.jpg', url: 'https://example.test/api/media/abc', content_type: 'image/jpeg', size: 100, created_at: '2026-10-19T01:00:00Z' };
