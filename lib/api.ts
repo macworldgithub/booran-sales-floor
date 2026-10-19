@@ -4,6 +4,7 @@ import {
   ActionItem,
   Rooftop,
   FeedLog,
+  CsvSyncResult,
   Appointment,
   StaffMember,
   UnifiedSummary,
@@ -122,6 +123,7 @@ export const inventoryApi = {
   getInventoryRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/inventory/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getInventoryStats: () => fetchApi<any>('/inventory/stats'),
   getFeedLogs: (params?: Record<string, string | number>, options?: RequestInit) => fetchApi<FeedLog[]>(`/inventory/feed-logs?${new URLSearchParams(Object.entries(params || {}).map(([key, value]) => [key, String(value)]))}`, options),
+  syncCsv: () => fetchApi<CsvSyncResult>('/inventory/sync-csv', { method: 'POST' }),
 };
 
 // ─── APPOINTMENTS ────────────────────────────────────────────────────────────

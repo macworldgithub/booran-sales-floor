@@ -249,7 +249,7 @@ export function VehicleDetailModal({
             {isHeld ? (
               <button
                 onClick={handleToggleHold}
-                disabled={isSubmittingHold || (!isHeld && vehicle.status !== 'In Stock')}
+                disabled={isSubmittingHold || (!isHeld && !['In Stock', 'IN-STOCK'].includes(vehicle.status))}
                 className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2"
               >
                 <Unlock className="w-4 h-4" />

@@ -147,6 +147,17 @@ export interface FeedLog {
   createdAt: string;
 }
 
+export interface CsvSyncResult {
+  success: boolean;
+  filesProcessed: number;
+  vehiclesProcessed: number;
+  inserted: number;
+  updated: number;
+  totalInDb: number;
+  actionsSynced: number;
+  durationMs: number;
+}
+
 export interface Appointment {
   dealership?: string;
   _id: string;

@@ -13,9 +13,34 @@ export function FeedLogsView() {
   const [pageSize, setPageSize] = useState(20);
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const { data: logs, pagination, isLoading, error, refresh: fetchLogs } = usePaginatedQuery(
     inventoryApi.getFeedLogs, { page, limit: pageSize, status, search }, setPage,
   );
+
+  const handleSyncCsv = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncStatus(null);
+    try {
+      const res = await inventoryApi.syncCsv();
+      if (res?.success && res?.data) {
+        setSyncStatus({z
+          type: 'success',
+          message: `CSV sync successful: ${res.data.vehiclesProcessed || 0} vehicles processed (${res.data.inserted || 0} new inserted, ${res.data.updated || 0} updated) across ${res.data.filesProcessed || 0} files. DB total: ${res.data.totalInDb || 0}. Actions synced: ${res.data.actionsSynced || 0}. Duration: ${res.data.durationMs}ms.`,
+        });
+        fetchLogs();
+      } else {
+        setSyncStatus({ type: 'error', message: res?.message || 'Sync completed with warnings.' });
+      }
+    } catch (err) {
+      setSyncStatus({ type: 'error', message: err instanceof Error ? err.message : 'Failed to synchronize CSV data.' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="view-stack space-y-5">
@@ -33,13 +58,36 @@ export function FeedLogsView() {
           </p>
         </div>
 
-        <button
-          onClick={fetchLogs}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 border border-slate-200 self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleSyncCsv}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm transition disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Syncing CSV...' : 'Sync CSV Data'}</span>
+          </button>
+          <button
+            onClick={fetchLogs}
+            disabled={isLoading || isSyncing}
+            title="Refresh feed logs"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 border border-slate-200"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      {syncStatus && (
+        <div className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between transition-all ${
+          syncStatus.type === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-red-50 border-red-200 text-red-800'
+        }`}>
+          <span>{syncStatus.message}</span>
+          <button onClick={() => setSyncStatus(null)} className="text-slate-400 hover:text-slate-600 font-bold ml-3 text-sm">✕</button>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-white p-4">
         <input aria-label="Search feed logs" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search feed type or notes" className="min-w-0 flex-1 rounded-lg border p-2 text-sm" />
