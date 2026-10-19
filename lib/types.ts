@@ -13,7 +13,10 @@ export interface CustomerMessage {
   phone: string;
   author: string;
   created_at: string;
-  status: 'pending' | 'queued' | 'failed' | 'unknown';
+  status: 'pending' | 'queued' | 'scheduled' | 'sent' | 'delivered' | 'received' | 'failed' | 'cancelled' | 'unknown' | string;
+  direction?: 'inbound' | 'outbound';
+  source?: string;
+  dealership?: string;
   error?: string;
   attachments: CustomerMedia[];
 }
@@ -23,6 +26,7 @@ export interface CustomerMessageHistory {
   sms_available: boolean;
   media_available: boolean;
   media_unavailable_reason?: string;
+  history_warning?: string;
 }
 
 export interface Lead {

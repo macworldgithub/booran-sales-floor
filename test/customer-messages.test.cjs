@@ -5,7 +5,7 @@ const ts = require('typescript');
 const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
 
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
-function mount(overrides = {}, leadOverrides = {}) {
+function mount(overrides = {}, leadOverrides = {}, environment = {}) {
   const harness = hookHarness();
   const media = { id: 'photo-1', name: 'vehicle.jpg', url: 'https://example.test/api/media/abc', content_type: 'image/jpeg', size: 100, created_at: '2026-10-19T01:00:00Z' };
   const api = {
@@ -18,7 +18,7 @@ function mount(overrides = {}, leadOverrides = {}) {
   const mocks = { react: harness.react, '@/lib/api': { customerMessageApi: api }, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
   const compiled = ts.transpileModule(readFileSync('components/customer/CustomerMessages.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', compiled)((id) => mocks[id] || require(id), module, module.exports);
+  new Function('require', 'module', 'exports', ...Object.keys(environment), compiled)((id) => mocks[id] || require(id), module, module.exports, ...Object.values(environment));
   const props = { lead: { _id: 'lead-1', name: 'Alice', phone: '0412345678', ...leadOverrides }, onMessageSent: () => { updates++; } };
   let tree;
   const render = () => { tree = harness.render(() => module.exports.CustomerMessages(props)); return tree; };
@@ -90,5 +90,50 @@ test('completed uploads automatically attach their durable share link', async ()
   assert.equal(view.find((node) => node.props.type === 'submit').props.disabled, false);
   await view.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.deepEqual(payload.media_ids, ['new-photo']);
+  view.cleanup();
+});
+
+test('delivered and received history stays visible when loading the media library fails', async () => {
+  const messages = [{ id: 'out-1', author: 'Staff', phone: '+61412345678', body: 'Earlier delivery text', status: 'delivered', direction: 'outbound', source: 'Delivery Centre', created_at: '2026-10-19T01:00:00Z', attachments: [] }, { id: 'in-1', author: 'Customer', phone: '+61412345678', body: 'Earlier customer reply', status: 'received', direction: 'inbound', source: 'Lead Centre', created_at: '2026-10-19T01:01:00Z', attachments: [] }];
+  const view = mount({ media: async () => { throw new Error('Storage unavailable'); }, history: async () => ({ data: { messages, sms_available: true, media_available: false }, pagination: { page: 1, totalPages: 1 } }) });
+  view.render(); await settle(); view.render();
+  assert.equal(view.text(view.find((node) => node.type === 'article' && view.text(node).includes('Earlier delivery text'))).includes('Delivered'), true);
+  assert.equal(view.text(view.find((node) => node.type === 'article' && view.text(node).includes('Earlier customer reply'))).includes('Received'), true);
+  assert.ok(view.find((node) => node.type === 'p' && view.text(node).includes('From +61412345678')));
+  assert.ok(view.find((node) => node.type === 'p' && view.text(node).includes('SMS history is still shown')));
+  view.cleanup();
+});
+
+test('open customer history refreshes delivery statuses without changing the draft and stops on unmount', async () => {
+  let callback, cleared = false, calls = 0;
+  const document = { visibilityState: 'visible' };
+  const window = { setInterval(fn, duration) { callback = fn; assert.equal(duration, 5000); return 1; }, clearInterval(id) { assert.equal(id, 1); cleared = true; } };
+  const view = mount({ history: async () => {
+    calls++;
+    return { data: { messages: [{ id: '1', author: 'Staff', phone: '+61412345678', body: 'Previous message', status: calls === 1 ? 'queued' : 'delivered', attachments: [] }], sms_available: true, media_available: true } };
+  } }, {}, { window, document });
+  view.render(); await settle(); view.render();
+  view.find((node) => node.type === 'textarea').props.onChange({ target: { value: 'Unsent draft' } });
+  view.render(); callback(); await settle(); view.render();
+  assert.ok(view.text(view.find((node) => node.type === 'article')).includes('Delivered'));
+  assert.equal(view.find((node) => node.type === 'textarea').props.value, 'Unsent draft');
+  document.visibilityState = 'hidden'; callback(); await settle();
+  assert.equal(calls, 2);
+  view.cleanup(); assert.equal(cleared, true);
+});
+
+test('older shared-history pages can be opened without clearing the message draft', async () => {
+  const pages = [];
+  const view = mount({ history: async (id, page) => {
+    pages.push(page);
+    return { data: { messages: [{ id: String(page), body: page === 1 ? 'Recent' : 'Older Lead Centre message', status: 'sent', attachments: [] }], sms_available: true }, pagination: { page, totalPages: 2 } };
+  } });
+  view.render(); await settle(); view.render();
+  view.find((node) => node.type === 'textarea').props.onChange({ target: { value: 'Draft' } });
+  view.find((node) => node.type === 'button' && view.text(node) === 'Older').props.onClick();
+  view.render(); await settle(); view.render();
+  assert.deepEqual(pages, [1, 2]);
+  assert.ok(view.text(view.find((node) => node.type === 'article')).includes('Older Lead Centre message'));
+  assert.equal(view.find((node) => node.type === 'textarea').props.value, 'Draft');
   view.cleanup();
 });

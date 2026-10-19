@@ -20,28 +20,37 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState('');
   const [error, setError] = useState('');
+  const [historyError, setHistoryError] = useState('');
+  const [mediaError, setMediaError] = useState('');
   const [notice, setNotice] = useState('');
   const [attempt, setAttempt] = useState<{ body: string; media_ids: string[]; request_id: string } | null>(null);
   const active = useRef(true);
   const loadGeneration = useRef(0);
   const mutationPending = useRef(false);
+  const refreshPending = useRef(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const phone = lead.phone || lead.customer_phone;
   const text = [body.trim(), ...selected.map((item) => item.url)].filter(Boolean).join('\n');
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (silent = false) => {
     const generation = ++loadGeneration.current;
-    setLoading(true);
+    refreshPending.current = true;
+    if (!silent) setLoading(true);
     try {
-      const [messages, uploads] = await Promise.all([customerMessageApi.history(lead._id, page), customerMessageApi.media(lead._id)]);
+      const [messages, uploads] = await Promise.allSettled([customerMessageApi.history(lead._id, page), customerMessageApi.media(lead._id)]);
       if (!active.current || generation !== loadGeneration.current) return;
-      setHistory(messages.data || null);
-      setTotalPages(messages.pagination?.totalPages || 0);
-      setMedia(uploads.data || []);
+      if (messages.status === 'fulfilled') {
+        setHistory(messages.value.data || null);
+        setTotalPages(messages.value.pagination?.totalPages || 0);
+        if (messages.value.pagination?.page && messages.value.pagination.page !== page) setPage(messages.value.pagination.page);
+        setHistoryError('');
+      } else setHistoryError(messages.reason instanceof Error ? messages.reason.message : 'Unable to load customer messages.');
+      if (uploads.status === 'fulfilled') { setMedia(uploads.value.data || []); setMediaError(''); }
+      else setMediaError('Photo/video library is temporarily unavailable. SMS history is still shown.');
     } catch (err) {
-      if (active.current && generation === loadGeneration.current) setError(err instanceof Error ? err.message : 'Unable to load customer messages.');
+      if (active.current && generation === loadGeneration.current) setHistoryError(err instanceof Error ? err.message : 'Unable to load customer messages.');
     } finally {
-      if (active.current && generation === loadGeneration.current) setLoading(false);
+      if (active.current && generation === loadGeneration.current) { setLoading(false); refreshPending.current = false; }
     }
   }, [lead._id, page]);
 
@@ -51,6 +60,13 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
     return () => { active.current = false; ++loadGeneration.current; };
   }, [refresh]);
   useRefreshOnResume(() => { void refresh(); });
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && !refreshPending.current) void refresh(true);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
 
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -65,8 +81,8 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
       if (!active.current) return;
       if (!result.data) throw new Error('Unable to confirm the SMS result.');
       const message = result.data;
-      if (message.status === 'queued') {
-        setNotice('SMS queued through Mobile Message. Saved to this customer.');
+      if (['queued', 'sent', 'delivered'].includes(message.status)) {
+        setNotice(message.status === 'delivered' ? 'SMS delivered. Saved to this customer.' : 'SMS accepted by Mobile Message. Delivery status updates automatically.');
         setBody(''); setSelected([]);
       } else if (message.status === 'failed') {
         setError(message.error || 'SMS failed. The attempt was saved to this customer.');
@@ -129,6 +145,9 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
         <button type="button" aria-label="Refresh messages" disabled={loading} onClick={() => { setError(''); void refresh(); }} className={buttonClass}><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
       </div>
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+      {historyError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs text-red-700">{historyError}</p>}
+      {mediaError && <p role="status" className="text-xs text-amber-700">{mediaError}</p>}
+      {history?.history_warning && <p role="status" className="text-xs text-amber-700">{history.history_warning}</p>}
       {notice && <p role="status" className="rounded-lg bg-slate-100 p-3 text-xs text-slate-700">{notice}</p>}
       {loading && !history && <p className="text-xs text-slate-500">Loading messages…</p>}
       {history && <>
@@ -157,11 +176,11 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
           </div>)}</div>
         </details>}
         <div className="space-y-3 border-t border-slate-200 pt-4">
-          <h5 className="text-xs font-bold text-slate-700">SMS history</h5>
+          <h5 className="text-xs font-bold text-slate-700">SMS history · Sales Floor, Delivery Centre & Lead Centre</h5>
           {!history.messages.length && <p className="text-xs text-slate-500">No SMS recorded for this customer yet.</p>}
           {history.messages.map((message) => <article key={message.id} className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{message.author} · {new Date(message.created_at).toLocaleString('en-AU')}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${message.status === 'queued' ? 'bg-emerald-100 text-emerald-800' : message.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}`}>{message.status === 'unknown' ? 'Unconfirmed' : message.status === 'pending' ? 'Confirming' : message.status === 'queued' ? 'Queued' : 'Failed'}</span></div>
-            <p className="text-[11px] text-slate-500">To {message.phone}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{message.author} · {message.created_at ? new Date(message.created_at).toLocaleString('en-AU') : ''}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${['delivered', 'received'].includes(message.status) ? 'bg-emerald-100 text-emerald-800' : ['failed', 'error'].includes(message.status) ? 'bg-red-100 text-red-700' : ['sent', 'success'].includes(message.status) ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>{({ unknown: 'Unconfirmed', pending: 'Confirming', queued: 'Queued', accepted: 'Queued', scheduled: 'Scheduled', sent: 'Sent', success: 'Sent', delivered: 'Delivered', received: 'Received', failed: 'Failed', error: 'Failed', cancelled: 'Cancelled' } as Record<string, string>)[message.status] || 'Unconfirmed'}</span></div>
+            <p className="text-[11px] text-slate-500">{message.direction === 'inbound' ? 'From' : 'To'} {message.phone} · {message.source || 'Sales Floor'}{message.dealership ? ` · ${message.dealership}` : ''}</p>
             <p className="whitespace-pre-wrap break-words text-slate-800">{message.body}</p>
             {message.attachments.map((item) => <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className="block truncate text-red-700 underline">{item.content_type.startsWith('video/') ? 'Video' : 'Photo'}: {item.name}</a>)}
             {message.error && <p className="text-amber-800">{message.error}</p>}
