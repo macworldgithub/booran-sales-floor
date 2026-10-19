@@ -27,7 +27,7 @@ export function FeedLogsView() {
     try {
       const res = await inventoryApi.syncCsv();
       if (res?.success && res?.data) {
-        setSyncStatus({z
+        setSyncStatus({
           type: 'success',
           message: `CSV sync successful: ${res.data.vehiclesProcessed || 0} vehicles processed (${res.data.inserted || 0} new inserted, ${res.data.updated || 0} updated) across ${res.data.filesProcessed || 0} files. DB total: ${res.data.totalInDb || 0}. Actions synced: ${res.data.actionsSynced || 0}. Duration: ${res.data.durationMs}ms.`,
         });
