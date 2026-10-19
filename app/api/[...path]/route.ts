@@ -14,13 +14,38 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const base = process.env.API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001/api' : 'https://booran-sales-floor-backend.vercel.app/api');
     const url = new URL(`${base.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}`);
     url.search = request.nextUrl.search;
-    const headers = new Headers({ 'Content-Type': 'application/json' });
+    const binaryUpload = request.method === 'PUT' && path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content' && request.headers.get('content-type') === 'application/octet-stream';
+    const headers = new Headers({ 'Content-Type': binaryUpload ? 'application/octet-stream' : 'application/json' });
+    let body: string | ArrayBuffer | undefined;
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      if (binaryUpload) {
+        const reader = request.body?.getReader();
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > 2 * 1024 * 1024) {
+              await reader.cancel();
+              return Response.json({ success: false, error: 'Upload chunks must not exceed 2 MB.' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
+            }
+            chunks.push(value);
+          }
+        }
+        const bytes = new Uint8Array(size);
+        let offset = 0;
+        for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+        body = bytes.buffer;
+      } else body = await request.text();
+    }
     const cookie = request.headers.get('cookie');
     if (cookie) headers.set('cookie', cookie);
     const response = await fetch(url, {
       method: request.method,
       headers,
-      body: ['GET', 'HEAD'].includes(request.method) ? undefined : await request.text(),
+      body,
       signal: AbortSignal.timeout(25000),
       cache: 'no-store',
       redirect: 'error',

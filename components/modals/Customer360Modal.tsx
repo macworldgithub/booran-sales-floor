@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Lead } from '@/lib/types';
 import { leadApi } from '@/lib/api';
+import { CustomerMessages } from '@/components/customer/CustomerMessages';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -201,6 +202,10 @@ export function Customer360Modal({
               </button>
             )}
           </div>
+
+          <CustomerMessages key={lead._id} lead={lead} onMessageSent={() => {
+            leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
+          }} />
 
           {/* Timeline & Diary Entries */}
           <div>

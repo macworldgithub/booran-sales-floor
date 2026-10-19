@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   Users,
   Car,
-  AlertTriangle,
+  Calendar,
   Menu,
 } from 'lucide-react';
 
@@ -45,11 +45,9 @@ export function BottomNav({
       badge: inventoryCount > 999 ? `${(inventoryCount / 1000).toFixed(1)}k` : inventoryCount,
     },
     {
-      id: 'action-items',
-      label: 'Radar',
-      icon: AlertTriangle,
-      badge: actionItemsCount > 999 ? `${(actionItemsCount / 1000).toFixed(1)}k` : actionItemsCount,
-      badgeColor: 'bg-amber-600',
+      id: 'calendar',
+      label: 'Showroom',
+      icon: Calendar,
     },
   ];
 
@@ -80,7 +78,7 @@ export function BottomNav({
                 {tab.badge && (
                   <span
                     className={`absolute -top-1.5 -right-3 text-[9px] font-extrabold px-1 rounded-full text-white ${
-                      tab.badgeColor || 'bg-red-600'
+                      'bg-red-600'
                     } leading-tight font-mono ring-1 ring-[#171b22]`}
                   >
                     {tab.badge}

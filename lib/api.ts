@@ -8,6 +8,9 @@ import {
   Appointment,
   StaffMember,
   UnifiedSummary,
+  CustomerMedia,
+  CustomerMessage,
+  CustomerMessageHistory,
 } from './types';
 
 let sessionGeneration = 0;
@@ -22,7 +25,7 @@ export async function fetchApi<T>(
 ): Promise<{ success: boolean; data?: T; message?: string; pagination?: import('./use-paginated-query').PageMetadata; error?: string }> {
   const requestGeneration = sessionGeneration;
   const headers = new Headers(options.headers);
-  headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
 
   try {
@@ -87,6 +90,23 @@ export const leadApi = {
   getCrmStats: () => fetchApi<any>('/crm/stats'),
   getCrmRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/crm/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getOrganization: () => fetchApi<any>('/crm/organization'),
+};
+
+export const customerMessageApi = {
+  history: (id: string, page = 1, options?: RequestInit) => fetchApi<CustomerMessageHistory>(`/leads/${encodeURIComponent(id)}/messages?page=${page}`, options),
+  media: (id: string, options?: RequestInit) => fetchApi<CustomerMedia[]>(`/leads/${encodeURIComponent(id)}/media`, options),
+  send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
+  upload: async (id: string, file: File) => {
+    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: file.type, size: file.size }) });
+    if (!prepared.data) throw new Error('Unable to prepare this upload.');
+    const chunkSize = prepared.data.upload.chunk_size;
+    if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 2 * 1024 * 1024) throw new Error('Invalid upload configuration.');
+    for (let offset = 0; offset < file.size; offset += chunkSize) {
+      const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
+      await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk });
+    }
+    return fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/complete`, { method: 'POST', body: '{}' });
+  },
 };
 
 // ─── INVENTORY & CAPITAL TRACKER (BOORAN_INVENTORY_TRACKER) ──────────────────

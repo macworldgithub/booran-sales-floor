@@ -30,6 +30,10 @@ The API proxy uses the App Router Node.js runtime and a 30-second maximum durati
 
 ## Responsive interface and data lists
 
+Customer360 includes an SMS composer, photo/video uploads, reusable share links, and paginated SMS history. Each send is logged against the customer with staff identity and queued/failed/unconfirmed status. After a lost response, “Check send result” uses the original request identity to avoid duplicate messages. Uploads support five attachments per SMS, up to 100 MB each, and are saved in the backend?s local media directory using 2 MB upload chunks. Configure the provider, local media directory and public backend URL as described in its README. Persistent media requires a backend host with persistent disk; the frontend can remain on Vercel. The UI displays missing configuration and missing customer mobile numbers.
+
+Capital Radar is under Group Management in the desktop sidebar and mobile More menu. The mobile bottom navigation provides Today, Leads, Stock and Showroom.
+
 Layouts use dynamic viewport height and device safe areas. Compact layouts use record cards, large layouts use scrollable tables, and the mobile navigation stays clear of install/status notices. Dialogs support keyboard focus containment, Escape, and focus restoration. Browser zoom remains enabled.
 
 Leads, inventory, actions, appointments, and feed logs use server pagination, bounded page sizes, request cancellation, and visible error/retry controls. Search and filter changes reset the page; deleted/resolved final-page records move back to a valid page. Staff and locations paginate their complete filtered directory data locally. Appointment date/type controls query the selected day. Real counts replace demonstration totals.

@@ -60,18 +60,11 @@ export function Sidebar({
       badge: inventoryCount > 0 ? inventoryCount.toLocaleString() : undefined,
       source: 'booran_inventory',
     },
-    {
-      id: 'action-items',
-      label: 'Capital Radar',
-      icon: AlertTriangle,
-      badge: actionItemsCount > 0 ? actionItemsCount.toLocaleString() : undefined,
-      badgeColor: 'bg-amber-600',
-      source: 'booran_inventory',
-    },
     { id: 'calendar', label: 'Showroom Floor', icon: Calendar },
   ];
 
   const managementNavItems = [
+    { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount > 0 ? actionItemsCount.toLocaleString() : undefined },
     { id: 'rooftops', label: 'Locations & Rooftops', icon: MapPin },
     { id: 'staff', label: 'Staff & Allocation', icon: UserCheck },
     { id: 'feed-logs', label: 'DMS & Feed Sync', icon: RefreshCw },
@@ -135,7 +128,7 @@ export function Sidebar({
                   {item.badge && (
                     <span
                       className={`${
-                        item.badgeColor || (isActive ? 'bg-white/20 text-white' : 'bg-red-600/80 text-white')
+                        isActive ? 'bg-white/20 text-white' : 'bg-red-600/80 text-white'
                       } text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-5 text-center`}
                     >
                       {item.badge}
@@ -176,6 +169,7 @@ export function Sidebar({
                     <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
                     <span>{item.label}</span>
                   </div>
+                  {item.badge && <span className="rounded-full bg-amber-600 px-1.5 text-[10px] font-bold text-white">{item.badge}</span>}
                 </button>
               );
             })}

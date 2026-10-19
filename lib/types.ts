@@ -1,3 +1,30 @@
+export interface CustomerMedia {
+  id: string;
+  name: string;
+  content_type: string;
+  size: number;
+  url: string;
+  created_at: string;
+}
+
+export interface CustomerMessage {
+  id: string;
+  body: string;
+  phone: string;
+  author: string;
+  created_at: string;
+  status: 'pending' | 'queued' | 'failed' | 'unknown';
+  error?: string;
+  attachments: CustomerMedia[];
+}
+
+export interface CustomerMessageHistory {
+  messages: CustomerMessage[];
+  sms_available: boolean;
+  media_available: boolean;
+  media_unavailable_reason?: string;
+}
+
 export interface Lead {
   _id: string;
   id?: string;

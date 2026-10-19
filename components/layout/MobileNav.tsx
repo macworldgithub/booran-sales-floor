@@ -49,8 +49,10 @@ export function MobileNav({
     { id: 'today', label: 'Today Command Center', icon: LayoutDashboard },
     { id: 'leads', label: 'Leads Centre (CRM)', icon: Users, badge: leadsCount },
     { id: 'inventory', label: 'Live Inventory', icon: Car, badge: inventoryCount },
-    { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount, badgeColor: 'bg-amber-600' },
     { id: 'calendar', label: 'Showroom Floor', icon: Calendar },
+  ];
+  const managementNavItems = [
+    { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount, badgeColor: 'bg-amber-600' },
     { id: 'rooftops', label: 'Locations & Rooftops', icon: MapPin },
     { id: 'staff', label: 'Staff & Allocation', icon: UserCheck },
     { id: 'feed-logs', label: 'DMS & Feed Sync', icon: RefreshCw },
@@ -99,7 +101,9 @@ export function MobileNav({
 
         {/* Nav Links */}
         <nav className="flex-1 overflow-y-auto space-y-1 py-2">
-          {navItems.filter((item) => item.id !== 'feed-logs' || user?.role === 'super_admin').map((item) => {
+          {[{ label: 'Floor Operations', items: navItems }, { label: 'Group Management', items: managementNavItems }].map((group) => <div key={group.label} className="mb-4">
+          <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.label}</p>
+          {group.items.filter((item) => item.id !== 'feed-logs' || user?.role === 'super_admin').map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -122,7 +126,7 @@ export function MobileNav({
                 {item.badge && (
                   <span
                     className={`${
-                      item.badgeColor || 'bg-white/20'
+                      ('badgeColor' in item && item.badgeColor) || 'bg-white/20'
                     } text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full`}
                   >
                     {item.badge.toLocaleString()}
@@ -131,6 +135,7 @@ export function MobileNav({
               </button>
             );
           })}
+          </div>)}
         </nav>
 
         {/* Footer */}
