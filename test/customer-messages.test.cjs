@@ -5,7 +5,7 @@ const ts = require('typescript');
 const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
 
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
-function mount(overrides = {}, leadOverrides = {}, environment = {}) {
+function mount(overrides = {}, leadOverrides = {}, environment = {}, extraProps = {}) {
   const harness = hookHarness();
   const media = { id: 'photo-1', name: 'vehicle.jpg', url: 'https://example.test/api/media/abc', content_type: 'image/jpeg', size: 100, created_at: '2026-10-19T01:00:00Z' };
   const api = {
@@ -19,7 +19,7 @@ function mount(overrides = {}, leadOverrides = {}, environment = {}) {
   const compiled = ts.transpileModule(readFileSync('components/customer/CustomerMessages.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
   new Function('require', 'module', 'exports', ...Object.keys(environment), compiled)((id) => mocks[id] || require(id), module, module.exports, ...Object.values(environment));
-  const props = { lead: { _id: 'lead-1', name: 'Alice', phone: '0412345678', ...leadOverrides }, onMessageSent: () => { updates++; } };
+  const props = { lead: { _id: 'lead-1', name: 'Alice', phone: '0412345678', ...leadOverrides }, onMessageSent: () => { updates++; }, ...extraProps };
   let tree;
   const render = () => { tree = harness.render(() => module.exports.CustomerMessages(props)); return tree; };
   const find = (predicate) => { const result = nodes(tree).find(predicate); assert.ok(result, 'Expected control'); return result; };
@@ -135,5 +135,16 @@ test('older shared-history pages can be opened without clearing the message draf
   assert.deepEqual(pages, [1, 2]);
   assert.ok(view.text(view.find((node) => node.type === 'article')).includes('Older Lead Centre message'));
   assert.equal(view.find((node) => node.type === 'textarea').props.value, 'Draft');
+  view.cleanup();
+});
+
+test('SMS cannot send while the lead mobile number is being edited', async () => {
+  let calls = 0;
+  const view = mount({ send: async () => { calls++; } }, {}, {}, { contactBusy: true });
+  view.render(); await settle(); view.render();
+  view.find((node) => node.type === 'textarea').props.onChange({ target: { value: 'Draft message' } }); view.render();
+  assert.equal(view.find((node) => node.type === 'button' && node.props.type === 'submit').props.disabled, true);
+  await view.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(calls, 0);
   view.cleanup();
 });

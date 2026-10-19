@@ -9,7 +9,7 @@ import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'];
 const buttonClass = 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50';
 
-export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessageSent: () => void }) {
+export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onBusyChange }: { lead: Lead; onMessageSent: () => void; contactBusy?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const [history, setHistory] = useState<CustomerMessageHistory | null>(null);
   const [media, setMedia] = useState<CustomerMedia[]>([]);
   const [selected, setSelected] = useState<CustomerMedia[]>([]);
@@ -31,6 +31,7 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
   const fileInput = useRef<HTMLInputElement>(null);
   const phone = lead.phone || lead.customer_phone;
   const text = [body.trim(), ...selected.map((item) => item.url)].filter(Boolean).join('\n');
+  useEffect(() => { onBusyChange?.(sending || !!attempt); }, [sending, attempt, onBusyChange]);
 
   const refresh = useCallback(async (silent = false) => {
     const generation = ++loadGeneration.current;
@@ -70,7 +71,7 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
 
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (mutationPending.current || !text || !phone) return;
+    if (mutationPending.current || contactBusy || !text || !phone) return;
     mutationPending.current = true;
     setSending(true); setError(''); setNotice('');
     // Keep the same payload and identity after a lost response: checking it cannot double-send.
@@ -162,7 +163,7 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
           <div className="flex flex-wrap items-center justify-between gap-2">
             <input ref={fileInput} type="file" multiple accept={allowedTypes.join(',')} className="hidden" aria-label="Upload photos or videos" onChange={(e) => { void upload(e.target.files); }} />
             <button type="button" disabled={!history.media_available || sending || !!uploading || !!attempt || selected.length >= 5} onClick={() => fileInput.current?.click()} className={`${buttonClass} flex items-center gap-1.5`}><ImagePlus className="h-4 w-4" />{uploading ? `Uploading ${uploading}…` : 'Upload photos / videos'}</button>
-            <button type="submit" disabled={sending || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
+            <button type="submit" disabled={sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
           </div>
           <p className="text-[11px] text-slate-500">Up to 5 files, 100 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
         </form>
@@ -176,7 +177,7 @@ export function CustomerMessages({ lead, onMessageSent }: { lead: Lead; onMessag
           </div>)}</div>
         </details>}
         <div className="space-y-3 border-t border-slate-200 pt-4">
-          <h5 className="text-xs font-bold text-slate-700">SMS history · Sales Floor, Delivery Centre & Lead Centre</h5>
+          <h5 className="text-xs font-bold text-slate-700">Booran Sales Floor SMS history</h5>
           {!history.messages.length && <p className="text-xs text-slate-500">No SMS recorded for this customer yet.</p>}
           {history.messages.map((message) => <article key={message.id} className="space-y-2 rounded-xl bg-slate-50 p-3 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500"><span>{message.author} · {message.created_at ? new Date(message.created_at).toLocaleString('en-AU') : ''}</span><span className={`rounded-full px-2 py-0.5 font-semibold ${['delivered', 'received'].includes(message.status) ? 'bg-emerald-100 text-emerald-800' : ['failed', 'error'].includes(message.status) ? 'bg-red-100 text-red-700' : ['sent', 'success'].includes(message.status) ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>{({ unknown: 'Unconfirmed', pending: 'Confirming', queued: 'Queued', accepted: 'Queued', scheduled: 'Scheduled', sent: 'Sent', success: 'Sent', delivered: 'Delivered', received: 'Received', failed: 'Failed', error: 'Failed', cancelled: 'Cancelled' } as Record<string, string>)[message.status] || 'Unconfirmed'}</span></div>

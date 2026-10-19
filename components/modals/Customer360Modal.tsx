@@ -23,6 +23,7 @@ import {
 import { Lead } from '@/lib/types';
 import { leadApi } from '@/lib/api';
 import { CustomerMessages } from '@/components/customer/CustomerMessages';
+import { CustomerPhoneEditor } from '@/components/customer/CustomerPhoneEditor';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -45,6 +46,8 @@ export function Customer360Modal({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   const { user } = useAuth();
   const dialogRef = useDialog(isOpen, onClose);
@@ -140,12 +143,7 @@ export function Customer360Modal({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200/80">
             <div className="flex items-center gap-2.5">
               <Phone className="w-4 h-4 text-slate-500" />
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase font-bold text-slate-400 font-mono">Mobile</p>
-                <p className="text-xs font-semibold text-slate-800 truncate">
-                  {lead.phone || lead.customer_phone || 'Not provided'}
-                </p>
-              </div>
+              <CustomerPhoneEditor key={lead._id} lead={lead} disabled={sendingMessage} onUpdated={(updated) => { onLeadUpdated?.(updated); setToastMessage('Mobile number saved'); }} onEditingChange={setEditingPhone} />
             </div>
             <div className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 text-slate-500" />
@@ -203,7 +201,7 @@ export function Customer360Modal({
             )}
           </div>
 
-          <CustomerMessages key={lead._id} lead={lead} onMessageSent={() => {
+          <CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
           }} />
 
