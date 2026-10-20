@@ -90,6 +90,8 @@ export const leadApi = {
   getCrmStats: () => fetchApi<any>('/crm/stats'),
   getCrmRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/crm/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getOrganization: () => fetchApi<any>('/crm/organization'),
+  syncFlwup: (options?: { rooftop_id?: string; token?: string }) =>
+    fetchApi<any>('/leads/sync-flwup', { method: 'POST', body: JSON.stringify(options || {}) }),
 };
 
 export const customerMessageApi = {

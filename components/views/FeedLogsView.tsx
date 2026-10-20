@@ -6,7 +6,7 @@ import { FeedLog } from '@/lib/types';
 import { Pagination } from '@/components/ui/Pagination';
 import { QueryStatus } from '@/components/ui/QueryStatus';
 import { usePaginatedQuery } from '@/lib/use-paginated-query';
-import { inventoryApi } from '@/lib/api';
+import { inventoryApi, leadApi } from '@/lib/api';
 
 export function FeedLogsView() {
   const [page, setPage] = useState(1);
@@ -14,6 +14,7 @@ export function FeedLogsView() {
   const [status, setStatus] = useState('all');
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingFlwup, setIsSyncingFlwup] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data: logs, pagination, isLoading, error, refresh: fetchLogs } = usePaginatedQuery(
@@ -42,6 +43,28 @@ export function FeedLogsView() {
     }
   };
 
+  const handleSyncFlwup = async () => {
+    if (isSyncingFlwup) return;
+    setIsSyncingFlwup(true);
+    setSyncStatus(null);
+    try {
+      const res = await leadApi.syncFlwup();
+      if (res?.success && res?.data) {
+        setSyncStatus({
+          type: 'success',
+          message: `FLWUP Leads sync successful: ${res.data.dealsProcessed || 0} leads processed across ${res.data.rooftopsProcessed || 0} rooftops (${res.data.inserted || 0} new inserted, ${res.data.updated || 0} updated). DB total: ${res.data.totalInDb || 0}. Numbers normalized to +61 format. Duration: ${res.data.durationMs}ms.`,
+        });
+        fetchLogs();
+      } else {
+        setSyncStatus({ type: 'error', message: res?.message || 'Sync completed with warnings.' });
+      }
+    } catch (err) {
+      setSyncStatus({ type: 'error', message: err instanceof Error ? err.message : 'Failed to synchronize FLWUP leads.' });
+    } finally {
+      setIsSyncingFlwup(false);
+    }
+  };
+
   return (
     <div className="view-stack space-y-5">
       {/* Intro */}
@@ -60,8 +83,16 @@ export function FeedLogsView() {
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
+            onClick={handleSyncFlwup}
+            disabled={isSyncingFlwup || isSyncing}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 active:bg-black text-white shadow-sm transition disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingFlwup ? 'animate-spin' : ''}`} />
+            <span>{isSyncingFlwup ? 'Syncing FLWUP...' : 'Sync FLWUP Leads'}</span>
+          </button>
+          <button
             onClick={handleSyncCsv}
-            disabled={isSyncing}
+            disabled={isSyncing || isSyncingFlwup}
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 active:bg-red-800 text-white shadow-sm transition disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -69,7 +100,7 @@ export function FeedLogsView() {
           </button>
           <button
             onClick={fetchLogs}
-            disabled={isLoading || isSyncing}
+            disabled={isLoading || isSyncing || isSyncingFlwup}
             title="Refresh feed logs"
             className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 border border-slate-200"
           >
