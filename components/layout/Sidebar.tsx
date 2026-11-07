@@ -25,7 +25,7 @@ import {
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  role: 'consultant' | 'manager' | 'principal' | 'super_admin';
+  role: import('@/lib/auth').AuthUser['role'];
   leadsCount?: number;
   inventoryCount?: number;
   actionItemsCount?: number;

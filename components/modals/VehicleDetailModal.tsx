@@ -12,7 +12,6 @@ import {
   DollarSign,
   AlertTriangle,
   CheckCircle2,
-  Lock,
   Unlock,
   MapPin,
   Tag,
@@ -35,8 +34,6 @@ export function VehicleDetailModal({
   onClose,
   onVehicleUpdated,
 }: VehicleDetailModalProps) {
-  const [prospectName, setProspectName] = useState('');
-  const [holdNotes, setHoldNotes] = useState('');
   const [isSubmittingHold, setIsSubmittingHold] = useState(false);
   const [holdError, setHoldError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -46,33 +43,18 @@ export function VehicleDetailModal({
 
   if (!isOpen || !vehicle) return null;
 
-  const { held: isHeld, available, label: stockStatus } = vehicleStatus(vehicle);
+  const { held: isHeld, label: stockStatus } = vehicleStatus(vehicle);
   const expiresAt = vehicle.softHold?.expiresAt && Number.isFinite(Date.parse(vehicle.softHold.expiresAt)) ? new Date(vehicle.softHold.expiresAt).toLocaleString('en-AU') : 'unknown';
 
   const handleToggleHold = async () => {
     setHoldError(null);
     setIsSubmittingHold(true);
     try {
-      if (isHeld) {
-        const res = await inventoryApi.releaseHold(vehicle._id, { holdId: vehicle.softHold?.holdId, heldAt: vehicle.softHold?.heldAt });
-        if (res.success && res.data) {
-          onVehicleUpdated?.(res.data);
-          setToastMessage('Soft-hold released. Unit returned to open stock.');
-          setTimeout(() => setToastMessage(null), 3000);
-        }
-      } else {
-        const res = await inventoryApi.softHold(vehicle._id, {
-          prospectName: prospectName.trim() || 'Floor Customer',
-          notes: holdNotes.trim() || '48-hour customer showroom hold',
-          consultant: user?.name,
-        });
-        if (res.success && res.data) {
-          onVehicleUpdated?.(res.data);
-          setToastMessage('Soft-hold successfully applied for 48 hours!');
-          setProspectName('');
-          setHoldNotes('');
-          setTimeout(() => setToastMessage(null), 3000);
-        }
+      const res = await inventoryApi.releaseHold(vehicle._id, { holdId: vehicle.softHold?.holdId, heldAt: vehicle.softHold?.heldAt });
+      if (res.data) {
+        onVehicleUpdated?.(res.data);
+        setToastMessage('Existing hold released.');
+        setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
       setHoldError(err instanceof Error ? err.message : 'Unable to update hold. Please retry.');
@@ -163,6 +145,7 @@ export function VehicleDetailModal({
                 </span>
               </div>
             </div>
+{user?.viewCost && <>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
               <p className="text-[10px] font-bold text-slate-400 uppercase font-mono">Vehicle Cost</p>
               <p className="text-base font-bold text-slate-900 mt-0.5">
@@ -175,6 +158,7 @@ export function VehicleDetailModal({
                 ${vehicle.accumulatedHoldingCost ? vehicle.accumulatedHoldingCost.toLocaleString() : '0'}
               </p>
             </div>
+</>}
           </div>
 
           {/* Vehicle Specifications */}
@@ -226,64 +210,14 @@ export function VehicleDetailModal({
             </div>
           )}
 
-          {/* Soft-Hold Workflow */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">Showroom Soft-Hold Status</h4>
-                <p className="text-[11px] text-slate-500">
-                  {isHeld
-                    ? `Held for ${vehicle.softHold?.prospectName || 'Customer'} (expires ${expiresAt})`
-                    : available ? 'Place a 48-hour hold to protect this unit while customer finalises finance.' : 'This vehicle is unavailable for a showroom hold.'}
-                </p>
-              </div>
-              <span
-                className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                  isHeld ? 'bg-amber-100 text-amber-800' : available ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {stockStatus.toUpperCase()}
-              </span>
-            </div>
-
-            {isHeld ? (
-              <button
-                onClick={handleToggleHold}
-                disabled={isSubmittingHold || (!isHeld && !['In Stock', 'IN-STOCK'].includes(vehicle.status))}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold flex items-center justify-center gap-2"
-              >
-                <Unlock className="w-4 h-4" />
-                <span>Release Soft-Hold</span>
-              </button>
-            ) : available ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={prospectName}
-                    onChange={(e) => setProspectName(e.target.value)}
-                    placeholder="Prospect full name..."
-                    className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-red-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={holdNotes}
-                    onChange={(e) => setHoldNotes(e.target.value)}
-                    placeholder="Hold reason / deal notes..."
-                    className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:border-red-500 focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={handleToggleHold}
-                  disabled={isSubmittingHold || (!isHeld && vehicle.status !== 'In Stock')}
-                  className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Lock className="w-4 h-4" />
-                  <span>Place 48-Hour Soft-Hold</span>
-                </button>
-              </div>
-            ) : <p className="text-xs text-slate-500">Holds cannot be placed on this vehicle.</p>}
-          </div>
+          {isHeld && <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+            <h4 className="text-xs font-bold text-slate-900">Existing Soft Hold</h4>
+            <p className="text-xs text-slate-600">Expires {expiresAt}</p>
+            {user?.canAllocate && <button onClick={handleToggleHold} disabled={isSubmittingHold}
+              className="mt-3 rounded-xl bg-slate-800 px-3 py-2 text-xs font-bold text-white">
+              <Unlock className="mr-2 inline h-4 w-4" />Release hold
+            </button>}
+          </div>}
         </div>
       </div>
     </div>

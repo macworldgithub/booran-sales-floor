@@ -7,7 +7,11 @@ export const maxDuration = 30;
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const origin = request.headers.get('origin');
-  if (!['GET', 'HEAD'].includes(request.method) && origin && origin !== request.nextUrl.origin) {
+  const publicOrigins = (process.env.APP_PUBLIC_ORIGINS || '').split(',').map(value => value.trim()).filter(Boolean);
+  const allowedOrigin = !origin || (publicOrigins.length
+    ? publicOrigins.includes(origin) && new URL(origin).host === request.headers.get('host')
+    : origin === request.nextUrl.origin);
+  if (!['GET', 'HEAD'].includes(request.method) && !allowedOrigin) {
     return Response.json({ success: false, error: 'Request origin is not allowed.' }, { status: 403 });
   }
   try {
@@ -42,6 +46,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     }
     const cookie = request.headers.get('cookie');
     if (cookie) headers.set('cookie', cookie);
+    if (process.env.TRUST_LOOPBACK_PROXY === 'true') {
+      const forwardedFor = request.headers.get('x-forwarded-for');
+      if (forwardedFor && forwardedFor.length <= 256) headers.set('X-Forwarded-For', forwardedFor);
+    }
     const response = await fetch(url, {
       method: request.method,
       headers,
@@ -51,6 +59,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       redirect: 'error',
     });
     const outgoing = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' });
+    const privateImage = request.method === 'GET' && path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content';
+    const responseType = response.headers.get('content-type') || '';
+    if (privateImage && /^image\/(?:jpeg|png|webp|gif|heic|heif)$/.test(responseType)) outgoing.set('Content-Type', responseType);
+    outgoing.set('X-Content-Type-Options', 'nosniff');
     for (const cookieValue of response.headers.getSetCookie()) outgoing.append('Set-Cookie', cookieValue);
     const retry = response.headers.get('retry-after');
     if (retry) outgoing.set('Retry-After', retry);

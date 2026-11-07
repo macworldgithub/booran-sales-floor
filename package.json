@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "next build && node scripts/prepare-standalone.cjs",
+    "start": "node .next/standalone/server.js",
     "typecheck": "tsc --noEmit",
     "test": "node --test test/*.test.cjs"
   },
@@ -22,7 +22,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.0.0",
     "lucide-react": "^1.44.0",
-    "next": "^16.3.4",
+    "next": "16.4.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.6.0"

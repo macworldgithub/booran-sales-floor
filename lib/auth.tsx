@@ -5,7 +5,8 @@ import { LoginScreen } from '@/components/auth/LoginScreen';
 import { useRefreshOnResume } from './use-refresh-on-resume';
 export interface AuthUser {
   id: string; email: string; name: string;
-  role: 'principal' | 'manager' | 'consultant' | 'super_admin';
+  role: 'dealer_principal' | 'general_manager' | 'sales_manager' | 'manager' | 'sales_consultant' | 'super_admin' | 'contractor';
+  canAllocate?: boolean; viewCost?: boolean;
   site: string; allowedSites: string[]; avatar?: string; title?: string;
 }
 interface AuthContextValue {
@@ -23,7 +24,8 @@ function isAuthUser(value: unknown): value is AuthUser {
   if (!value || typeof value !== 'object') return false;
   const user = value as AuthUser;
   return typeof user.id === 'string' && typeof user.site === 'string' && typeof user.email === 'string' && typeof user.name === 'string' &&
-    ['super_admin', 'manager'].includes(user.role) && Array.isArray(user.allowedSites) && user.allowedSites.length > 0 && user.allowedSites.every((site) => typeof site === 'string');
+    ['super_admin', 'dealer_principal', 'general_manager', 'sales_manager', 'manager', 'sales_consultant', 'contractor'].includes(user.role) &&
+    Array.isArray(user.allowedSites) && user.allowedSites.length > 0 && user.allowedSites.every((site) => typeof site === 'string');
 }
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);

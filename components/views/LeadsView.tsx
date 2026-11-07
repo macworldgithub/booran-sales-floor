@@ -21,6 +21,7 @@ import { usePaginatedQuery } from '@/lib/use-paginated-query';
 import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { leadApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 interface LeadsViewProps {
   initialLeads?: Lead[];
@@ -39,8 +40,11 @@ export function LeadsView({
   onOpenBookDrive,
   onOpenAddProspect,
 }: LeadsViewProps) {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [source, setSource] = useState('all');
+  const [assignment, setAssignment] = useState('all');
   const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -51,14 +55,23 @@ export function LeadsView({
   const { data: leads, pagination, isLoading, error, refresh: fetchLeads } = usePaginatedQuery(
     leadApi.getLeads,
     { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
-    dealership: rooftopFilter, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    dealership: rooftopFilter, source, assignment, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
     setCurrentPage,
   );
+  useEffect(() => {
+    if (!user?.canAllocate || currentPage !== 1) return;
+    const timer = window.setInterval(() => {
+      if (!isLoading && document.visibilityState === 'visible') fetchLeads();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [user?.canAllocate, currentPage, fetchLeads, isLoading]);
   const totalPages = pagination.totalPages;
   const totalLeads = pagination.total;
   const resetFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
+    setSource('all');
+    setAssignment('all');
     onRooftopChange('All Locations');
     setSort('created_at:desc');
     setCurrentPage(1);
@@ -86,7 +99,7 @@ export function LeadsView({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
-              flwup_crm Database
+              Booran leads
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
               {totalLeads.toLocaleString()} Total Records
@@ -153,6 +166,18 @@ export function LeadsView({
           </div>
         </div>
 
+        <div className="flex flex-wrap gap-2">
+          <select aria-label="Lead source" value={source} onChange={event => { setSource(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
+            <option value="all">All sources</option>
+            <option value="Nextgate">Nextgate</option>
+            <option value="FLWUP Dashboard">FLWUP</option>
+          </select>
+          {user?.canAllocate && <select aria-label="Lead assignment" value={assignment} onChange={event => { setAssignment(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
+            <option value="all">Any assignment</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="assigned">Assigned</option>
+          </select>}
+        </div>
         {/* Status Pills (Scrollable on Mobile) */}
         <div className="flex overflow-x-auto no-scrollbar gap-1.5 pt-1 pb-0.5">
           {[
@@ -352,7 +377,7 @@ export function LeadsView({
                         {lead.vehicle || `${lead.make} ${lead.model}`}
                       </p>
                       <p className="text-[10px] text-slate-400 font-mono">
-                        Source: {lead.source || 'Manual'}
+                        {[lead.source || 'Manual', lead.source_channel].filter(Boolean).join(' · ')}
                       </p>
                     </td>
 

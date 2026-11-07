@@ -25,7 +25,7 @@ import { Lead, Vehicle, ActionItem } from '@/lib/types';
 
 interface HeaderProps {
   selectedRooftop: string;
-  role: 'consultant' | 'manager' | 'principal' | 'super_admin';
+  role: import('@/lib/auth').AuthUser['role'];
   onOpenMobileNav: () => void;
   onOpenNotifications: () => void;
   onSelectLead?: (lead: Lead) => void;

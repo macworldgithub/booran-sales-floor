@@ -96,7 +96,7 @@ export function InventoryView({
             Live Group Inventory & Capital Tracker
           </h2>
           <p className="text-xs text-slate-500">
-            Real-time multi-dealership stock, aging telemetry (DIS), daily holding costs, and showroom soft-hold management.
+            Multi-dealership stock, age in stock, and pending deal status.
           </p>
         </div>
 

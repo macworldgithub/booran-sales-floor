@@ -46,6 +46,11 @@ export interface Lead {
   dealership_name?: string;
   dealer_code?: string;
   owner_name?: string;
+  owner_id?: string | null;
+  business_name?: string;
+  source_channel?: string;
+  source_stage?: string;
+  source_comments?: string;
   assignedTo?: string;
   phone?: string;
   customer_phone?: string;

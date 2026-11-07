@@ -81,8 +81,11 @@ export const leadApi = {
     return fetchApi<Lead[]>(`/leads${query}`, options);
   },
   getLead: (id: string) => fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`),
+  getAssignees: (id: string) => fetchApi<{ id: string; name: string; email: string }[]>(`/leads/${encodeURIComponent(id)}/assignees`),
+  assign: (id: string, assigneeId: string | null, expectedOwnerId: string | null) =>
+    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}/assignment`, { method: 'PATCH', body: JSON.stringify({ assigneeId, expectedOwnerId }) }),
   createLead: (data: Partial<Lead>) =>
-    fetchApi<Lead>('/leads', { method: 'POST', body: JSON.stringify(data) }),
+    fetchApi<Lead>('/prospects', { method: 'POST', body: JSON.stringify(data) }),
   updateLead: (id: string, data: Partial<Lead>) =>
     fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   addNote: (id: string, note: string, author?: string) =>

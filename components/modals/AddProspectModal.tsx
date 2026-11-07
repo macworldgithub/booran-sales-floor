@@ -21,17 +21,17 @@ export function AddProspectModal({
   isOpen,
   onClose,
   onLeadCreated,
-  defaultDealership = 'BYD South Morang',
+  defaultDealership = '',
 }: AddProspectModalProps) {
-  const { locations: directoryLocations, user } = useAuth();
+  const { locations: directoryLocations } = useAuth();
   const locations = specificDealerships(directoryLocations);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [vehicleMake, setVehicleMake] = useState('BYD');
+  const [businessName, setBusinessName] = useState('');
+  const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [dealership, setDealership] = useState(defaultDealership);
-  const [owner, setOwner] = useState(user?.name || '');
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -44,8 +44,8 @@ export function AddProspectModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('Please provide customer name.');
+    if (!name.trim() || !phone.trim() || !email.trim()) {
+      setError('Provide the customer’s full name, mobile and email.');
       return;
     }
 
@@ -59,10 +59,10 @@ export function AddProspectModal({
         name: name.trim(),
         customer_phone: phone.trim(),
         customer_email: email.trim(),
+        business_name: businessName.trim(),
         vehicle_make: vehicleMake,
         vehicle_model: vehicleModel,
         dealership_name: dealership,
-        owner_name: owner,
         notes: notes.trim(),
       });
 
@@ -90,7 +90,7 @@ export function AddProspectModal({
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-900">Add Walk-in Prospect</h3>
-              <p className="text-[10px] text-slate-500">Insert new opportunity into flwup_crm</p>
+              <p className="text-[10px] text-slate-500">Create a prospect at the selected dealership</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors">
@@ -182,12 +182,12 @@ export function AddProspectModal({
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Assigned Consultant</label>
+              <label htmlFor="prospect-business" className="text-xs font-bold text-slate-700 block mb-1">Business name (optional)</label>
               <input
-                aria-label="Assigned consultant"
-                value={owner}
+                id="prospect-business"
+                value={businessName}
                 maxLength={200}
-                onChange={(e) => setOwner(e.target.value)}
+                onChange={(e) => setBusinessName(e.target.value)}
                 className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500"
               />
             </div>
