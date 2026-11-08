@@ -171,6 +171,8 @@ export function LeadsView({
             <option value="all">All sources</option>
             <option value="Nextgate">Nextgate</option>
             <option value="FLWUP Dashboard">FLWUP</option>
+            <option value="SMS Campaign">SMS Campaign</option>
+            <option value="DealerSocket">DealerSocket</option>
           </select>
           {user?.canAllocate && <select aria-label="Lead assignment" value={assignment} onChange={event => { setAssignment(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
             <option value="all">Any assignment</option>
