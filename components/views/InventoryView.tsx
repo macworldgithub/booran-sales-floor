@@ -82,7 +82,7 @@ export function InventoryView({
   return (
     <div className="view-stack space-y-5">
       {/* Intro Banner */}
-      <div className="page-intro flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
+      <div className="page-intro p-5 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
@@ -98,13 +98,6 @@ export function InventoryView({
           <p className="text-xs text-slate-500">
             Multi-dealership stock, age in stock, and pending deal status.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-right">
-            <p className="text-[10px] text-slate-400 uppercase font-mono">Aging 90+ Traps</p>
-            <p className="text-sm font-bold text-red-600">See aging filter</p>
-          </div>
         </div>
       </div>
 
