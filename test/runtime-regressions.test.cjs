@@ -78,7 +78,7 @@ test('booking options exclude location groups and daylight-saving gaps cannot sh
   } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
 });
 
-test('pagination ignores superseded results and hides the previous filter results immediately', async () => {
+test('pagination keeps current rows during refresh and hides results from a previous filter', async () => {
   const { hookHarness, fakeTimers } = require('./helpers/hook-harness.cjs');
   const harness = hookHarness(), timers = fakeTimers(), window = new EventTarget();
   const { usePaginatedQuery } = load('lib/use-paginated-query.ts', { window, document: new EventTarget(), setTimeout: timers.setTimeout, clearTimeout: timers.clearTimeout }, { react: harness.react });
@@ -98,8 +98,23 @@ test('pagination ignores superseded results and hides the previous filter result
   await new Promise(setImmediate);
   assert.deepEqual(render().data, [{ id: 'current' }]);
   window.dispatchEvent(new Event('booran:data-changed'));
-  assert.deepEqual(render().data, []);
-  assert.equal(render().isLoading, true);
+  assert.deepEqual(render().data, [{ id: 'current' }]);
+  assert.equal(render().pagination.total, 1);
+  assert.equal(render().isLoading, false);
+  assert.equal(render().isRefreshing, true);
+  timers.run();
+  pending[2].resolve({ success: false, error: 'Refresh failed' });
+  await new Promise(setImmediate);
+  assert.equal(render().error, 'Refresh failed');
+  assert.deepEqual(render().data, [{ id: 'current' }]);
+  render().refresh();
+  assert.equal(render().error, 'Refresh failed');
+  timers.run();
+  pending[3].resolve(response('updated'));
+  await new Promise(setImmediate);
+  assert.deepEqual(render().data, [{ id: 'updated' }]);
+  assert.equal(render().isRefreshing, false);
+  assert.equal(render().error, null);
   query = { ...query, status: 'lost' };
   assert.deepEqual(render().data, []);
   assert.equal(render().pagination.total, 0);

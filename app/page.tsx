@@ -78,7 +78,7 @@ export default function BooranSalesFloorApp() {
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [unifiedSummary, setUnifiedSummary] = useState<UnifiedSummary | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
   // Modals
@@ -94,16 +94,13 @@ export default function BooranSalesFloorApp() {
     if (rooftop === selectedRooftop) return;
     ++loadVersion.current;
     setLeads([]); setVehicles([]); setActionItems([]); setAppointments([]); setUnifiedSummary(null);
-    setLoadError(false); setIsLoading(true);
+    setLoadError(false); setIsInitialLoading(true);
     updateSelectedRooftop(rooftop);
   };
 
   // Fetch initial telemetry
   const loadInitialData = useCallback(async () => {
     const version = ++loadVersion.current;
-    setIsLoading(true);
-    setLoadError(false);
-    setLeads([]); setVehicles([]); setActionItems([]); setAppointments([]); setUnifiedSummary(null);
     try {
       const [leadsRes, vehiclesRes, actionsRes, apptsRes, summaryRes] = await Promise.all([
         leadApi.getLeads({ limit: 30, dealership: selectedRooftop, attention: 'true' }).catch(() => ({ success: false, data: [] })),
@@ -132,8 +129,9 @@ export default function BooranSalesFloorApp() {
       }
     } catch (err) {
       console.error('Data load error:', err);
+      if (version === loadVersion.current) setLoadError(true);
     } finally {
-      if (version === loadVersion.current) setIsLoading(false);
+      if (version === loadVersion.current) setIsInitialLoading(false);
     }
   }, [salesOnly, selectedRooftop, today]);
 
@@ -192,7 +190,7 @@ export default function BooranSalesFloorApp() {
         {/* View Container */}
         <main id="main-content" tabIndex={-1} className="app-main flex-1 overflow-x-hidden">
           {locationsError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-800">{locationsError}<button onClick={reloadLocations} className="font-bold underline">Retry dealerships</button></div>}
-          {isLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
+          {isInitialLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
           {activeTab === 'today' && salesOnly && <MySalesDay rooftop={selectedRooftop} leads={leads} appointments={appointments}
             onOpenLead={setSelectedLead} onNavigate={setActiveTab} />}

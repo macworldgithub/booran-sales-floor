@@ -61,19 +61,19 @@ export function LeadsView({
 
   const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState('created_at:desc');
-  const { data: leads, pagination, isLoading, error, refresh: fetchLeads } = usePaginatedQuery(
+  const { data: leads, pagination, isLoading, isRefreshing, error, refresh: fetchLeads } = usePaginatedQuery(
     leadApi.getLeads,
     { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
     dealership: rooftopFilter, source, assignment, ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
     setCurrentPage,
   );
   useEffect(() => {
-    if (!user?.canAllocate || currentPage !== 1) return;
+    if (!user?.canAllocate || currentPage !== 1 || isLoading || isRefreshing) return;
     const timer = window.setInterval(() => {
-      if (!isLoading && document.visibilityState === 'visible') fetchLeads();
+      if (document.visibilityState === 'visible') fetchLeads();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [user?.canAllocate, currentPage, fetchLeads, isLoading]);
+  }, [user?.canAllocate, currentPage, fetchLeads, isLoading, isRefreshing]);
   const totalPages = pagination.totalPages;
   const totalLeads = pagination.total;
   const resetFilters = () => {

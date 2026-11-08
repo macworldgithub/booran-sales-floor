@@ -24,10 +24,8 @@ export function usePaginatedQuery<T>(
   params: Record<string, string | number>,
   onPageChange: (page: number) => void,
 ) {
-  const [data, setData] = useState<T[]>([]);
-  const [pagination, setPagination] = useState<PageMetadata>({ total: 0, page: 1, limit: 20, totalPages: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ queryKey: string; data: T[]; pagination: PageMetadata } | null>(null);
+  const [settled, setSettled] = useState<{ queryKey: string; requestKey: string | null; error: string | null } | null>(null);
   const [revision, setRevision] = useState(0);
   const queryKey = JSON.stringify(params);
   const requestKey = JSON.stringify([queryKey, revision]);
@@ -35,12 +33,10 @@ export function usePaginatedQuery<T>(
   currentKey.current = requestKey;
   const pageCallback = useRef(onPageChange);
   pageCallback.current = onPageChange;
-  const [resolvedKey, setResolvedKey] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
-    setIsLoading(true);
-    setError(null);
+    setSettled((previous) => previous?.queryKey === queryKey ? { ...previous, requestKey: null } : null);
     const timer = setTimeout(async () => {
       try {
         const query = JSON.parse(queryKey);
@@ -54,17 +50,11 @@ export function usePaginatedQuery<T>(
           pageCallback.current(lastPage);
           return;
         }
-        setData(result.data);
-        setPagination(result.pagination);
-        setResolvedKey(requestKey);
+        setResult({ queryKey, data: result.data, pagination: result.pagination });
+        setSettled({ queryKey, requestKey, error: null });
       } catch (failure) {
         if (controller.signal.aborted || currentKey.current !== requestKey) return;
-        setData([]);
-        setPagination({ total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 });
-        setResolvedKey(requestKey);
-        setError(failure instanceof Error ? failure.message : 'Unable to load results.');
-      } finally {
-        if (!controller.signal.aborted && currentKey.current === requestKey) setIsLoading(false);
+        setSettled({ queryKey, requestKey, error: failure instanceof Error ? failure.message : 'Unable to load results.' });
       }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
@@ -78,6 +68,14 @@ export function usePaginatedQuery<T>(
 
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
   useRefreshOnResume(refresh);
-  const isCurrent = resolvedKey === requestKey;
-  return { data: isCurrent ? data : [], pagination: isCurrent ? pagination : { total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 }, isLoading: isLoading || !isCurrent, error: isCurrent ? error : null, refresh };
+  const current = result?.queryKey === queryKey ? result : null;
+  const pending = settled?.requestKey !== requestKey;
+  return {
+    data: current?.data ?? [],
+    pagination: current?.pagination ?? { total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 },
+    isLoading: pending && !current,
+    isRefreshing: pending && Boolean(current),
+    error: settled?.queryKey === queryKey ? settled.error : null,
+    refresh,
+  };
 }
