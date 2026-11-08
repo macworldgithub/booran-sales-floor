@@ -196,9 +196,7 @@ export default function BooranSalesFloorApp() {
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
           {activeTab === 'today' && salesOnly && <MySalesDay rooftop={selectedRooftop} leads={leads} appointments={appointments}
             onOpenLead={setSelectedLead} onNavigate={setActiveTab} />}
-          {activeTab === 'today' && !salesOnly && <>
-            {user?.canAllocate && <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
-              onOpenCalendar={member => setActiveTab('calendar', member)} />}
+          {activeTab === 'today' && !salesOnly && (
             <TodayView
               leads={leads}
               vehicles={vehicles}
@@ -214,8 +212,10 @@ export default function BooranSalesFloorApp() {
               onOpenAddProspect={() => setIsAddProspectOpen(true)}
               onNavigateTab={(tab) => setActiveTab(tab)}
               stats={unifiedSummary}
+              afterBanner={user?.canAllocate && <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
+                onOpenCalendar={member => setActiveTab('calendar', member)} />}
             />
-          </>}
+          )}
 
           {activeTab === 'leads' && (
             <LeadsView

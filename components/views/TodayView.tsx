@@ -36,6 +36,7 @@ interface TodayViewProps {
   onOpenAddProspect: () => void;
   onNavigateTab: (tab: string) => void;
   stats?: any;
+  afterBanner?: React.ReactNode;
 }
 
 export function TodayView({
@@ -50,6 +51,7 @@ export function TodayView({
   onOpenAddProspect,
   onNavigateTab,
   stats,
+  afterBanner,
 }: TodayViewProps) {
   const { user, locations } = useAuth();
   const visibleLocations = selectedRooftop === 'All Locations' ? locations : locations.filter((name) => name === selectedRooftop);
@@ -118,6 +120,8 @@ export function TodayView({
           </div>
         </div>
       </div>
+
+      {afterBanner}
 
       {/* KPI Metrics Strip - Responsive 2 col on mobile, 3 col on sm, 5 col on lg */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3.5">

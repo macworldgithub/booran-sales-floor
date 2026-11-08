@@ -43,7 +43,7 @@ export function TeamActivity({ rooftop, onOpenLeads, onOpenCalendar }: {
     return () => controller.abort();
   }, [rooftop, revision]);
 
-  return <section className={`${card} mb-5 space-y-3`} aria-label="Team activity">
+  return <section className={`${card} space-y-3`} aria-label="Team activity">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div>
         <h2 className="text-lg font-extrabold text-slate-900">Team activity</h2>
