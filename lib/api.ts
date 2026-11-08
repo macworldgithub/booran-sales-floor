@@ -165,6 +165,19 @@ export const staffApi = {
   getStaff: (rooftop?: string, options?: RequestInit) => fetchApi<StaffMember[]>(`/staff?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`, options),
 };
 
+export type StaffRole = Exclude<import('./auth').AuthUser['role'], 'super_admin'>;
+export type StaffAccess = { role: StaffRole; site: string; allowedSites: string[]; viewCost: boolean };
+export type StaffAccount = StaffAccess & { id: string; name: string; email: string; active: boolean };
+export type StaffDirectory = { accounts: StaffAccount[]; sites: string[]; roles: StaffRole[] };
+
+export const staffAdminApi = {
+  list: (signal: AbortSignal) => fetchApi<StaffDirectory>('/admin/staff', { signal }),
+  create: (data: StaffAccess & { name: string; email: string; password: string }) =>
+    fetchApi<StaffAccount>('/admin/staff', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: StaffAccess) =>
+    fetchApi<StaffAccount>(`/admin/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+};
+
 // ─── UNIFIED DASHBOARD & SEARCH ──────────────────────────────────────────────
 
 export const unifiedApi = {

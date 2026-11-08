@@ -8,8 +8,12 @@ import { StaffMember } from '@/lib/types';
 import { Pagination } from '@/components/ui/Pagination';
 import { QueryStatus } from '@/components/ui/QueryStatus';
 import { staffApi } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
+import { StaffAccounts } from '@/components/staff/StaffAccounts';
 
 export function StaffView({ selectedRooftop, onRooftopChange }: { selectedRooftop: string; onRooftopChange: (rooftop: string) => void }) {
+  const { user } = useAuth();
+  const [manageAccounts, setManageAccounts] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loadedRooftop, setLoadedRooftop] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,13 +74,17 @@ export function StaffView({ selectedRooftop, onRooftopChange }: { selectedRoofto
           </p>
         </div>
 
-        <button
-          onClick={fetchStaff}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-slate-50 border border-slate-200 self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {user?.role === 'super_admin' && <button type="button" aria-expanded={manageAccounts} onClick={() => setManageAccounts(value => !value)} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">
+            {manageAccounts ? 'Hide staff accounts' : 'Manage staff accounts'}
+          </button>}
+          <button aria-label="Refresh staff performance" onClick={fetchStaff} className="rounded-xl border border-slate-200 bg-slate-50 p-2 text-slate-500 hover:text-slate-800">
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
+
+      {user?.role === 'super_admin' && manageAccounts && <StaffAccounts />}
 
       {/* Search Input */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
