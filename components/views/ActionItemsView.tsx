@@ -22,6 +22,8 @@ import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { inventoryApi } from '@/lib/api';
 
+const impactLabelClassName = 'inline-block min-w-0 max-w-[16rem] rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium leading-snug text-emerald-800 [overflow-wrap:anywhere]';
+
 interface ActionItemsViewProps {
   initialSearch?: string;
   initialStatus?: string;
@@ -246,7 +248,7 @@ export function ActionItemsView({
               <div key={item._id} className="p-3.5 space-y-2.5 active:bg-slate-50 transition-colors">
                 <div className="flex items-start justify-between gap-2">
                   <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono ${
+                    className={`inline-block shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono ${
                       item.actionType === 'WHOLESALE'
                         ? 'bg-red-100 text-red-800 border border-red-200'
                         : 'bg-amber-100 text-amber-800 border border-amber-200'
@@ -254,9 +256,7 @@ export function ActionItemsView({
                   >
                     {item.actionType}
                   </span>
-                  <span className="font-bold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {item.impactMetric}
-                  </span>
+                  {item.impactMetric && <span className={impactLabelClassName}>{item.impactMetric}</span>}
                 </div>
 
                 <div>
@@ -348,9 +348,7 @@ export function ActionItemsView({
 
                     {/* Impact Metric */}
                     <td className="py-3 px-4">
-                      <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                        {item.impactMetric}
-                      </span>
+                      {item.impactMetric && <span className={impactLabelClassName}>{item.impactMetric}</span>}
                     </td>
 
                     {/* Rooftop */}
