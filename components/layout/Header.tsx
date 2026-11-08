@@ -27,7 +27,7 @@ interface HeaderProps {
   selectedRooftop: string;
   role: import('@/lib/auth').AuthUser['role'];
   onOpenMobileNav: () => void;
-  onOpenNotifications: () => void;
+  onOpenNotifications?: () => void;
   onSelectLead?: (lead: Lead) => void;
   onSelectVehicle?: (vehicle: Vehicle) => void;
   onSelectAction?: (action: ActionItem) => void;
@@ -134,12 +134,12 @@ export function Header({
               type="text"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setIsSearchOpen(e.target.value.trim().length >= 2); }}
-              aria-label="Search leads, vehicles and actions"
+              aria-label={role === 'sales_consultant' ? 'Search my leads' : 'Search leads, vehicles and actions'}
               onKeyDown={(event) => { if (event.key === 'Escape') setIsSearchOpen(false); }}
               onFocus={() => {
                 if (searchQuery.trim().length >= 2) setIsSearchOpen(true);
               }}
-              placeholder="Search leads, VIN, stock..."
+              placeholder={role === 'sales_consultant' ? 'Search my leads…' : 'Search leads, VIN, stock...'}
               className="w-full pl-9 pr-7 sm:pr-8 py-1.5 sm:py-2 text-xs bg-slate-100 hover:bg-slate-100/80 focus:bg-white text-slate-900 rounded-xl border border-transparent focus:border-red-500/30 focus:ring-2 focus:ring-red-500/10 focus:outline-none transition-all placeholder:text-slate-400 font-sans"
             />
             {searchQuery && (
@@ -273,7 +273,7 @@ export function Header({
         )}
 
         {/* Notification Bell */}
-        <button
+        {onOpenNotifications && <button
           onClick={onOpenNotifications}
           className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           title="Notification Center"
@@ -282,7 +282,7 @@ export function Header({
           {unreadNotifications && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600 ring-2 ring-white" />
           )}
-        </button>
+        </button>}
 
         {/* Role & User Profile Switcher */}
         <div ref={profileRef} className="relative">
@@ -299,7 +299,7 @@ export function Header({
                 {user?.name || 'Account'}
               </p>
               <p className="text-[10px] text-slate-500 capitalize">
-                {role === 'super_admin' ? 'Super Admin' : role === 'manager' ? 'Site Manager' : 'Consultant'}
+                {role.replaceAll('_', ' ')}
               </p>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xs:block" />

@@ -287,6 +287,7 @@ test('late lead and vehicle updates cannot reopen closed dialogs or replace anot
   window.location = { href: 'https://floor.test/' };
   window.setInterval = () => 0;
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { role: 'manager' } }) } };
+  mocks['@/components/views/SalesWorkspace'] = { MySalesDay: () => null, TeamActivity: () => null };
   for (const name of ['layout/Sidebar', 'layout/Header', 'layout/MobileNav', 'layout/BottomNav', 'views/TodayView', 'views/LeadsView', 'views/InventoryView', 'views/ActionItemsView', 'views/CalendarView', 'views/RooftopsView', 'views/StaffView', 'views/FeedLogsView', 'modals/Customer360Modal', 'modals/VehicleDetailModal', 'modals/AddProspectModal', 'modals/BookTestDriveModal', 'modals/NotificationCenterModal']) {
     mocks[`@/components/${name}`] = { [name.split('/').at(-1)]: () => null };
   }

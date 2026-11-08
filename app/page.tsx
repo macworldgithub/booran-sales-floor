@@ -1,6 +1,8 @@
 'use client';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { localDate, localDayRange } from '@/lib/dates';
+import { canOpenTab } from '@/lib/navigation';
+import { MySalesDay, TeamActivity } from '@/components/views/SalesWorkspace';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -33,25 +35,32 @@ import { Lead, Vehicle, ActionItem, Appointment, UnifiedSummary } from '@/lib/ty
 
 export default function BooranSalesFloorApp() {
   const { user, locationsError, reloadLocations } = useAuth();
+  const role = user?.role || 'sales_consultant';
+  const salesOnly = role === 'sales_consultant';
 
   // Navigation & Scope
-  const [activeTab, updateActiveTab] = useState<string>('today');
-  const setActiveTab = (tab: string) => {
-    updateActiveTab(tab);
+  const [requestedTab, updateActiveTab] = useState<string>('today');
+  const activeTab = canOpenTab(requestedTab, role) ? requestedTab : 'today';
+  const [teamMember, setTeamMember] = useState<{ id: string; name: string } | null>(null);
+  const setActiveTab = (tab: string, member?: { id: string; name: string }) => {
+    const next = canOpenTab(tab, role) ? tab : 'today';
+    updateActiveTab(next);
+    setTeamMember(member ?? null);
     const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
+    url.searchParams.set('tab', next);
     window.history.pushState({}, '', url);
     document.getElementById('main-content')?.scrollTo({ top: 0 });
   };
   useEffect(() => {
     const sync = () => {
       const tab = new URL(window.location.href).searchParams.get('tab') || 'today';
-      updateActiveTab(tab === 'feed-logs' && user?.role !== 'super_admin' ? 'today' : ['today', 'leads', 'inventory', 'action-items', 'calendar', 'rooftops', 'staff', 'feed-logs'].includes(tab) ? tab : 'today');
+      updateActiveTab(canOpenTab(tab, role) ? tab : 'today');
+      setTeamMember(null);
     };
     sync();
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
-  }, [user?.role]);
+  }, [role]);
   const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
   const [today, setToday] = useState(localDate);
   useEffect(() => {
@@ -60,7 +69,6 @@ export default function BooranSalesFloorApp() {
     document.addEventListener('visibilitychange', sync);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', sync); };
   }, []);
-  const role = user?.role || 'manager';
   const [actionTarget, setActionTarget] = useState({ search: '', status: 'open', version: 0 });
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
@@ -99,8 +107,8 @@ export default function BooranSalesFloorApp() {
     try {
       const [leadsRes, vehiclesRes, actionsRes, apptsRes, summaryRes] = await Promise.all([
         leadApi.getLeads({ limit: 30, dealership: selectedRooftop, attention: 'true' }).catch(() => ({ success: false, data: [] })),
-        inventoryApi.getVehicles({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
-        inventoryApi.getActionItems({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        salesOnly ? { success: true, data: [] } : inventoryApi.getVehicles({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
+        salesOnly ? { success: true, data: [] } : inventoryApi.getActionItems({ limit: 30, rooftop: selectedRooftop }).catch(() => ({ success: false, data: [] })),
         appointmentApi.getAppointments({ rooftop: selectedRooftop, limit: 30, ...localDayRange(today) }).catch(() => ({ success: false, data: [] })),
         unifiedApi.getSummary(selectedRooftop).catch(() => ({ success: false, data: undefined })),
       ]);
@@ -127,7 +135,7 @@ export default function BooranSalesFloorApp() {
     } finally {
       if (version === loadVersion.current) setIsLoading(false);
     }
-  }, [selectedRooftop, today]);
+  }, [salesOnly, selectedRooftop, today]);
 
   useRefreshOnResume(loadInitialData);
 
@@ -174,7 +182,7 @@ export default function BooranSalesFloorApp() {
           unreadNotifications={Boolean(unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
           role={role}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
-          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          onOpenNotifications={salesOnly ? undefined : () => setIsNotificationsOpen(true)}
           onSelectLead={(l) => setSelectedLead(l)}
           onSelectVehicle={(v) => setSelectedVehicle(v)}
           onSelectAction={(item) => { setActionTarget((previous) => ({ search: item.stockNumber || item.vehicleTitle || '', status: item.status, version: previous.version + 1 })); setActiveTab('action-items'); }}
@@ -186,7 +194,11 @@ export default function BooranSalesFloorApp() {
           {locationsError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-800">{locationsError}<button onClick={reloadLocations} className="font-bold underline">Retry dealerships</button></div>}
           {isLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
-          {activeTab === 'today' && (
+          {activeTab === 'today' && salesOnly && <MySalesDay rooftop={selectedRooftop} leads={leads} appointments={appointments}
+            onOpenLead={setSelectedLead} onNavigate={setActiveTab} />}
+          {activeTab === 'today' && !salesOnly && <>
+            {user?.canAllocate && <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
+              onOpenCalendar={member => setActiveTab('calendar', member)} />}
             <TodayView
               leads={leads}
               vehicles={vehicles}
@@ -203,13 +215,15 @@ export default function BooranSalesFloorApp() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               stats={unifiedSummary}
             />
-          )}
+          </>}
 
           {activeTab === 'leads' && (
             <LeadsView
               onRooftopChange={setSelectedRooftop}
               initialLeads={leads}
               selectedRooftop={selectedRooftop}
+              assignedStaff={user?.canAllocate ? teamMember : null}
+              onClearStaff={() => setTeamMember(null)}
               onSelectLead={(l) => setSelectedLead(l)}
               onOpenBookDrive={(l) => {
                 setBookDriveLead(l || null);
@@ -241,6 +255,8 @@ export default function BooranSalesFloorApp() {
           {activeTab === 'calendar' && (
             <CalendarView selectedRooftop={selectedRooftop}
               appointments={appointments}
+              assignedStaff={user?.canAllocate ? teamMember : null}
+              onClearStaff={() => setTeamMember(null)}
               onOpenBookDrive={() => {
                 setBookDriveLead(null);
                 setIsBookDriveOpen(true);
@@ -294,13 +310,14 @@ export default function BooranSalesFloorApp() {
 
       <NotificationCenterModal
         summary={unifiedSummary}
-        isOpen={isNotificationsOpen}
+        isOpen={!salesOnly && isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
         onNavigateTab={(tab) => setActiveTab(tab)}
       />
 
       {/* Mobile Bottom Navigation Bar */}
       <BottomNav
+        role={role}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenMore={() => setIsMobileNavOpen(true)}

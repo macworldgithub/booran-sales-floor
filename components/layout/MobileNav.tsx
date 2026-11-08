@@ -1,4 +1,5 @@
 'use client';
+import { canOpenTab } from '@/lib/navigation';
 import { BooranLogo } from '@/components/ui/BooranLogo';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
@@ -42,6 +43,7 @@ export function MobileNav({
   actionItemsCount = 0,
 }: MobileNavProps) {
   const { user } = useAuth();
+  const role = user?.role || 'sales_consultant';
   const dialogRef = useDialog(isOpen, onClose);
   if (!isOpen) return null;
 
@@ -101,9 +103,9 @@ export function MobileNav({
 
         {/* Nav Links */}
         <nav className="flex-1 overflow-y-auto space-y-1 py-2">
-          {[{ label: 'Floor Operations', items: navItems }, { label: 'Group Management', items: managementNavItems }].map((group) => <div key={group.label} className="mb-4">
+          {[{ label: 'Floor Operations', items: navItems }, { label: 'Group Management', items: managementNavItems }].filter(group => group.items.some(item => canOpenTab(item.id, role))).map((group) => <div key={group.label} className="mb-4">
           <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.label}</p>
-          {group.items.filter((item) => item.id !== 'feed-logs' || user?.role === 'super_admin').map((item) => {
+          {group.items.filter(item => canOpenTab(item.id, role)).map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (

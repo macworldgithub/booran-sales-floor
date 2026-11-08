@@ -1,4 +1,6 @@
 'use client';
+import { canOpenTab } from '@/lib/navigation';
+import type { AuthUser } from '@/lib/auth';
 
 import React from 'react';
 import {
@@ -10,6 +12,7 @@ import {
 } from 'lucide-react';
 
 interface BottomNavProps {
+  role: AuthUser['role'];
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onOpenMore: () => void;
@@ -19,6 +22,7 @@ interface BottomNavProps {
 }
 
 export function BottomNav({
+  role,
   activeTab,
   setActiveTab,
   onOpenMore,
@@ -57,7 +61,7 @@ export function BottomNav({
       className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#171b22]/95 backdrop-blur-md border-t border-white/10 px-2 py-1.5 safe-area-bottom shadow-2xl"
     >
       <div className="flex items-center justify-around max-w-lg mx-auto">
-        {tabs.map((tab) => {
+        {tabs.filter(tab => canOpenTab(tab.id, role)).map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (

@@ -178,6 +178,36 @@ export const staffAdminApi = {
     fetchApi<StaffAccount>(`/admin/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
+export interface TeamActivityMember {
+  id: string;
+  name: string;
+  site: string;
+  activeLeads: number;
+  leadsUpdated: number;
+  openTasks: number;
+  tasksCompleted: number;
+  appointments: number;
+}
+
+export interface SalesTask {
+  _id: string;
+  title: string;
+  notes?: string;
+  lead_id: string;
+  due_at: string;
+}
+
+export const salesWorkApi = {
+  team: (rooftop: string, signal: AbortSignal) =>
+    fetchApi<TeamActivityMember[]>(`/team-activity?rooftop=${encodeURIComponent(rooftop)}`, { signal }),
+  tasks: (params: Record<string, string | number>, options?: RequestInit) =>
+    fetchApi<SalesTask[]>(`/sales-tasks?${new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))}`, options),
+  createTask: (id: string, data: { title: string; dueAt: string; assigneeId: string }) =>
+    fetchApi<SalesTask>(`/leads/${encodeURIComponent(id)}/tasks`, { method: 'POST', body: JSON.stringify(data) }),
+  completeTask: (id: string) =>
+    fetchApi<SalesTask>(`/sales-tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) }),
+};
+
 // ─── UNIFIED DASHBOARD & SEARCH ──────────────────────────────────────────────
 
 export const unifiedApi = {

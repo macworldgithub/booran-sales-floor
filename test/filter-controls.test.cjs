@@ -37,6 +37,7 @@ function mountView(filename, name) {
     '@/lib/vehicle-status': { vehicleStatus: () => ({ label: 'In Stock', held: false, available: true }) },
     '@/lib/use-dialog': { useDialog: () => ({ current: null }) },
     '@/components/ui/MetricCard': { MetricCard: () => null },
+    '@/components/customer/LeadAssignment': { LeadAssignment: () => null },
     '@/components/ui/RooftopOptions': { RooftopOptions },
     '@/components/ui/Pagination': { Pagination },
     '@/components/ui/QueryStatus': { QueryStatus: () => null },

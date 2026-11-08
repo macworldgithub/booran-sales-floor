@@ -22,8 +22,12 @@ import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { leadApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { LeadAssignment } from '@/components/customer/LeadAssignment';
+import { useDialog } from '@/lib/use-dialog';
 
 interface LeadsViewProps {
+  assignedStaff?: { id: string; name: string } | null;
+  onClearStaff?: () => void;
   initialLeads?: Lead[];
   selectedRooftop: string;
   onRooftopChange: (rooftop: string) => void;
@@ -33,6 +37,8 @@ interface LeadsViewProps {
 }
 
 export function LeadsView({
+  assignedStaff,
+  onClearStaff,
   initialLeads = [],
   selectedRooftop,
   onRooftopChange,
@@ -41,6 +47,9 @@ export function LeadsView({
   onOpenAddProspect,
 }: LeadsViewProps) {
   const { user } = useAuth();
+  const [assigningLead, setAssigningLead] = useState<Lead | null>(null);
+  const closeAssignment = useCallback(() => setAssigningLead(null), []);
+  const assignmentDialog = useDialog(Boolean(assigningLead), closeAssignment);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [source, setSource] = useState('all');
@@ -55,7 +64,7 @@ export function LeadsView({
   const { data: leads, pagination, isLoading, error, refresh: fetchLeads } = usePaginatedQuery(
     leadApi.getLeads,
     { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
-    dealership: rooftopFilter, source, assignment, sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    dealership: rooftopFilter, source, assignment, ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
     setCurrentPage,
   );
   useEffect(() => {
@@ -68,6 +77,7 @@ export function LeadsView({
   const totalPages = pagination.totalPages;
   const totalLeads = pagination.total;
   const resetFilters = () => {
+    onClearStaff?.();
     setSearchQuery('');
     setStatusFilter('all');
     setSource('all');
@@ -167,6 +177,9 @@ export function LeadsView({
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {assignedStaff && <button type="button" onClick={() => { onClearStaff?.(); setCurrentPage(1); }} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            {assignedStaff.name} · Clear salesperson filter
+          </button>}
           <select aria-label="Lead source" value={source} onChange={event => { setSource(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
             <option value="all">All sources</option>
             <option value="Nextgate">Nextgate</option>
@@ -293,6 +306,7 @@ export function LeadsView({
 
                 {/* Bottom Actions */}
                 <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                  {user?.canAllocate && <button type="button" onClick={() => setAssigningLead(lead)} className="rounded-lg bg-blue-50 px-2 py-1.5 text-xs font-semibold text-blue-700">Assign</button>}
                   <button
                     onClick={() => onSelectLead(lead)}
                     className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 text-center transition-colors"
@@ -400,7 +414,7 @@ export function LeadsView({
                     </td>
 
                     {/* Consultant */}
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4" onClick={event => event.stopPropagation()}>
                       <span className="font-semibold text-slate-800">
                         {lead.owner_name || 'Unassigned'}
                       </span>
@@ -409,6 +423,7 @@ export function LeadsView({
                     {/* Actions */}
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
+                        {user?.canAllocate && <button type="button" onClick={() => setAssigningLead(lead)} className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Assign</button>}
                         <button
                           onClick={() => onSelectLead(lead)}
                           className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
@@ -442,6 +457,16 @@ export function LeadsView({
           isLoading={isLoading}
         />
       </div>
+      {assigningLead && user?.canAllocate && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4">
+        <section ref={assignmentDialog} data-app-dialog role="dialog" aria-modal="true" aria-labelledby="assign-lead-title" tabIndex={-1} className="w-full max-w-lg space-y-3 rounded-2xl bg-white p-5 shadow-xl">
+          <div className="flex items-start justify-between gap-3">
+            <h2 id="assign-lead-title" className="min-w-0 break-words text-base font-bold">Assign {assigningLead.name || assigningLead.customer_name}</h2>
+            <button type="button" onClick={closeAssignment} className="text-sm font-semibold text-slate-600">Close</button>
+          </div>
+          <p className="text-sm text-slate-600">{assigningLead.dealership} · Current owner: {assigningLead.owner_name || 'Unassigned'}</p>
+          <LeadAssignment key={assigningLead._id} lead={assigningLead} onUpdated={setAssigningLead} onSaved={closeAssignment} />
+        </section>
+      </div>}
     </div>
   );
 }

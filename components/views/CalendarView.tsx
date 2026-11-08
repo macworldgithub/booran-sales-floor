@@ -10,12 +10,14 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Appointment } from '@/lib/types';
 
 interface CalendarViewProps {
+  assignedStaff?: { id: string; name: string } | null;
+  onClearStaff?: () => void;
   selectedRooftop: string;
   appointments: Appointment[];
   onOpenBookDrive: () => void;
 }
 
-export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop }: CalendarViewProps) {
+export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop, assignedStaff, onClearStaff }: CalendarViewProps) {
   const [selectedDate, setSelectedDate] = useState(localDate());
 
   const [type, setType] = useState('all');
@@ -24,7 +26,7 @@ export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop }:
   useEffect(() => { setPage(1); }, [selectedRooftop]);
   const { from, to } = localDayRange(selectedDate);
   const { data: filteredAppointments, pagination, isLoading, error, refresh } = usePaginatedQuery(
-    appointmentApi.getAppointments, { rooftop: selectedRooftop, page, limit: pageSize, from, to, type }, setPage,
+    appointmentApi.getAppointments, { rooftop: selectedRooftop, page, limit: pageSize, from, to, type, ...(assignedStaff && { consultantId: assignedStaff.id }) }, setPage,
   );
 
   return (
@@ -53,6 +55,9 @@ export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop }:
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        {assignedStaff && <button type="button" onClick={() => { onClearStaff?.(); setPage(1); }} className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          {assignedStaff.name} · Clear salesperson filter
+        </button>}
         <label className="flex items-center gap-2 text-sm">Date<input aria-label="Appointment date" type="date" value={selectedDate} onChange={(event) => { if (event.target.value) { if (validLocalDate(event.target.value)) setSelectedDate(event.target.value); setPage(1); } }} className="min-w-0 rounded-lg border p-2" /></label>
         <select aria-label="Appointment type" value={type} onChange={(event) => { setType(event.target.value); setPage(1); }} className="rounded-lg border p-2 text-sm"><option value="all">All visit types</option><option>Test Drive</option><option>Showroom Visit</option><option>Delivery Handover</option><option>Callback</option></select>
         <button onClick={() => { setSelectedDate(localDate()); setType('all'); setPage(1); }} className="text-sm text-red-700">Today</button>

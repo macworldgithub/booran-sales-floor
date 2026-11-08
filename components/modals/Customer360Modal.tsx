@@ -25,6 +25,7 @@ import { leadApi } from '@/lib/api';
 import { CustomerMessages } from '@/components/customer/CustomerMessages';
 import { CustomerPhoneEditor } from '@/components/customer/CustomerPhoneEditor';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
+import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
 import { WorkflowHistory } from '@/components/customer/WorkflowHistory';
 
 interface Customer360ModalProps {
@@ -209,6 +210,7 @@ export function Customer360Modal({
             {lead.source_comments && <p className="whitespace-pre-wrap">{lead.source_comments}</p>}
           </div>}
           {user?.canAllocate && <LeadAssignment key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {user?.canAllocate && <LeadFollowUp key={lead.owner_id || 'unassigned'} lead={lead} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
           <CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});

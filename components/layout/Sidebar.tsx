@@ -1,4 +1,5 @@
 'use client';
+import { canOpenTab } from '@/lib/navigation';
 import { BooranLogo } from '@/components/ui/BooranLogo';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
@@ -107,7 +108,7 @@ export function Sidebar({
             </span>
           </div>
           <nav className="space-y-1">
-            {mainNavItems.map((item) => {
+            {mainNavItems.filter(item => canOpenTab(item.id, role)).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -141,7 +142,7 @@ export function Sidebar({
         </div>
 
         {/* Management & Analytics */}
-        <div>
+        {canOpenTab('staff', role) && <div>
           <div className="flex items-center justify-between px-3 mb-2">
             <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
               Group Management
@@ -151,7 +152,7 @@ export function Sidebar({
             </span>
           </div>
           <nav className="space-y-1">
-            {managementNavItems.filter((item) => item.id !== 'feed-logs' || role === 'super_admin').map((item) => {
+            {managementNavItems.filter(item => canOpenTab(item.id, role)).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -174,10 +175,10 @@ export function Sidebar({
               );
             })}
           </nav>
-        </div>
+        </div>}
 
         {/* Connected Databases Telemetry Info */}
-        <div className="px-3 pt-2">
+        {canOpenTab('staff', role) && <div className="px-3 pt-2">
           <div className="p-2.5 rounded-lg bg-[#14181f] border border-white/5 space-y-2">
             <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-300">
               <Database className="w-3.5 h-3.5 text-emerald-400" />
@@ -200,7 +201,7 @@ export function Sidebar({
               </div>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Showroom Location Footer */}
