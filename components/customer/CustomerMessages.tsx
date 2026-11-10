@@ -174,7 +174,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
             <button type="submit" disabled={sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
           </div>
           <p className="text-[11px] text-slate-500">Up to 5 files, 100 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
-          {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Set the dealership’s video contact details to enable branded recording.</p>}
+          {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Branded video recording is currently unavailable for this dealership.</p>}
         </form>
         {recording && <VideoRecorder onClose={() => setRecording(false)} onSave={file => { setRecording(false); void upload([file], true); }} />}
         {media.length > 0 && <details className="rounded-lg border border-slate-200 p-3">
