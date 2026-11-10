@@ -23,8 +23,9 @@ export function AddProspectModal({
   onLeadCreated,
   defaultDealership = '',
 }: AddProspectModalProps) {
-  const { locations: directoryLocations } = useAuth();
+  const { locations: directoryLocations, user } = useAuth();
   const locations = specificDealerships(directoryLocations);
+  const [quick, setQuick] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -44,8 +45,8 @@ export function AddProspectModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !email.trim()) {
-      setError('Provide the customer’s full name, mobile and email.');
+    if (quick ? !notes.trim() : (!name.trim() || !phone.trim() || !email.trim())) {
+      setError(quick ? 'Add a description so the salesperson can identify this walk-in.' : 'Provide the customer’s full name, mobile and email.');
       return;
     }
 
@@ -55,8 +56,9 @@ export function AddProspectModal({
     try {
       if (!locations.includes(dealership)) throw new Error('Select an available dealership.');
       const res = await leadApi.createLead({
-        customer_name: name.trim(),
-        name: name.trim(),
+        quick_walk_in: quick,
+        customer_name: name.trim() || 'Walk-in — details pending',
+        name: name.trim() || 'Walk-in — details pending',
         customer_phone: phone.trim(),
         customer_email: email.trim(),
         business_name: businessName.trim(),
@@ -105,11 +107,13 @@ export function AddProspectModal({
             </div>
           )}
 
+          {user?.canAllocate && <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={quick} onChange={event => setQuick(event.target.checked)} />Quick walk-in log — description now, customer details later</label>}
+          {quick && <p className="text-xs text-slate-600">Creates a red, unassigned walk-in for allocation. The salesperson can complete the profile.</p>}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Customer Full Name *</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Customer name {quick ? '(if known)' : '*'}</label>
             <input
               type="text"
-              required
+              required={!quick}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Jason Miller"
@@ -194,9 +198,10 @@ export function AddProspectModal({
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Initial Notes</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">{quick ? 'Walk-in description (required)' : 'Initial Notes'}</label>
             <textarea
               rows={2}
+              required={quick}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Trade-in details, finance requirements, preferences..."

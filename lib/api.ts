@@ -46,7 +46,9 @@ export async function fetchApi<T>(
       throw error;
     }
     if (!json || Array.isArray(json) || json.success !== true) throw new Error('The server returned an invalid response. Please retry.');
-    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes((options.method || 'GET').toUpperCase()) && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
+    const method = (options.method || 'GET').toUpperCase();
+    const uploadChunk = method === 'PUT' && /^\/leads\/[^/]+\/media\/[^/]+\/content\?offset=/.test(endpoint);
+    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !uploadChunk && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
     return json;
   } catch (err: any) {
     console.error(`API Error on ${endpoint}:`, err);
@@ -99,10 +101,11 @@ export const leadApi = {
 
 export const customerMessageApi = {
   history: (id: string, page = 1, options?: RequestInit) => fetchApi<CustomerMessageHistory>(`/leads/${encodeURIComponent(id)}/messages?page=${page}`, options),
-  media: (id: string, options?: RequestInit) => fetchApi<CustomerMedia[]>(`/leads/${encodeURIComponent(id)}/media`, options),
+  media: (id: string, options?: RequestInit) => fetchApi<CustomerMedia[]>(`/leads/${encodeURIComponent(id)}/media?includeProcessing=true`, options),
+  completeMedia: (id: string, mediaId: string) => fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}/complete`, { method: 'POST', body: '{}' }),
   send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
-  upload: async (id: string, file: File) => {
-    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: file.type, size: file.size }) });
+  upload: async (id: string, file: File, recorded = false) => {
+    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: file.type, size: file.size, ...(recorded ? { recorded } : {}) }) });
     if (!prepared.data) throw new Error('Unable to prepare this upload.');
     const chunkSize = prepared.data.upload.chunk_size;
     if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 2 * 1024 * 1024) throw new Error('Invalid upload configuration.');
@@ -110,7 +113,7 @@ export const customerMessageApi = {
       const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
       await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk });
     }
-    return fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/complete`, { method: 'POST', body: '{}' });
+    return customerMessageApi.completeMedia(id, prepared.data.id);
   },
 };
 

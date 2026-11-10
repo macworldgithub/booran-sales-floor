@@ -1,5 +1,6 @@
 'use client';
 
+import { DailyOversight } from '@/components/views/DailyOversight';
 import { useCallback, useEffect, useState } from 'react';
 import { leadApi, salesWorkApi, type SalesTask, type TeamActivityMember } from '@/lib/api';
 import type { Appointment, Lead } from '@/lib/types';
@@ -106,6 +107,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigat
   }
 
   return <div className="view-stack space-y-4">
+    <DailyOversight key={rooftop} rooftop={rooftop} onOpenLead={onOpenLead} />
     <section className={card}>
       <h2 className="text-xl font-extrabold text-slate-900">My sales day</h2>
       <p className={muted}>Your follow-ups, assigned leads, and appointments.</p>

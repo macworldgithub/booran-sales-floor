@@ -2,6 +2,7 @@
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { localDate, localDayRange } from '@/lib/dates';
 import { canOpenTab } from '@/lib/navigation';
+import { DailyOversight } from '@/components/views/DailyOversight';
 import { MySalesDay, TeamActivity } from '@/components/views/SalesWorkspace';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -210,8 +211,11 @@ export default function BooranSalesFloorApp() {
               onOpenAddProspect={() => setIsAddProspectOpen(true)}
               onNavigateTab={(tab) => setActiveTab(tab)}
               stats={unifiedSummary}
-              afterBanner={user?.canAllocate && <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
-                onOpenCalendar={member => setActiveTab('calendar', member)} />}
+              afterBanner={user?.canAllocate && <>
+                <DailyOversight key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} />
+                <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
+                  onOpenCalendar={member => setActiveTab('calendar', member)} />
+              </>}
             />
           )}
 

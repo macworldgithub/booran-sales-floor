@@ -25,6 +25,7 @@ import { leadApi } from '@/lib/api';
 import { CustomerMessages } from '@/components/customer/CustomerMessages';
 import { CustomerPhoneEditor } from '@/components/customer/CustomerPhoneEditor';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
+import { LostLeadReview } from '@/components/customer/LostLeadReview';
 import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
 import { WorkflowHistory } from '@/components/customer/WorkflowHistory';
 
@@ -45,7 +46,6 @@ export function Customer360Modal({
 }: Customer360ModalProps) {
   const [newNote, setNewNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<string>(lead?.status || 'new_lead');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -80,7 +80,6 @@ export function Customer360Modal({
   const handleStatusChange = async (newStatus: string) => {
     if (isUpdatingStatus || isSubmittingNote) return;
     setMutationError(null);
-    setSelectedStatus(newStatus);
     setIsUpdatingStatus(true);
     try {
       const res = await leadApi.updateLead(lead._id, { status: newStatus });
@@ -90,7 +89,6 @@ export function Customer360Modal({
         setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
-      setSelectedStatus(lead.status);
       setMutationError(err.message || 'Unable to update status.');
     } finally {
       setIsUpdatingStatus(false);
@@ -173,13 +171,13 @@ export function Customer360Modal({
             <div>
               <p className="text-xs font-bold text-slate-900 mb-1">CRM Deal Stage</p>
               <div className="flex flex-wrap gap-1.5">
-                {['new_lead', 'following_up', 'sold', 'lost', 'returned'].map((st) => (
+                {['new_lead', 'following_up', 'sold', 'returned'].map((st) => (
                   <button
                     key={st}
                     onClick={() => handleStatusChange(st)}
-                    disabled={isUpdatingStatus || isSubmittingNote}
+                    disabled={isUpdatingStatus || isSubmittingNote || lead.loss_review?.status === 'pending'}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                      selectedStatus === st
+                      lead.status === st
                         ? 'bg-red-600 text-white shadow-sm'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
@@ -204,13 +202,16 @@ export function Customer360Modal({
             )}
           </div>
 
+          <CustomerDetails key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
           {(lead.source || lead.business_name) && <div className="space-y-1 text-xs text-slate-600">
             {lead.business_name && <p>{lead.business_name}</p>}
             {lead.source && <p>{[lead.source, lead.source_channel, lead.source_stage].filter(Boolean).join(' · ')}</p>}
             {lead.source_comments && <p className="whitespace-pre-wrap">{lead.source_comments}</p>}
+            {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
           {user?.canAllocate && <LeadAssignment key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
-          {user?.canAllocate && <LeadFollowUp key={lead.owner_id || 'unassigned'} lead={lead} />}
+          <LeadFollowUp key={`${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
+          <LostLeadReview key={`loss-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
           <CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
@@ -264,4 +265,42 @@ export function Customer360Modal({
       </div>
     </div>
   );
+}
+
+function CustomerDetails({ lead, onUpdated }: { lead: Lead; onUpdated: (lead: Lead) => void }) {
+  const fields = [
+    ['customer_name', 'Customer name', lead.name],
+    ['customer_email', 'Email', lead.email],
+    ['vehicle_make', 'Vehicle make', lead.make],
+    ['vehicle_model', 'Vehicle model / interest', lead.model],
+  ] as const;
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return <section className="space-y-2 rounded-xl border p-3 text-xs">
+    <button type="button" className="font-semibold text-blue-700" aria-expanded={open} disabled={busy} onClick={() => { setOpen(!open); setError(''); }}>
+      {open ? 'Cancel editing' : 'Edit customer details'}
+    </button>
+    {open && <form className="space-y-2" onSubmit={async event => {
+      event.preventDefault();
+      const values = new FormData(event.currentTarget);
+      const changes = Object.fromEntries(fields.map(([key]) => [key, String(values.get(key) ?? '').trim()]).filter(([key, value]) => value !== String(lead[key as keyof Lead] ?? '')));
+      if (!Object.keys(changes).length) { setOpen(false); return; }
+      setBusy(true); setError('');
+      try {
+        const result = await leadApi.updateLead(lead._id, changes);
+        if (result.data) onUpdated(result.data);
+        setOpen(false);
+      } catch (reason) { setError((reason as Error).message); }
+      finally { setBusy(false); }
+    }}>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {fields.map(([key, label, value]) => <label key={key}>{label}<input name={key} defaultValue={value || ''}
+          type={key === 'customer_email' ? 'email' : 'text'} required={key === 'customer_name'} maxLength={key === 'customer_email' ? 254 : 200}
+          disabled={busy} className="mt-1 block w-full rounded-lg border p-2" /></label>)}
+      </div>
+      {error && <p role="alert" className="text-red-700">{error}</p>}
+      <button type="submit" disabled={busy} className="rounded-lg bg-slate-900 px-3 py-2 font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save details'}</button>
+    </form>}
+  </section>;
 }

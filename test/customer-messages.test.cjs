@@ -32,7 +32,8 @@ function mount(overrides = {}, leadOverrides = {}, environment = {}, extraProps 
     ...overrides,
   };
   let updates = 0;
-  const mocks = { react: harness.react, '@/lib/api': { customerMessageApi: api }, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
+  const mocks = { react: harness.react, '@/lib/api': { customerMessageApi: api }, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} },
+    './VideoRecorder': { VideoRecorder: () => null } };
   const compiled = ts.transpileModule(readFileSync('components/customer/CustomerMessages.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
   new Function('require', 'module', 'exports', ...Object.keys(environment), compiled)((id) => mocks[id] || require(id), module, module.exports, ...Object.values(environment));
@@ -107,6 +108,17 @@ test('completed uploads automatically attach their durable share link', async ()
   assert.equal(view.find((node) => node.props.type === 'submit').props.disabled, false);
   await view.find((node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.deepEqual(payload.media_ids, ['new-photo']);
+  view.cleanup();
+});
+
+test('a recording with pending branding cannot be attached or sent', async () => {
+  const uploaded = { id: 'new-video', name: 'video.webm', content_type: 'video/webm', status: 'processing', size: 100, url: '' };
+  const view = mount({ upload: async () => ({ success: true, data: uploaded }) });
+  view.render(); await settle(); view.render();
+  view.find(node => node.props.type === 'file').props.onChange({ target: { files: [{ name: uploaded.name, type: uploaded.content_type, size: 100 }] } });
+  await settle();
+  assert.match(view.text(view.render()), /Adding dealership end card/);
+  assert.equal(view.find(node => node.props.type === 'submit').props.disabled, true);
   view.cleanup();
 });
 

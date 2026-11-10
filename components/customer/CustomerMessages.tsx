@@ -5,6 +5,7 @@ import { ImagePlus, MessageSquare, RefreshCw, Send, X, Copy, Film, Image as Imag
 import { customerMessageApi } from '@/lib/api';
 import { CustomerMedia, CustomerMessageHistory, Lead } from '@/lib/types';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
+import { VideoRecorder } from './VideoRecorder';
 
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'];
 const buttonClass = 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50';
@@ -19,6 +20,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState('');
+  const [recording, setRecording] = useState(false);
   const [error, setError] = useState('');
   const [historyError, setHistoryError] = useState('');
   const [mediaError, setMediaError] = useState('');
@@ -109,7 +111,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
     }
   };
 
-  const upload = async (files: FileList | null) => {
+  const upload = async (files: FileList | File[] | null, recorded = false) => {
     if (!files?.length || mutationPending.current || attempt) return;
     const list = Array.from(files);
     if (selected.length + list.length > 5) { setError('Attach up to five photos or videos per SMS.'); return; }
@@ -117,17 +119,19 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
       setError('Choose JPG, PNG, WebP, GIF, HEIC, MP4, MOV or WebM files, up to 100 MB each.'); return;
     }
     mutationPending.current = true; setError(''); setNotice('');
+    let processing = false;
     try {
       for (const file of list) {
         setUploading(file.name);
-        const result = await customerMessageApi.upload(lead._id, file);
+        const result = await customerMessageApi.upload(lead._id, file, recorded);
         if (!active.current) return;
         if (!result.data) throw new Error('The upload could not be confirmed.');
         const uploaded = result.data;
-        setMedia((previous) => [uploaded, ...previous]);
-        setSelected((previous) => [...previous, uploaded]);
+        setMedia((previous) => [uploaded, ...previous.filter(item => item.id !== uploaded.id)]);
+        if (uploaded.status && uploaded.status !== 'ready') processing = true;
+        else setSelected((previous) => [...previous, uploaded]);
       }
-      setNotice('Uploaded. The selected photo/video links will be included in your SMS.');
+      setNotice(processing ? 'Video saved. Attach it from Recent customer uploads once the dealership end card is ready.' : 'Uploaded. The selected photo/video links will be included in your SMS.');
     } catch (err) {
       if (active.current) setError(err instanceof Error ? err.message : 'Unable to upload this file.');
     } finally {
@@ -165,18 +169,27 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
           <p className={`text-[11px] ${text.length > 1530 ? 'text-red-700' : 'text-slate-500'}`}>{text.length} characters including links. Longer messages use multiple SMS credits; emojis and Unicode reduce characters per part.</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <input ref={fileInput} type="file" multiple accept={allowedTypes.join(',')} className="hidden" aria-label="Upload photos or videos" onChange={(e) => { void upload(e.target.files); }} />
-            <button type="button" disabled={!history.media_available || sending || !!uploading || !!attempt || selected.length >= 5} onClick={() => fileInput.current?.click()} className={`${buttonClass} flex items-center gap-1.5`}><ImagePlus className="h-4 w-4" />{uploading ? `Uploading ${uploading}…` : 'Upload photos / videos'}</button>
+            <button type="button" disabled={!history.media_available || sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => fileInput.current?.click()} className={`${buttonClass} flex items-center gap-1.5`}><ImagePlus className="h-4 w-4" />{uploading ? `Uploading ${uploading}…` : 'Upload photos / videos'}</button>
+            {history.recording_available && <button type="button" disabled={sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => setRecording(true)} className={buttonClass}>Record customer video</button>}
             <button type="submit" disabled={sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
           </div>
           <p className="text-[11px] text-slate-500">Up to 5 files, 100 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
+          {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Set the dealership’s video contact details to enable branded recording.</p>}
         </form>
+        {recording && <VideoRecorder onClose={() => setRecording(false)} onSave={file => { setRecording(false); void upload([file], true); }} />}
         {media.length > 0 && <details className="rounded-lg border border-slate-200 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-700">Recent customer uploads ({media.length})</summary>
           <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">{media.map((item) => <div key={item.id} className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             {item.content_type.startsWith('video/') ? <Film className="h-4 w-4 shrink-0 text-slate-400" /> : <ImageIcon className="h-4 w-4 shrink-0 text-slate-400" />}
+            {item.status && item.status !== 'ready' ? <>
+              <span className="min-w-0 flex-1">{item.name} · {item.status === 'processing_failed' ? item.processing_error || 'Branding failed' : 'Adding dealership end card…'}</span>
+              {item.status === 'processing_failed' && <button type="button" className={buttonClass} onClick={() => customerMessageApi.completeMedia(lead._id, item.id).then(() => refresh(true)).catch(reason => setError(reason.message))}>Retry branding</button>}
+            </> : <>
             <a href={item.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-red-700 underline">{item.name}</a>
+            {item.content_type.startsWith('video/') && <span>{item.views ?? 0} views · {item.reviews ?? 0} reviews</span>}
             <button type="button" className={buttonClass} aria-label={`Copy link for ${item.name}`} onClick={() => { void copy(item.url); }}><Copy className="h-3 w-3" /></button>
             <button type="button" className={buttonClass} disabled={selected.some((file) => file.id === item.id) || selected.length >= 5 || sending || !!uploading || !!attempt} onClick={() => setSelected((previous) => [...previous, item])}>Attach</button>
+            </>}
           </div>)}</div>
         </details>}
         <div className="space-y-3 border-t border-slate-200 pt-4">
