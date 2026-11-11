@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 120;
 
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
@@ -54,7 +54,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       method: request.method,
       headers,
       body,
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(binaryUpload ? 85000 : 25000),
       cache: 'no-store',
       redirect: 'error',
     });

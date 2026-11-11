@@ -24,6 +24,8 @@ import { Lead } from '@/lib/types';
 import { leadApi } from '@/lib/api';
 import { CustomerMessages } from '@/components/customer/CustomerMessages';
 import { CustomerPhoneEditor } from '@/components/customer/CustomerPhoneEditor';
+import { CustomerEmailEditor } from '@/components/customer/CustomerEmailEditor';
+import { CustomerMerge } from '@/components/customer/CustomerMerge';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
 import { LostLeadReview } from '@/components/customer/LostLeadReview';
 import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
@@ -34,6 +36,7 @@ interface Customer360ModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLeadUpdated?: (updatedLead: Lead) => void;
+  onLeadMerged?: (primary: Lead) => void;
   onOpenBookDrive?: (lead: Lead) => void;
 }
 
@@ -42,6 +45,7 @@ export function Customer360Modal({
   isOpen,
   onClose,
   onLeadUpdated,
+  onLeadMerged,
   onOpenBookDrive,
 }: Customer360ModalProps) {
   const [newNote, setNewNote] = useState('');
@@ -51,6 +55,7 @@ export function Customer360Modal({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingPhone, setEditingPhone] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [requestLost, setRequestLost] = useState(false);
 
   const { user } = useAuth();
   const dialogRef = useDialog(isOpen, onClose);
@@ -78,6 +83,7 @@ export function Customer360Modal({
   };
 
   const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'lost') { setRequestLost(true); return; }
     if (isUpdatingStatus || isSubmittingNote) return;
     setMutationError(null);
     setIsUpdatingStatus(true);
@@ -148,12 +154,7 @@ export function Customer360Modal({
             </div>
             <div className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 text-slate-500" />
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase font-bold text-slate-400 font-mono">Email</p>
-                <p className="text-xs font-semibold text-slate-800 truncate">
-                  {lead.email || lead.customer_email || 'Not provided'}
-                </p>
-              </div>
+              <CustomerEmailEditor key={lead._id} lead={lead} onUpdated={updated => { onLeadUpdated?.(updated); setToastMessage('Email saved'); }} />
             </div>
             <div className="flex items-center gap-2.5">
               <Car className="w-4 h-4 text-slate-500" />
@@ -171,11 +172,11 @@ export function Customer360Modal({
             <div>
               <p className="text-xs font-bold text-slate-900 mb-1">CRM Deal Stage</p>
               <div className="flex flex-wrap gap-1.5">
-                {['new_lead', 'following_up', 'sold', 'returned'].map((st) => (
+                {['new_lead', 'following_up', 'sold', 'returned', 'lost'].map((st) => (
                   <button
                     key={st}
                     onClick={() => handleStatusChange(st)}
-                    disabled={isUpdatingStatus || isSubmittingNote || lead.loss_review?.status === 'pending'}
+                    disabled={isUpdatingStatus || isSubmittingNote || lead.loss_review?.status === 'pending' || (st === 'lost' && ['lost', 'sold'].includes(lead.status))}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                       lead.status === st
                         ? 'bg-red-600 text-white shadow-sm'
@@ -210,8 +211,11 @@ export function Customer360Modal({
             {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
           {user?.canAllocate && <LeadAssignment key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {!!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
+          {!!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
           <LeadFollowUp key={`${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
-          <LostLeadReview key={`loss-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
+          <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
+          {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
           <CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});

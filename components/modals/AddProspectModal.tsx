@@ -14,6 +14,7 @@ interface AddProspectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLeadCreated?: (newLead: Lead) => void;
+  onOpenExisting?: (existingLead: Lead) => void;
   defaultDealership?: string;
 }
 
@@ -21,6 +22,7 @@ export function AddProspectModal({
   isOpen,
   onClose,
   onLeadCreated,
+  onOpenExisting,
   defaultDealership = '',
 }: AddProspectModalProps) {
   const { locations: directoryLocations, user } = useAuth();
@@ -36,6 +38,7 @@ export function AddProspectModal({
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [existingId, setExistingId] = useState('');
 
   useEffect(() => { if (locations.length && !locations.includes(dealership)) setDealership(locations.includes(defaultDealership) ? defaultDealership : locations[0]); }, [directoryLocations, dealership, defaultDealership]);
 
@@ -45,13 +48,14 @@ export function AddProspectModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quick ? !notes.trim() : (!name.trim() || !phone.trim() || !email.trim())) {
-      setError(quick ? 'Add a description so the salesperson can identify this walk-in.' : 'Provide the customer’s full name, mobile and email.');
+    if (quick ? !notes.trim() : (!name.trim() || !phone.trim())) {
+      setError(quick ? 'Add a description so the salesperson can identify this walk-in.' : 'Provide the customer’s name and mobile. Email can be added later.');
       return;
     }
 
     setIsLoading(true);
     setError('');
+    setExistingId('');
 
     try {
       if (!locations.includes(dealership)) throw new Error('Select an available dealership.');
@@ -76,6 +80,7 @@ export function AddProspectModal({
       }
     } catch (err: any) {
       setError(err.message || 'Error creating lead');
+      if (err.mergeRequested && err.existingLeadId) setExistingId(err.existingLeadId);
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +109,10 @@ export function AddProspectModal({
           {error && (
             <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
               {error}
+              {existingId && onOpenExisting && <button type="button" className="mt-2 block font-bold text-blue-700 underline" onClick={async () => {
+                try { const result = await leadApi.getLead(existingId); if (result.data) onOpenExisting(result.data); }
+                catch (reason) { setError((reason as Error).message); }
+              }}>Open existing customer</button>}
             </div>
           )}
 

@@ -123,7 +123,9 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
     try {
       for (const file of list) {
         setUploading(file.name);
-        const result = await customerMessageApi.upload(lead._id, file, recorded);
+        const result = await customerMessageApi.upload(lead._id, file, recorded, percent => {
+          if (active.current) setUploading(`${file.name} · ${percent}%`);
+        });
         if (!active.current) return;
         if (!result.data) throw new Error('The upload could not be confirmed.');
         const uploaded = result.data;

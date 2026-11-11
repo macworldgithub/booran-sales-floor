@@ -21,9 +21,10 @@ export function getBaseUrl(): string { return '/api'; }
 
 export async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeoutMs?: number } = {}
 ): Promise<{ success: boolean; data?: T; message?: string; pagination?: import('./use-paginated-query').PageMetadata; error?: string }> {
   const requestGeneration = sessionGeneration;
+  const { timeoutMs = 20000, ...requestOptions } = options;
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
@@ -33,16 +34,18 @@ export async function fetchApi<T>(
     const response = await fetch(`${baseUrl}${endpoint}`, {
       cache: 'no-store',
       credentials: 'same-origin',
-      ...options,
-      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
+      ...requestOptions,
+      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       headers,
     });
 
     const json = await response.json().catch(() => null);
     if (requestGeneration === sessionGeneration && response.status === 401 && endpoint !== '/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:unauthorized'));
     if (!response.ok || json?.success === false) {
-      const error = new Error(json?.message || json?.error || `Request failed (${response.status}). Please retry.`) as Error & { status: number };
+      const error = new Error(json?.message || json?.error || `Request failed (${response.status}). Please retry.`) as Error & { status: number; mergeRequested?: boolean; existingLeadId?: string };
       error.status = response.status;
+      error.mergeRequested = json?.mergeRequested === true;
+      error.existingLeadId = json?.existingLeadId;
       throw error;
     }
     if (!json || Array.isArray(json) || json.success !== true) throw new Error('The server returned an invalid response. Please retry.');
@@ -83,6 +86,8 @@ export const leadApi = {
     return fetchApi<Lead[]>(`/leads${query}`, options);
   },
   getLead: (id: string) => fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`),
+  getRelated: (id: string, search = '') => fetchApi<{ duplicates: Lead[]; merged: Lead[] }>(`/leads/${encodeURIComponent(id)}/related?search=${encodeURIComponent(search)}`),
+  merge: (primaryId: string, duplicateId: string) => fetchApi<Lead>(`/leads/${encodeURIComponent(primaryId)}/merge`, { method: 'POST', body: JSON.stringify({ duplicateId, confirmSameCustomer: true }) }),
   getAssignees: (id: string) => fetchApi<{ id: string; name: string; email: string }[]>(`/leads/${encodeURIComponent(id)}/assignees`),
   assign: (id: string, assigneeId: string | null, expectedOwnerId: string | null) =>
     fetchApi<Lead>(`/leads/${encodeURIComponent(id)}/assignment`, { method: 'PATCH', body: JSON.stringify({ assigneeId, expectedOwnerId }) }),
@@ -104,14 +109,23 @@ export const customerMessageApi = {
   media: (id: string, options?: RequestInit) => fetchApi<CustomerMedia[]>(`/leads/${encodeURIComponent(id)}/media?includeProcessing=true`, options),
   completeMedia: (id: string, mediaId: string) => fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}/complete`, { method: 'POST', body: '{}' }),
   send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
-  upload: async (id: string, file: File, recorded = false) => {
+  upload: async (id: string, file: File, recorded = false, onProgress?: (percent: number) => void) => {
     const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: file.type, size: file.size, ...(recorded ? { recorded } : {}) }) });
     if (!prepared.data) throw new Error('Unable to prepare this upload.');
     const chunkSize = prepared.data.upload.chunk_size;
     if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 2 * 1024 * 1024) throw new Error('Invalid upload configuration.');
     for (let offset = 0; offset < file.size; offset += chunkSize) {
       const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
-      await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk });
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk, timeoutMs: 90000 });
+          break;
+        } catch (error) {
+          const status = (error as Error & { status?: number }).status;
+          if (attempt >= 2 || (status && status < 500 && status !== 429)) throw error;
+        }
+      }
+      onProgress?.(Math.round(Math.min(offset + chunk.size, file.size) * 100 / file.size));
     }
     return customerMessageApi.completeMedia(id, prepared.data.id);
   },

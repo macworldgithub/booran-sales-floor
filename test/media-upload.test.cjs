@@ -27,3 +27,20 @@ test('photo/video upload splits binary files into authenticated chunks before co
   assert.deepEqual(new Uint8Array(await combined.arrayBuffer()), bytes);
   assert.ok(calls[3].url.endsWith('/complete'));
 });
+
+test('a transient chunk failure retries identical bytes and advances progress only after acceptance', async () => {
+  const compiled = ts.transpileModule(readFileSync('lib/api.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  const module = { exports: {} }, chunks = [], progress = [];
+  const fetch = async (url, options) => {
+    if (url.endsWith('/media')) return Response.json({ success: true, data: { id: 'retry-media', upload: { chunk_size: 3 } } });
+    if (url.endsWith('/complete')) return Response.json({ success: true, data: { id: 'retry-media' } });
+    chunks.push({ url, bytes: await options.body.text() });
+    if (chunks.length === 1) throw new TypeError('Connection interrupted');
+    return Response.json({ success: true, data: {} });
+  };
+  new Function('module', 'exports', 'fetch', compiled)(module, module.exports, fetch);
+  await module.exports.customerMessageApi.upload('customer', new File(['abcdef'], 'video.mp4', { type: 'video/mp4' }), true, value => progress.push(value));
+  assert.deepEqual(chunks.map(row => row.bytes), ['abc', 'abc', 'def']);
+  assert.equal(chunks[0].url, chunks[1].url);
+  assert.deepEqual(progress, [50, 100]);
+});

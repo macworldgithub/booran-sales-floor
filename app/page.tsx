@@ -280,6 +280,7 @@ export default function BooranSalesFloorApp() {
         isOpen={!!selectedLead}
         onClose={() => setSelectedLead(null)}
         onLeadUpdated={handleLeadUpdated}
+        onLeadMerged={primary => setSelectedLead(primary)}
         onOpenBookDrive={(l) => {
           setBookDriveLead(l);
           setIsBookDriveOpen(true);
@@ -296,6 +297,7 @@ export default function BooranSalesFloorApp() {
       <AddProspectModal key={`${isAddProspectOpen}-${selectedRooftop}`}
         isOpen={isAddProspectOpen}
         onClose={() => setIsAddProspectOpen(false)}
+        onOpenExisting={existing => { setIsAddProspectOpen(false); setSelectedLead(existing); }}
         onLeadCreated={(newLead) => {
           setLeads((prev) => [newLead, ...prev]);
           setSelectedLead(newLead);
