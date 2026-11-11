@@ -64,6 +64,7 @@ export interface Lead {
   business_name?: string;
   source_channel?: string;
   source_stage?: string;
+  source_owner?: string;
   source_comments?: string;
   assignedTo?: string;
   phone?: string;

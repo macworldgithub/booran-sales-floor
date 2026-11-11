@@ -4,14 +4,15 @@ import type { Lead } from './types';
 export type DailyLead = Lead & { kind: 'walk_in' | 'internet'; actioned: boolean; videoRecorded: boolean; videoSent: boolean; videos: { id: string; name: string; views: number; reviews: number; status?: string }[] };
 export type DailyTask = { _id: string; title: string; notes?: string; lead_id: string; status: string; due_at: string; overdue: boolean; assignee_name?: string };
 export type DailyMember = {
-  id: string; name: string; site: string; logged: number; expected: number; videosDone: number; videoSent: number; nextActions: number;
+  id: string; name: string; site: string; activeProspects: number; logged: number; expected: number; videosDone: number; videoSent: number; nextActions: number;
   tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number;
   unactioned: number; mtdSales: number; monthlyNorthStar: number; allGreen: boolean;
   signals: { activity: string; videos: string; nextActions: string; tasks: string }; leads: DailyLead[]; tasks: DailyTask[];
 };
 export type DailyOversight = {
   date: string; timezone: string; refreshedAt: string; members: DailyMember[]; unassigned: Lead[]; losses: Lead[];
-  summary: { tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number; unactioned: number; unassigned: number; pendingLosses: number; lossesApprovedToday: number; videosRemaining: number; mtdSales: number; allGreen: boolean };
+  summary: { activeProspects: number; activityRemaining: number; nextActionsRemaining: number; tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number; unactioned: number; unassigned: number; pendingLosses: number; lossesApprovedToday: number; videosRemaining: number; mtdSales: number; allGreen: boolean };
+  dealerSocket?: { active: number; assigned: number; snapshotAt?: string } | null;
   report: { available: boolean; scheduledTime: string; description: string; generatedAt: string };
 };
 export type FollowupPolicy = { today: string; maxDate: string | null; maxDays: number | null; consecutiveDays: number; stage: string };
