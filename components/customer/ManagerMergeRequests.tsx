@@ -6,7 +6,7 @@ import type { Lead } from '@/lib/types';
 import { MergeCustomerSummary } from './CustomerMerge';
 
 type Review = { id: string; dealership: string; requestedName: string; updatedAt: string; incoming: Lead; candidates: Lead[] };
-const button = 'rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50';
+const button = 'min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50 sm:w-auto';
 
 function reviewKey(review: Review) {
   const details = (lead: Lead) => [lead._id, lead.name, lead.phone, lead.email, lead.owner_name,
@@ -34,7 +34,7 @@ export function ManagerMergeRequests({ rooftop, revision, onOpenLead }: { roofto
     return () => controller.abort();
   }, [rooftop, revision, page, version]);
   const data = stored?.site === rooftop ? stored : null;
-  return <details className="space-y-3 rounded-xl border border-amber-200 p-3">
+  return <details className="min-w-0 space-y-3 rounded-xl border border-amber-200 p-3">
     <summary className="cursor-pointer text-sm font-bold">Duplicate mobile / manager merge requests ({data?.total || 0})</summary>
     {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     {data?.total === 0 && <p className="text-xs">No new duplicate-mobile requests.</p>}
@@ -52,23 +52,26 @@ function MergeReview({ review, onOpenLead, onResolved }: { review: Review; onOpe
   const [primaryId, setPrimaryId] = useState(review.candidates.length === 1 ? review.candidates[0]._id : '');
   const [confirmed, setConfirmed] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const active = useRef(true);
+  const submitting = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const primary = review.candidates.find(row => row._id === primaryId);
-  return <div className="space-y-3 rounded-lg border p-3 text-xs">
+  return <div className="min-w-0 space-y-3 break-words rounded-lg border p-3 text-xs">
     <p className="font-semibold">{review.incoming.name} · {review.incoming.phone} · {review.dealership}</p>
     <p>Flagged by {review.requestedName}. Creation was blocked to prevent another customer entity.</p>
-    <label>Primary customer to keep<select aria-label={`Primary for ${review.incoming.name}`} value={primaryId} disabled={busy} onChange={event => { setPrimaryId(event.target.value); setConfirmed(false); }} className="ml-2 max-w-full rounded-lg border p-2"><option value="">Choose primary</option>{review.candidates.map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label>
+    <label className="block min-w-0">Primary customer to keep<select aria-label={`Primary for ${review.incoming.name}`} value={primaryId} disabled={busy} onChange={event => { setPrimaryId(event.target.value); setConfirmed(false); }} className="mt-1 block min-h-11 w-full min-w-0 max-w-full rounded-lg border p-2"><option value="">Choose primary</option>{review.candidates.map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label>
     {primary && <>
       <div className="grid gap-2 sm:grid-cols-2"><MergeCustomerSummary lead={primary} label="Primary survives" /><MergeCustomerSummary lead={review.incoming} label="Incoming details" /></div>
       <label className="flex min-h-11 cursor-pointer select-none items-start gap-3 rounded-lg border border-slate-200 p-3 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
         <input type="checkbox" className="h-5 w-5 shrink-0 cursor-pointer accent-blue-700" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} disabled={busy} />
         <span>I confirm this incoming enquiry belongs to the selected primary.</span>
       </label>
-      <div className="flex flex-wrap gap-2"><button className={button} onClick={() => onOpenLead(primary)}>Open primary customer</button><button className={button} disabled={!confirmed || busy} onClick={async () => {
+      <div className="flex flex-wrap gap-2"><button type="button" disabled={busy} className={button} onClick={() => onOpenLead(primary)}>Open primary customer</button><button type="button" className={button} disabled={!confirmed || busy} onClick={async () => {
+        if (!confirmed || submitting.current) return;
+        submitting.current = true;
         setBusy(true); setError('');
         try { await fetchApi(`/merge-requests/${encodeURIComponent(review.id)}/resolve`, { method: 'POST', body: JSON.stringify({ primaryId, expectedUpdatedAt: review.updatedAt }) }); if (active.current) onResolved(); }
         catch (reason) { if (active.current) setError((reason as Error).message); }
-        finally { if (active.current) setBusy(false); }
+        finally { submitting.current = false; if (active.current) setBusy(false); }
       }}>{busy ? 'Transferring…' : 'Transfer missing details to primary'}</button></div>
     </>}
     {error && <p role="alert" className="text-red-700">{error}</p>}

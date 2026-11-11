@@ -5,7 +5,7 @@ import { leadApi } from '@/lib/api';
 import type { Lead } from '@/lib/types';
 
 export function MergeCustomerSummary({ lead, label }: { lead: Lead; label: string }) {
-  return <div className="space-y-1 rounded-lg border bg-slate-50 p-3 text-xs">
+  return <div className="min-w-0 space-y-1 break-words rounded-lg border bg-slate-50 p-3 text-xs">
     <h5 className="font-bold">{label} · {lead.name}</h5><p>{lead.phone || 'No mobile'} · {lead.email || 'No email'}</p>
     <p>{lead.owner_name || 'Unassigned'} · {lead.status?.replaceAll('_', ' ')}</p><p>{lead.vehicle} · {lead.source}</p>
     <p>{lead.diary_entries?.length || 0} diary notes</p>
@@ -19,6 +19,7 @@ export function CustomerMerge({ lead, onMerged }: { lead: Lead; onMerged: (lead:
   const [search, setSearch] = useState('');
   const [retired, setRetired] = useState<Lead[]>([]);
   const active = useRef(true);
+  const submitting = useRef(false);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   useEffect(() => {
     if (!open) return;
@@ -30,22 +31,31 @@ export function CustomerMerge({ lead, onMerged }: { lead: Lead; onMerged: (lead:
     return () => { current = false; window.clearTimeout(timer); };
   }, [open, lead._id, search]);
   const choices = [lead, ...related], primary = choices.find(row => row._id === primaryId), secondary = choices.find(row => row._id === secondaryId);
-  return <section aria-label="Manager customer merge" className="space-y-3 rounded-xl border border-amber-200 p-3 text-xs">
-    <button type="button" onClick={() => { setOpen(!open); setError(''); }} aria-expanded={open} className="font-bold text-blue-700">{open ? 'Close merge review' : 'Manager: review duplicates / merge'}</button>
+  return <section aria-label="Manager customer merge" className="min-w-0 space-y-3 rounded-xl border border-amber-200 p-3 text-xs">
+    <button type="button" disabled={busy} onClick={() => { setOpen(!open); setError(''); }} aria-expanded={open} className="min-h-11 text-left font-bold text-blue-700">{open ? 'Close merge review' : 'Manager: review duplicates / merge'}</button>
     {open && <>
       <p>Select the primary customer to keep and the secondary to retire. Missing details, diary notes, messages, media and linked work transfer to the primary. Its status and salesperson stay in place.</p>
-      <label className="block">Find secondary by customer name or mobile<input aria-label="Find secondary customer" value={search} disabled={busy} onChange={event => { setSearch(event.target.value); setSecondaryId(''); }} className="mt-1 w-full rounded-lg border p-2" /></label>
+      <label className="block">Find secondary by customer name or mobile<input aria-label="Find secondary customer" value={search} disabled={busy} onChange={event => { setSearch(event.target.value); setSecondaryId(''); }} className="mt-1 min-h-11 w-full min-w-0 rounded-lg border p-2" /></label>
       {!related.length && <p>No matching secondary was found at this dealership. Search by name if a mobile is missing.</p>}
       {!!related.length && <>
-        <div className="grid gap-3 sm:grid-cols-2"><label>Primary to keep<select aria-label="Primary customer" value={primaryId} onChange={event => { setPrimaryId(event.target.value); setSecondaryId(''); setConfirmed(false); }} disabled={busy} className="mt-1 w-full rounded-lg border p-2">{choices.map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label>
-          <label>Secondary to retire<select aria-label="Secondary customer" value={secondaryId} onChange={event => { setSecondaryId(event.target.value); setConfirmed(false); }} disabled={busy} className="mt-1 w-full rounded-lg border p-2"><option value="">Choose secondary</option>{choices.filter(row => row._id !== primaryId).map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label></div>
+        <div className="grid gap-3 sm:grid-cols-2"><label className="min-w-0">Primary to keep<select aria-label="Primary customer" value={primaryId} onChange={event => { setPrimaryId(event.target.value); setSecondaryId(''); setConfirmed(false); }} disabled={busy} className="mt-1 min-h-11 w-full min-w-0 rounded-lg border p-2">{choices.map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label>
+          <label className="min-w-0">Secondary to retire<select aria-label="Secondary customer" value={secondaryId} onChange={event => { setSecondaryId(event.target.value); setConfirmed(false); }} disabled={busy} className="mt-1 min-h-11 w-full min-w-0 rounded-lg border p-2"><option value="">Choose secondary</option>{choices.filter(row => row._id !== primaryId).map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label></div>
         {primary && secondary && <><div className="grid gap-2 sm:grid-cols-2"><MergeCustomerSummary lead={primary} label="Primary survives" /><MergeCustomerSummary lead={secondary} label="Secondary retires" /></div>
-          <label className="flex items-start gap-2"><input type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} />I confirm these are the same customer and the selected primary should survive.</label>
-          <button type="button" disabled={!confirmed || busy} className="rounded-lg bg-slate-900 px-3 py-2 font-semibold text-white disabled:opacity-50" onClick={async () => {
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3"><input className="h-5 w-5 shrink-0 accent-blue-700" type="checkbox" checked={confirmed} disabled={busy} onChange={event => setConfirmed(event.target.checked)} /><span>I confirm these are the same customer and the selected primary should survive.</span></label>
+          <button type="button" disabled={!confirmed || busy} className="min-h-11 w-full rounded-lg bg-slate-900 px-3 py-2 font-semibold text-white disabled:opacity-50 sm:w-auto" onClick={async () => {
+            if (!confirmed || submitting.current) return;
+            submitting.current = true;
             setBusy(true); setError('');
-            try { const result = await leadApi.merge(primary._id, secondary._id); if (active.current && result.data) onMerged(result.data); }
+            try {
+              const result = await leadApi.merge(primary._id, secondary._id);
+              if (!result.data) throw new Error('The merge result could not be confirmed. Refresh this customer before trying again.');
+              if (active.current) {
+                setOpen(false); setRelated([]); setSecondaryId(''); setConfirmed(false);
+                onMerged(result.data);
+              }
+            }
             catch (reason) { if (active.current) setError((reason as Error).message); }
-            finally { if (active.current) setBusy(false); }
+            finally { submitting.current = false; if (active.current) setBusy(false); }
           }}>{busy ? 'Merging…' : 'Merge into primary'}</button>
         </>}
       </>}
