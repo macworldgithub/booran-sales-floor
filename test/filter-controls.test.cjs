@@ -33,7 +33,7 @@ function mountView(filename, name) {
   };
   const mocks = {
     react: hookReact,
-    '@/lib/auth': { useAuth: () => ({ user: { role: 'manager', site: 'South Morang' }, locations: ['BYD South Morang', 'South Morang Hyundai'] }) },
+    '@/lib/auth': { useAuth: () => ({ user: { role: 'manager', site: 'South Morang', canAllocate: true }, locations: ['BYD South Morang', 'South Morang Hyundai'] }) },
     '@/lib/vehicle-status': { vehicleStatus: () => ({ label: 'In Stock', held: false, available: true }) },
     '@/lib/use-dialog': { useDialog: () => ({ current: null }) },
     '@/components/ui/MetricCard': { MetricCard: () => null },
@@ -110,6 +110,23 @@ for (const [filename, name, sort] of [
     assert.equal(query.page, 1);
   });
 }
+
+test('website email source and unassigned filters preserve dealership and reset pagination for allocation', () => {
+  const view = mountView('components/views/LeadsView.tsx', 'LeadsView');
+  view.render();
+  view.find(node => node.type === 'select' && node.props['aria-label'] === 'Dealership').props.onChange({ target: { value: 'South Morang Hyundai' } });
+  view.render();
+  view.find(node => node.type === view.Pagination).props.onPageChange(3);
+  view.render();
+  const source = view.find(node => node.type === 'select' && node.props['aria-label'] === 'Lead source');
+  assert.ok(view.nodes(source.props.children).some(node => node.type === 'option' && node.props.value === 'Inbound Email'));
+  source.props.onChange({ target: { value: 'Inbound Email' } });
+  view.render();
+  view.find(node => node.type === 'select' && node.props['aria-label'] === 'Lead assignment').props.onChange({ target: { value: 'unassigned' } });
+  const query = view.render();
+  assert.equal(query.dealership, 'South Morang Hyundai'); assert.equal(query.source, 'Inbound Email');
+  assert.equal(query.assignment, 'unassigned'); assert.equal(query.page, 1);
+});
 
 test('inventory category and aging controls preserve the selected dealership', () => {
   const view = mountView('components/views/InventoryView.tsx', 'InventoryView');
