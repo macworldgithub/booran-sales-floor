@@ -10,12 +10,16 @@ export type DailyMember = {
   signals: { activity: string; videos: string; nextActions: string; tasks: string }; leads: DailyLead[]; tasks: DailyTask[];
 };
 export type DailyOversight = {
+  today?: string;
+  workday?: { date: string; timezone: string; members: WorkdayMember[]; totals: WorkdayCounts };
   date: string; timezone: string; refreshedAt: string; members: DailyMember[]; unassigned: Lead[]; losses: Lead[];
   unassignedPagination?: { page: number; limit: number; total: number; totalPages: number };
   summary: { activeProspects: number; activityRemaining: number; nextActionsRemaining: number; tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number; unactioned: number; unassigned: number; pendingLosses: number; lossesApprovedToday: number; videosRemaining: number; mtdSales: number; allGreen: boolean };
   dealerSocket?: { active: number; assigned: number; snapshotAt?: string } | null;
   report: { available: boolean; scheduledTime: string; description: string; generatedAt: string };
 };
+export type WorkdayCounts = { customersUpdated: number; videosAdded: number; videosSent: number; nextActionsSet: number; tasksCompleted: number; sales: number };
+export type WorkdayMember = WorkdayCounts & { id: string; name: string; events: { kind: string; at: string; leadId: string | null; customer: string; detail: string }[] };
 export type FollowupPolicy = { today: string; maxDate: string | null; maxDays: number | null; consecutiveDays: number; stage: string };
 export type LossAction = 'approve' | 'call' | 'return' | 'reassign';
 export type IntakeSource = 'connex' | 'drive' | 'socket' | 'website' | 'sms';
@@ -23,7 +27,7 @@ export type IntakeLead = { externalId: string; dealership: string; name: string;
 const leadPath = (id: string) => `/leads/${encodeURIComponent(id)}`;
 const post = (value: unknown) => ({ method: 'POST', body: JSON.stringify(value) });
 export const oversightApi = {
-  daily: (rooftop: string, signal?: AbortSignal, queuePage = 0) => fetchApi<DailyOversight>(`/daily-oversight?rooftop=${encodeURIComponent(rooftop)}&queuePage=${queuePage + 1}`, { signal }),
+  daily: (rooftop: string, signal?: AbortSignal, queuePage = 0, date = '') => fetchApi<DailyOversight>(`/daily-oversight?rooftop=${encodeURIComponent(rooftop)}&queuePage=${queuePage + 1}${date ? `&date=${encodeURIComponent(date)}` : ''}`, { signal }),
   policy: (id: string) => fetchApi<FollowupPolicy & { afterContact: FollowupPolicy }>(`${leadPath(id)}/follow-up-policy`),
   nextAction: (id: string, data: { title: string; note: string; dueAt: string }) => fetchApi<Lead>(`${leadPath(id)}/next-action`, post(data)),
   requestLoss: (id: string, reason: string) => fetchApi<Lead>(`${leadPath(id)}/loss-request`, post({ reason })),
