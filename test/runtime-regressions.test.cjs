@@ -296,7 +296,7 @@ test('permission changes remount protected content and hide the previous dealers
   harness.cleanup();
 });
 
-test('late lead and vehicle updates cannot reopen closed dialogs or replace another selection', () => {
+test('late lead, vehicle and notification updates cannot reopen closed dialogs or replace another selection', async () => {
   const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
   const harness = hookHarness(), window = new EventTarget();
   window.location = { href: 'https://floor.test/' };
@@ -304,11 +304,13 @@ test('late lead and vehicle updates cannot reopen closed dialogs or replace anot
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { role: 'manager' } }) } };
   mocks['@/components/views/SalesWorkspace'] = { MySalesDay: () => null, TeamActivity: () => null };
   mocks['@/components/views/DailyOversight'] = { DailyOversight: () => null };
+  mocks['@/lib/use-sms-notifications'] = { useSmsNotifications: () => ({ feed: null, refresh() {}, read: async () => {} }) };
   for (const name of ['layout/Sidebar', 'layout/Header', 'layout/MobileNav', 'layout/BottomNav', 'views/TodayView', 'views/LeadsView', 'views/InventoryView', 'views/ActionItemsView', 'views/CalendarView', 'views/RooftopsView', 'views/StaffView', 'views/FeedLogsView', 'modals/Customer360Modal', 'modals/VehicleDetailModal', 'modals/AddProspectModal', 'modals/BookTestDriveModal', 'modals/NotificationCenterModal']) {
     mocks[`@/components/${name}`] = { [name.split('/').at(-1)]: () => null };
   }
   const pending = () => new Promise(() => {});
-  mocks['@/lib/api'] = { leadApi: { getLeads: pending }, inventoryApi: { getVehicles: pending, getActionItems: pending }, appointmentApi: { getAppointments: pending }, unifiedApi: { getSummary: pending } };
+  let resolveReply;
+  mocks['@/lib/api'] = { leadApi: { getLeads: pending, getLead: () => new Promise(resolve => { resolveReply = resolve; }) }, inventoryApi: { getVehicles: pending, getActionItems: pending }, appointmentApi: { getAppointments: pending }, unifiedApi: { getSummary: pending } };
   const App = load('app/page.tsx', { window, document: new EventTarget() }, mocks).default;
   const render = () => harness.render(() => App());
   let tree = render();
@@ -322,6 +324,12 @@ test('late lead and vehicle updates cannot reopen closed dialogs or replace anot
     previous[updated]({ _id: 'first', status: 'changed' }); tree = render();
     assert.equal(find(modal).props[entity.toLowerCase()]._id, 'second');
   }
+  find('modals/Customer360Modal').props.onClose(); tree = render();
+  find('layout/Header').props.onOpenNotifications(); tree = render();
+  const notifications = find('modals/NotificationCenterModal').props;
+  const opening = notifications.onOpenReply({ id: 'reply', leadId: 'late-reply' });
+  notifications.onClose(); resolveReply({ data: { _id: 'late-reply' } }); await opening;
+  tree = render(); assert.equal(find('modals/Customer360Modal').props.isOpen, false);
   harness.cleanup();
 });
 

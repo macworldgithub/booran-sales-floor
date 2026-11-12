@@ -1,5 +1,6 @@
 'use client';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
+import { useSmsNotifications } from '@/lib/use-sms-notifications';
 import { localDate, localDayRange } from '@/lib/dates';
 import { canOpenTab } from '@/lib/navigation';
 import { DailyOversight } from '@/components/views/DailyOversight';
@@ -63,6 +64,7 @@ export default function BooranSalesFloorApp() {
     return () => window.removeEventListener('popstate', sync);
   }, [role]);
   const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
+  const smsReplies = useSmsNotifications(selectedRooftop, Boolean(user) && role !== 'contractor');
   const [today, setToday] = useState(localDate);
   useEffect(() => {
     const sync = () => setToday(localDate());
@@ -84,6 +86,7 @@ export default function BooranSalesFloorApp() {
 
   // Modals
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [replyLeadId, setReplyLeadId] = useState('');
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [bookDriveLead, setBookDriveLead] = useState<Lead | null>(null);
   const [isBookDriveOpen, setIsBookDriveOpen] = useState<boolean>(false);
@@ -91,9 +94,11 @@ export default function BooranSalesFloorApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
 
   const loadVersion = useRef(0);
+  const notificationVersion = useRef(0);
   const setSelectedRooftop = (rooftop: string) => {
     if (rooftop === selectedRooftop) return;
     ++loadVersion.current;
+    ++notificationVersion.current; setIsNotificationsOpen(false);
     setLeads([]); setVehicles([]); setActionItems([]); setAppointments([]); setUnifiedSummary(null);
     setLoadError(false); setIsInitialLoading(true);
     updateSelectedRooftop(rooftop);
@@ -179,9 +184,10 @@ export default function BooranSalesFloorApp() {
       <div className="app-content flex-1 flex flex-col overflow-hidden min-w-0">
         <Header selectedRooftop={selectedRooftop}
           unreadNotifications={Boolean(unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
+          unreadSmsReplies={smsReplies.feed?.unreadCount || 0}
           role={role}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
-          onOpenNotifications={salesOnly ? undefined : () => setIsNotificationsOpen(true)}
+          onOpenNotifications={role === 'contractor' ? undefined : () => { ++notificationVersion.current; smsReplies.refresh(); setIsNotificationsOpen(true); }}
           onSelectLead={(l) => setSelectedLead(l)}
           onSelectVehicle={(v) => setSelectedVehicle(v)}
           onSelectAction={(item) => { setActionTarget((previous) => ({ search: item.stockNumber || item.vehicleTitle || '', status: item.status, version: previous.version + 1 })); setActiveTab('action-items'); }}
@@ -278,7 +284,8 @@ export default function BooranSalesFloorApp() {
       <Customer360Modal key={selectedLead?._id || 'closed'}
         lead={selectedLead}
         isOpen={!!selectedLead}
-        onClose={() => setSelectedLead(null)}
+        onClose={() => { setSelectedLead(null); setReplyLeadId(''); }}
+        focusMessages={Boolean(replyLeadId && replyLeadId === selectedLead?._id)}
         onLeadUpdated={handleLeadUpdated}
         onLeadMerged={primary => setSelectedLead(primary)}
         onOpenBookDrive={(l) => {
@@ -312,11 +319,24 @@ export default function BooranSalesFloorApp() {
         onClose={() => setIsBookDriveOpen(false)}
       />
 
-      <NotificationCenterModal
-        summary={unifiedSummary}
-        isOpen={!salesOnly && isNotificationsOpen}
-        onClose={() => setIsNotificationsOpen(false)}
+      <NotificationCenterModal key={selectedRooftop}
+        summary={salesOnly ? null : unifiedSummary}
+        isOpen={isNotificationsOpen}
+        onClose={() => { ++notificationVersion.current; setIsNotificationsOpen(false); }}
         onNavigateTab={(tab) => setActiveTab(tab)}
+        sms={smsReplies.feed} smsError={smsReplies.error} smsLoading={smsReplies.loading}
+        unreadOnly={smsReplies.unreadOnly} onUnreadOnlyChange={smsReplies.setUnreadOnly}
+        page={smsReplies.page} totalPages={smsReplies.totalPages} onPageChange={smsReplies.setPage}
+        onRefresh={smsReplies.refresh} onReadAll={smsReplies.readAll}
+        onOpenReply={async reply => {
+          const version = ++notificationVersion.current;
+          const result = await leadApi.getLead(reply.leadId);
+          if (version !== notificationVersion.current) return;
+          if (!result.data) throw new Error('This customer is no longer available. Refresh notifications.');
+          await smsReplies.read(reply.id);
+          if (version !== notificationVersion.current) return;
+          setReplyLeadId(result.data._id); setSelectedLead(result.data); setIsNotificationsOpen(false);
+        }}
       />
 
       {/* Mobile Bottom Navigation Bar */}

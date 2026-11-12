@@ -32,6 +32,7 @@ interface HeaderProps {
   onSelectVehicle?: (vehicle: Vehicle) => void;
   onSelectAction?: (action: ActionItem) => void;
   unreadNotifications?: boolean;
+  unreadSmsReplies?: number;
   isOnline?: boolean;
   onOpenAddProspect?: () => void;
 }
@@ -45,6 +46,7 @@ export function Header({
   onSelectVehicle,
   onSelectAction,
   unreadNotifications = true,
+  unreadSmsReplies = 0,
   isOnline = true,
   onOpenAddProspect,
 }: HeaderProps) {
@@ -275,11 +277,12 @@ export function Header({
         {/* Notification Bell */}
         {onOpenNotifications && <button
           onClick={onOpenNotifications}
-          className="relative p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+          aria-label={`Notifications${unreadSmsReplies ? ` (${unreadSmsReplies} unread SMS replies)` : ''}`}
+          className="relative min-h-11 min-w-11 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
           title="Notification Center"
         >
           <Bell className="w-4 h-4" />
-          {unreadNotifications && (
+          {unreadSmsReplies > 0 ? <span aria-hidden="true" className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-red-600 px-1 text-center text-[10px] font-bold leading-5 text-white ring-2 ring-white">{unreadSmsReplies > 99 ? '99+' : unreadSmsReplies}</span> : unreadNotifications && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600 ring-2 ring-white" />
           )}
         </button>}

@@ -3,7 +3,7 @@
 import { useAuth } from '@/lib/auth';
 import { useDialog } from '@/lib/use-dialog';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Phone,
@@ -38,6 +38,7 @@ interface Customer360ModalProps {
   onLeadUpdated?: (updatedLead: Lead) => void;
   onLeadMerged?: (primary: Lead) => void;
   onOpenBookDrive?: (lead: Lead) => void;
+  focusMessages?: boolean;
 }
 
 export function Customer360Modal({
@@ -47,6 +48,7 @@ export function Customer360Modal({
   onLeadUpdated,
   onLeadMerged,
   onOpenBookDrive,
+  focusMessages = false,
 }: Customer360ModalProps) {
   const [newNote, setNewNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
@@ -59,6 +61,10 @@ export function Customer360Modal({
 
   const { user } = useAuth();
   const dialogRef = useDialog(isOpen, onClose);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isOpen && focusMessages) messagesRef.current?.scrollIntoView({ block: 'start' });
+  }, [isOpen, lead?._id, focusMessages]);
 
   if (!isOpen || !lead) return null;
 
@@ -217,9 +223,9 @@ export function Customer360Modal({
           <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
           {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
-          <CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
+          <div ref={messagesRef}><CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
-          }} />
+          }} /></div>
 
           {/* Timeline & Diary Entries */}
           <div>
