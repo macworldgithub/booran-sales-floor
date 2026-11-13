@@ -20,10 +20,16 @@ function reviewKey(review: Review) {
 export function ManagerMergeRequests({ rooftop, revision, onOpenLead }: { rooftop: string; revision: number; onOpenLead: (lead: Lead) => void }) {
   const [stored, setStored] = useState<{ site: string; rows: Review[]; total: number; totalPages: number } | null>(null);
   const [page, setPage] = useState(1), [version, setVersion] = useState(0), [error, setError] = useState('');
+  const resolved = useRef(new Map<string, string>());
   useEffect(() => {
     const controller = new AbortController();
     fetchApi<Review[]>(`/merge-requests?rooftop=${encodeURIComponent(rooftop)}&page=${page}&limit=10`, { signal: controller.signal })
-      .then(result => { if (!controller.signal.aborted) { setStored({ site: rooftop, rows: result.data || [], total: result.pagination?.total || 0, totalPages: Math.max(1, result.pagination?.totalPages || 1) }); setError(''); } })
+      .then(result => { if (!controller.signal.aborted) {
+        const rows = (result.data || []).filter(review => resolved.current.get(review.id) !== review.updatedAt);
+        const completed = (result.data?.length || 0) - rows.length;
+        setStored({ site: rooftop, rows, total: Math.max(0, (result.pagination?.total || 0) - completed), totalPages: Math.max(1, result.pagination?.totalPages || 1) });
+        setError('');
+      } })
       .catch(reason => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();
   }, [rooftop, revision, page, version]);
@@ -32,7 +38,12 @@ export function ManagerMergeRequests({ rooftop, revision, onOpenLead }: { roofto
     <summary className="cursor-pointer text-sm font-bold">Duplicate mobile / manager merge requests ({data?.total || 0})</summary>
     {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     {data?.total === 0 && <p className="text-xs">No new duplicate-mobile requests.</p>}
-    {data?.rows.map(review => <MergeReview key={reviewKey(review)} review={review} onOpenLead={onOpenLead} onResolved={() => setVersion(value => value + 1)} />)}
+    {data?.rows.map(review => <MergeReview key={reviewKey(review)} review={review} onOpenLead={onOpenLead} onResolved={() => {
+      resolved.current.set(review.id, review.updatedAt);
+      setStored(current => current?.site === rooftop ? { ...current, rows: current.rows.filter(row => row.id !== review.id),
+        total: Math.max(0, current.total - 1) } : current);
+      setVersion(value => value + 1);
+    }} />)}
     {data && data.totalPages > 1 && <div className="flex items-center gap-2"><button className={button} disabled={page <= 1} onClick={() => setPage(value => value - 1)}>Previous requests</button><span className="text-xs">{page}/{data.totalPages}</span><button className={button} disabled={page >= data.totalPages} onClick={() => setPage(value => value + 1)}>Next requests</button></div>}
   </details>;
 }

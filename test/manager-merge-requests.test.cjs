@@ -43,3 +43,15 @@ test('changed customer details or primary candidates require fresh confirmation'
     assert.notEqual(view.child().key, original.key, 'material changes must reset confirmation'); view.cleanup();
   }
 });
+
+test('a completed transfer removes its form immediately and stale polling cannot restore it', async () => {
+  const view = mount(); view.render(); await settle(); view.render();
+  view.child().props.onResolved(); view.render();
+  assert.equal(view.child(), undefined, 'completed reviews must disappear without waiting for another request');
+  await settle(); view.render();
+  assert.equal(view.child(), undefined, 'an older open-list response cannot restore the completed review');
+  const reopened = review(); reopened.updatedAt = '2026-11-13T00:05:00Z';
+  view.refresh(reopened); view.render(); await settle(); view.render();
+  assert.ok(view.child(), 'a genuinely new review version must remain reviewable');
+  view.cleanup();
+});
