@@ -9,7 +9,8 @@ const button = 'min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold text-
 export function ConnexLeadActions({ lead, onUpdated, onRequestLost }: { lead: Lead; onUpdated: (lead: Lead) => void; onRequestLost: () => void }) {
   const [data, setData] = useState<ConnexCustomer | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false), [note, setNote] = useState(''), [subStatus, setSubStatus] = useState(''), [reload, setReload] = useState(0);
-  const [lostReason, setLostReason] = useState('LMS Lost');
+  const [lostReason, setLostReason] = useState(lead.loss_review?.connex_lost_reason || 'LMS Lost');
+  useEffect(() => { setLostReason(lead.loss_review?.connex_lost_reason || 'LMS Lost'); }, [lead._id, lead.loss_review?.connex_lost_reason]);
   const lock = useRef(false), requests = useRef<Record<string, string>>({}), done = useRef(new Set<string>()), update = useRef(onUpdated);
   update.current = onUpdated;
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export function ConnexLeadActions({ lead, onUpdated, onRequestLost }: { lead: Le
         const result = await connexApi.customer(lead._id, controller.signal);
         if (controller.signal.aborted) return;
         setData(result.data || null);
+        setError('');
         if (result.data?.jobs.some(job => job.status === 'done' && !done.current.has(job.id))) {
           result.data.jobs.filter(job => job.status === 'done').forEach(job => done.current.add(job.id));
           const fresh = await leadApi.getLead(lead._id);
