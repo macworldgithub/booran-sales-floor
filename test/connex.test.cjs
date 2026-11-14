@@ -9,7 +9,7 @@ test('Connex note retries reuse their request reference and preserve the draft a
   const harness = hookHarness(); t.after(() => { harness.cleanup(); Object.assign(global, saved); });
   const requests = [], record = { recordId: '006TJ000013YBI9YAO', snapshot: { opportunityName: 'Fixture', stage: 'Accepted', url: 'https://connex-hmca.my.site.com/HMCADealerCommunity/s/opportunity/006TJ000013YBI9YAO' } };
   let fail = true;
-  const mocks = { react: harness.react, '@/lib/api': { leadApi: {} }, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true } }) },
+  const mocks = { react: harness.react, '@/components/customer/ConnexPreferences': { ConnexPreferences: () => null }, '@/lib/api': { leadApi: {} }, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true } }) },
     '@/lib/connex': { pendingJob: job => job.status === 'queued', connexApi: { customer: async () => ({ data: { configured: true, writesEnabled: true, records: [record], jobs: [] } }),
       action: async (id, payload) => { requests.push(payload); if (fail) throw new Error('Connection interrupted'); return { data: { status: 'queued' } }; } } } };
   const compiled = ts.transpileModule(readFileSync('components/customer/ConnexLeadActions.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;

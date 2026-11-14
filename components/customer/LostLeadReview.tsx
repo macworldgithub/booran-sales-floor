@@ -4,10 +4,15 @@ import { leadApi } from '@/lib/api';
 import { oversightApi, type LossAction } from '@/lib/oversight';
 import { useAuth } from '@/lib/auth';
 import type { Lead } from '@/lib/types';
+import { connexApi } from '@/lib/connex';
 
 export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead: Lead; onUpdated: (lead: Lead) => void; requestOpen?: boolean }) {
   const { user } = useAuth();
   const [reason, setReason] = useState('');
+  const linkedConnex = lead.source === 'Connex' || lead.source_refs?.some(ref => ref.source === 'Connex');
+  const [connexReason, setConnexReason] = useState(lead.loss_review?.connex_lost_reason || 'LMS Lost');
+  const [connexOptions, setConnexOptions] = useState<string[]>(['LMS Lost']);
+  useEffect(() => { if (!linkedConnex) return; let active = true; connexApi.customer(lead._id).then(result => { if (active && result.data?.lostReasons) setConnexOptions(result.data.lostReasons); }).catch(reason => { if (active) setError(reason.message); }); return () => { active = false; }; }, [lead._id, linkedConnex]);
   const [notes, setNotes] = useState('');
   const [people, setPeople] = useState<{ id: string; name: string }[]>([]);
   const [assignee, setAssignee] = useState('');
@@ -25,7 +30,7 @@ export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead:
   const run = async (action?: LossAction) => {
     setBusy(true); setError('');
     try {
-      const result = action && lead.loss_review ? await oversightApi.reviewLoss(lead._id, { reviewId: lead.loss_review.id, action, notes, assigneeId: assignee || undefined }) : await oversightApi.requestLoss(lead._id, reason);
+      const result = action && lead.loss_review ? await oversightApi.reviewLoss(lead._id, { reviewId: lead.loss_review.id, action, notes, assigneeId: assignee || undefined, ...(linkedConnex ? { connexLostReason: connexReason } : {}) }) : await oversightApi.requestLoss(lead._id, reason, linkedConnex ? connexReason : undefined);
       if (result.data) onUpdated(result.data);
       setReason(''); setNotes('');
     } catch (reason) { setError((reason as Error).message); }
@@ -35,6 +40,7 @@ export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead:
   return <section ref={section} aria-label="Lost lead review" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">
     <h4 className="font-bold">{pending ? 'Loss awaiting manager approval' : 'Lost lead review'}</h4>
     {lead.loss_review && <p className="text-xs">{lead.loss_review.requested_name}: {lead.loss_review.reason} · {lead.loss_review.status}{lead.loss_review.notes ? ` · ${lead.loss_review.reviewed_name}: ${lead.loss_review.notes}` : ''}</p>}
+    {linkedConnex && (pending && user?.canAllocate || !pending && !['sold', 'lost'].includes(lead.status)) && <label className="block text-xs font-semibold">Connex loss category<select className="ml-2 min-h-11 rounded-lg border p-2" value={connexReason} onChange={event => setConnexReason(event.target.value)}>{connexOptions.map(value => <option key={value}>{value}</option>)}</select><span className="mt-1 block font-normal">Sent with the full loss reason after manager approval.</span></label>}
     {pending && user?.canAllocate && <>
       <label className="block text-xs font-semibold">Manager notes<textarea value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} className="mt-1 block w-full rounded-lg border p-2" /></label>
       <div className="flex flex-wrap gap-2">

@@ -41,7 +41,7 @@ export interface Lead {
   last_activity_at?: string;
   followup_days?: string[];
   next_action?: { title: string; due_at: string; recorded_at: string; author: string } | null;
-  loss_review?: { id: string; status: 'pending' | 'approved' | 'returned'; reason: string; requested_name: string; requested_at: string; notes?: string; last_action?: string; reviewed_name?: string };
+  loss_review?: { id: string; status: 'pending' | 'approved' | 'returned'; reason: string; requested_name: string; requested_at: string; notes?: string; last_action?: string; reviewed_name?: string; connex_lost_reason?: string };
   external?: { id: string; source: string; opportunity_status?: string; details_revealed?: boolean };
   source_refs?: { source: string; deal_id?: string; sms_campaign?: { stage?: string; active?: boolean }; nexgate?: { stage?: string; comments?: string } }[];
   alternate_phones?: string[];
