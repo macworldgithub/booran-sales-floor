@@ -60,7 +60,7 @@ test('workday table shows selected-day counts and sends the chosen date without 
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
   const render = () => harness.render(() => mod.exports.DailyOversight({ rooftop: 'South Morang Hyundai', onOpenLead() {} }));
-  const text = node => Array.isArray(node) ? node.map(text).join(' ') : node?.props ? text(node.props.children) : String(node ?? '');
+  const text = node => Array.isArray(node) ? node.map(text).join(' ') : typeof node?.type === 'function' ? text(node.type(node.props)) : node?.props ? text(node.props.children) : String(node ?? '');
   render(); await new Promise(resolve => setImmediate(resolve)); let tree = render();
   let table = nodes(tree).find(node => node.type === 'table');
   assert.match(text(table), /Customers updated/); assert.match(text(table), /Alice 2/);
@@ -69,4 +69,34 @@ test('workday table shows selected-day counts and sends the chosen date without 
   tree = render(); assert.ok(!nodes(tree).some(node => node.type === 'table'), 'changing the date hides previous-day results while loading');
   await new Promise(resolve => setImmediate(resolve)); tree = render(); table = nodes(tree).find(node => node.type === 'table');
   assert.equal(requests.at(-1), '2026-11-11'); assert.match(text(table), /Alice 0/);
+});
+
+test('daily traffic lights use customer coverage, recover on refresh and leave sales informational', async t => {
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const saved = { window: global.window, document: global.document };
+  global.window = { setInterval() { return 1; }, addEventListener() {}, removeEventListener() {} };
+  global.document = { visibilityState: 'visible' };
+  const harness = hookHarness(); t.after(() => { harness.cleanup(); global.window = saved.window; global.document = saved.document; });
+  const counts = { customersUpdated: 4, videosAdded: 4, videosSent: 4, nextActionsSet: 4, tasksCompleted: 2, sales: 0 };
+  const progress = { targets: { customersUpdated: 4, videosAdded: 4, videosSent: 4, nextActionsSet: 4, tasksCompleted: 3 },
+    coverage: { customersUpdated: 4, videosAdded: 3, videosSent: 3, nextActionsSet: 4, tasksCompleted: 2 },
+    signals: { customersUpdated: 'green', videosAdded: 'red', videosSent: 'red', nextActionsSet: 'green', tasksCompleted: 'red' } };
+  const data = { date: '2026-11-14', today: '2026-11-14', refreshedAt: '2026-11-14T02:00:00Z', members: [], unassigned: [], losses: [], summary: {}, report: {},
+    workday: { date: '2026-11-14', ...progress, totals: counts, members: [{ id: 'paul', name: 'Paul Daoud', ...counts, ...progress, events: [] }] } };
+  const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
+    '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
+  for (const name of ['ManagerMergeRequests', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
+  const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
+  const render = () => harness.render(() => mod.exports.DailyOversight({ rooftop: 'South Morang Hyundai', onOpenLead() {} }));
+  render(); await new Promise(resolve => setImmediate(resolve)); let tree = render();
+  const html = () => renderToStaticMarkup(nodes(tree).find(node => node.type === 'table'));
+  assert.match(html(), /data-status="red" data-metric="videosSent"/); assert.match(html(), /3\/4 customers covered/);
+  assert.match(html(), /2\/3 due tasks complete/); assert.doesNotMatch(html(), /data-metric="sales"/);
+  progress.coverage.videosSent = 4; progress.signals.videosSent = 'green';
+  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Refresh overview').props.onClick();
+  await new Promise(resolve => setImmediate(resolve)); tree = render();
+  assert.match(html(), /data-status="green" data-metric="videosSent"/);
+  assert.match(html(), /data-status="red" data-metric="videosAdded"/);
 });

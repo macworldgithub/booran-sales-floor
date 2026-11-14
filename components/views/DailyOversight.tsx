@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { leadApi } from '@/lib/api';
-import { oversightApi, type DailyOversight as DailyData, type IntakeSource } from '@/lib/oversight';
+import { oversightApi, type DailyOversight as DailyData, type IntakeSource, type WorkdayCounts, type WorkdayProgress } from '@/lib/oversight';
 import { useAuth } from '@/lib/auth';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
@@ -12,11 +12,19 @@ import { ConnexIntegration } from '@/components/customer/ConnexIntegration';
 import type { Lead } from '@/lib/types';
 
 const workdayColumns = [['customersUpdated', 'Customers updated'], ['videosAdded', 'Videos added'], ['videosSent', 'Videos sent'], ['nextActionsSet', 'Next actions set'], ['tasksCompleted', 'Tasks completed'], ['sales', 'Sales']] as const;
-const eventLabels: Record<string, string> = { crm: 'Customer updated', videosAdded: 'Video added', videosSent: 'Video sent', nextActionsSet: 'Next action set', tasksCompleted: 'Task completed', sales: 'Sale completed' };
+const eventLabels: Record<string, string> = { allocation: 'Customer allocated', crm: 'Customer updated', videosAdded: 'Video added', videosSent: 'Video sent', nextActionsSet: 'Next action set', tasksCompleted: 'Task completed', sales: 'Sale completed' };
 const button = 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50';
 const dateTime = (value: string) => new Date(value).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne', dateStyle: 'short', timeStyle: 'short' });
 function Signal({ value, children }: { value: string; children: React.ReactNode }) {
-  return <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span aria-hidden className={`h-2.5 w-2.5 rounded-full ${value === 'green' ? 'bg-emerald-500' : 'bg-red-500'}`} /><span className="sr-only">{value === 'green' ? 'Complete: ' : 'Needs attention: '}</span>{children}</span>;
+  return <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${value === 'green' ? 'bg-emerald-500' : value === 'neutral' ? 'bg-slate-400' : 'bg-red-500'}`} /><span className="sr-only">{value === 'green' ? 'Complete: ' : value === 'neutral' ? 'No target: ' : 'Needs attention: '}</span>{children}</span>;
+}
+function WorkdayMetric({ field, counts, progress }: { field: keyof WorkdayCounts; counts?: WorkdayCounts; progress?: WorkdayProgress }) {
+  if (field === 'sales') return <span className="text-lg font-extrabold tabular-nums">{counts?.sales ?? 0}</span>;
+  const target = progress?.targets?.[field], covered = progress?.coverage?.[field];
+  const state = progress?.signals?.[field] || 'neutral';
+  const description = target === undefined ? 'Coverage unavailable' : target === 0 ? field === 'tasksCompleted' ? 'No tasks due' : 'No daily workload' :
+    `${covered ?? 0}/${target} ${field === 'tasksCompleted' ? 'due tasks complete' : 'customers covered'}`;
+  return <div data-status={state} data-metric={field} className="space-y-1"><div className="flex items-center gap-2"><span className="text-lg font-extrabold tabular-nums">{counts?.[field] ?? 0}</span><Signal value={state}><span className="sr-only">{description}</span></Signal></div><p className={`text-[11px] font-medium ${state === 'red' ? 'text-red-700' : state === 'green' ? 'text-emerald-700' : 'text-slate-500'}`}>{description}</p></div>;
 }
 export function DailyOversight({ rooftop, onOpenLead }: { rooftop: string; onOpenLead: (lead: Lead) => void }) {
   const { user } = useAuth();
@@ -59,13 +67,13 @@ export function DailyOversight({ rooftop, onOpenLead }: { rooftop: string; onOpe
     {data && <>
       <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">Workday activity · <strong>{workday?.date}</strong> · Australia/Melbourne. Only events recorded on this date contribute to these counts.</p>
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-6">
-        {workdayColumns.map(([field, label]) => <div key={field} className="rounded-lg bg-slate-50 p-3"><p className="text-lg font-extrabold tabular-nums">{workday?.totals[field] ?? 0}</p><p className="text-slate-600">{label}</p></div>)}
+        {workdayColumns.map(([field, label]) => <div key={field} className="rounded-lg bg-slate-50 p-3"><WorkdayMetric field={field} counts={workday?.totals} progress={workday} /><p className="mt-1 text-slate-600">{label}</p></div>)}
       </div>
       <div className="overflow-x-auto"><table className="w-full text-left text-xs"><caption className="sr-only">Salesperson events for the selected Melbourne workday.</caption><thead><tr className="border-b text-slate-500"><th scope="col" className="p-2">Salesperson</th>{workdayColumns.map(([field, label]) => <th key={field} scope="col" className="whitespace-nowrap p-2 font-semibold">{label}</th>)}</tr></thead><tbody>{workday?.members.map(person => <tr key={person.id} className={`border-b ${expanded === person.id ? 'bg-blue-50' : ''}`}>
         <th scope="row" className="p-2"><button aria-expanded={expanded === person.id} onClick={() => setExpanded(expanded === person.id ? '' : person.id)} className="min-h-11 text-left font-bold text-blue-800 underline underline-offset-2">{person.name}</button></th>
-        {workdayColumns.map(([field]) => <td key={field} className="p-2 text-base font-bold tabular-nums">{person[field]}</td>)}
+        {workdayColumns.map(([field]) => <td key={field} className="p-2 align-top"><WorkdayMetric field={field} counts={person} progress={person} /></td>)}
       </tr>)}</tbody></table></div>
-      <p className="text-xs text-slate-500">Customers updated counts distinct customers; videos, next actions, completed tasks and sales count that workday’s recorded events. Select a salesperson to inspect the activity. Historical totals reflect the activity history available in Sales Floor.</p>
+      <p className="text-xs text-slate-500">Red means daily work is still missing; green means every customer in that salesperson’s daily workload is covered. Repeated videos or actions for one customer do not cover another. Tasks turn green only when all due tasks are complete. Gray means no work is due; Sales has no target. Allocation creates workload for the selected salesperson, not customer-update credit for the allocating manager. Select a salesperson to inspect the activity.</p>
       {member && <section aria-label="Workday activity details" className="space-y-3 rounded-xl border border-blue-200 p-3"><div className="flex items-start justify-between gap-2"><h3 className="font-bold">{member.name} · {workday?.date}</h3><button className={button} onClick={() => setExpanded('')}>Close detail</button></div>
         {!member.events.length && <p className="text-sm">No activity recorded for this workday.</p>}
         {member.events.map((event, index) => <article key={`${event.kind}-${event.at}-${index}`} className="rounded-lg border p-3 text-xs"><p className="font-semibold">{eventLabels[event.kind] || event.kind} · {dateTime(event.at)}</p>{event.leadId && <button disabled={busy} className="min-h-11 text-blue-800 underline" onClick={() => open(event.leadId!)}>{event.customer}</button>}<p className="whitespace-pre-wrap break-words text-slate-600">{event.detail}</p></article>)}

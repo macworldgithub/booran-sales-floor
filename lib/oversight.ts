@@ -11,7 +11,7 @@ export type DailyMember = {
 };
 export type DailyOversight = {
   today?: string;
-  workday?: { date: string; timezone: string; members: WorkdayMember[]; totals: WorkdayCounts };
+  workday?: WorkdayProgress & { date: string; timezone: string; members: WorkdayMember[]; totals: WorkdayCounts };
   date: string; timezone: string; refreshedAt: string; members: DailyMember[]; unassigned: Lead[]; losses: Lead[];
   unassignedPagination?: { page: number; limit: number; total: number; totalPages: number };
   summary: { activeProspects: number; activityRemaining: number; nextActionsRemaining: number; tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number; unactioned: number; unassigned: number; pendingLosses: number; lossesApprovedToday: number; videosRemaining: number; mtdSales: number; allGreen: boolean };
@@ -19,7 +19,9 @@ export type DailyOversight = {
   report: { available: boolean; scheduledTime: string; description: string; generatedAt: string };
 };
 export type WorkdayCounts = { customersUpdated: number; videosAdded: number; videosSent: number; nextActionsSet: number; tasksCompleted: number; sales: number };
-export type WorkdayMember = WorkdayCounts & { id: string; name: string; events: { kind: string; at: string; leadId: string | null; customer: string; detail: string }[] };
+export type WorkdayMetricKey = Exclude<keyof WorkdayCounts, 'sales'>;
+export type WorkdayProgress = { targets?: Record<WorkdayMetricKey, number>; coverage?: Record<WorkdayMetricKey, number>; signals?: Record<WorkdayMetricKey, 'red' | 'green' | 'neutral'>; allGreen?: boolean };
+export type WorkdayMember = WorkdayCounts & WorkdayProgress & { id: string; name: string; events: { kind: string; at: string; leadId: string | null; customer: string; detail: string }[] };
 export type FollowupPolicy = { today: string; maxDate: string | null; maxDays: number | null; consecutiveDays: number; stage: string };
 export type LossAction = 'approve' | 'call' | 'return' | 'reassign';
 export type IntakeSource = 'connex' | 'drive' | 'socket' | 'website' | 'sms';

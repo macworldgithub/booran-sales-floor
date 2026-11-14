@@ -6,7 +6,7 @@ import { useRefreshOnResume } from './use-refresh-on-resume';
 export interface AuthUser {
   id: string; email: string; name: string;
   role: 'dealer_principal' | 'general_manager' | 'sales_manager' | 'manager' | 'sales_consultant' | 'super_admin' | 'contractor';
-  canAllocate?: boolean; viewCost?: boolean;
+  canAllocate?: boolean; viewCost?: boolean; allocationOnly?: boolean;
   site: string; allowedSites: string[]; avatar?: string; title?: string;
 }
 interface AuthContextValue {
