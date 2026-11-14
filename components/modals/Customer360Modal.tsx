@@ -30,6 +30,7 @@ import { LeadAssignment } from '@/components/customer/LeadAssignment';
 import { LostLeadReview } from '@/components/customer/LostLeadReview';
 import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
 import { WorkflowHistory } from '@/components/customer/WorkflowHistory';
+import { ConnexLeadActions } from '@/components/customer/ConnexLeadActions';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -217,6 +218,7 @@ export function Customer360Modal({
             {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
           {user?.canAllocate && <LeadAssignment key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />
           {!!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
           {!!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
           <LeadFollowUp key={`${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />

@@ -17,6 +17,7 @@ test('manager sections have distinct sibling keys through background refreshes',
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { id: 'manager', canAllocate: true }, locations: [] }) },
     '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {},
     '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} },
+    '@/components/customer/ConnexIntegration': { ConnexIntegration: () => null },
     '@/components/customer/ManagerMergeRequests': { ManagerMergeRequests }, '@/components/customer/LeadIntegrationStatus': { LeadIntegrationStatus },
     '@/components/customer/LeadAssignment': { LeadAssignment: () => null }, '@/components/customer/LostLeadReview': { LostLeadReview: () => null } };
   const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
@@ -54,7 +55,7 @@ test('workday table shows selected-day counts and sends the chosen date without 
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
     '@/lib/oversight': { oversightApi: { daily: async (site, signal, page, date) => { requests.push(date); return { data: data(date) }; } } },
     '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
-  for (const name of ['ManagerMergeRequests', 'LeadIntegrationStatus', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
+  for (const name of ['ManagerMergeRequests', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
   const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
