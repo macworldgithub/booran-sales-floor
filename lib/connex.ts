@@ -11,7 +11,7 @@ export interface ConnexRecord {
 export interface ConnexJob { id: string; recordId: string; leadId: string; action: string; status: string; error?: string; attempts: number; createdAt: string }
 export interface ConnexStatus {
   configured: boolean; writesEnabled: boolean; running: boolean; requestedAt?: string; lastPullAt?: string;
-  complete: boolean; discovered: number; pendingDetails: number; failedPulls: number; error?: string; records: number; masked: number;
+  complete: boolean; discovered: number; pendingDetails: number; failedPulls: number; error?: string; records: number; imported: number; mergeReviews: number; masked: number;
   acceptanceOverdue: number; notAcceptedThreeDays: number; openSixWeeks: number; jobs: ConnexJob[];
   staff: { id: string; name: string; connexName: string }[];
 }
