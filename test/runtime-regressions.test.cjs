@@ -59,6 +59,14 @@ test('API failures cannot emit successful mutations or clear a newer session', a
   assert.deepEqual(events, ['booran:unauthorized']);
 });
 
+test('API deadlines show a useful retry message while caller cancellation remains an abort', async () => {
+  let failure = new DOMException('signal timed out', 'TimeoutError');
+  const api = load('lib/api.ts', {fetch:async()=>{throw failure;},console:{error(){}}});
+  await assert.rejects(api.fetchApi('/connex/status'), /The request took too long\. Please retry\./);
+  failure = new DOMException('cancelled', 'AbortError');
+  await assert.rejects(api.fetchApi('/connex/status'), error=>error.name==='AbortError');
+});
+
 test('sold stock stays unavailable and expired holds become available in the UI', () => {
   const { vehicleStatus } = load('lib/vehicle-status.ts');
   assert.deepEqual(vehicleStatus({ status: 'Sold', softHold: { held: true } }), { label: 'Sold', held: false, available: false });

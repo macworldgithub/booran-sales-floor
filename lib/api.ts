@@ -54,6 +54,7 @@ export async function fetchApi<T>(
     if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !uploadChunk && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
     return json;
   } catch (err: any) {
+    if (err?.name === 'TimeoutError') throw new Error('The request took too long. Please retry.');
     console.error(`API Error on ${endpoint}:`, err);
     throw err;
   }

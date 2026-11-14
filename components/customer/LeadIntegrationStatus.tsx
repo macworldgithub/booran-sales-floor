@@ -7,7 +7,7 @@ type Sync = { kind: string; dealership: string; address?: string; sourceRecords?
 type Status = { states: Sync[]; email: { address: string; category: string; configured: boolean; imported?: number; pendingMerges?: number; needsReview?: number }[] };
 
 export function LeadIntegrationStatus({ rooftop, revision }: { rooftop: string; revision: number }) {
-  const [stored, setStored] = useState<{ site: string; status: Status } | null>(null), [error, setError] = useState('');
+  const [stored, setStored] = useState<{ site: string; status: Status } | null>(null), [error, setError] = useState(''), [retry, setRetry] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     const refresh = () => fetchApi<Status>(`/integrations/lead-status?rooftop=${encodeURIComponent(rooftop)}`, { signal: controller.signal })
@@ -16,11 +16,11 @@ export function LeadIntegrationStatus({ rooftop, revision }: { rooftop: string; 
     void refresh();
     const timer = window.setInterval(refresh, 60000);
     return () => { window.clearInterval(timer); controller.abort(); };
-  }, [rooftop, revision]);
+  }, [rooftop, revision, retry]);
   const data = stored?.site === rooftop ? stored.status : null;
   return <details className="space-y-2 rounded-xl border p-3 text-xs">
     <summary className="cursor-pointer text-sm font-bold">Lead feed and email status</summary>
-    {error && <p role="alert" className="text-red-700">{error}</p>}
+    {error && <div><p role="alert" className="text-red-700">{error}</p><button className="mt-2 min-h-11 rounded-lg border px-3 py-2 font-semibold" onClick={() => setRetry(value => value + 1)}>Retry lead status</button></div>}
     {data?.states.filter(state => state.kind === 'dealersocket').map(state => <div className="mt-2 space-y-1" key={state.dealership}>
       <h4 className="font-bold">{state.dealership}</h4><p>Latest DealerSocket feed: {state.sourceRecords} opportunities · {state.sourceActive} active. {state.customers} unmerged source records stored.</p>
       <p>{state.missingPhone} stored records without a mobile · {state.missingEmail} without an email · {state.sourceMissingOwner} feed opportunities without a salesperson.</p>
