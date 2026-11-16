@@ -30,6 +30,7 @@ import { LeadAssignment } from '@/components/customer/LeadAssignment';
 import { LostLeadReview } from '@/components/customer/LostLeadReview';
 import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
 import { WorkflowHistory } from '@/components/customer/WorkflowHistory';
+import { DealWorkflowActions } from '@/components/customer/DealWorkflowActions';
 import { ConnexLeadActions } from '@/components/customer/ConnexLeadActions';
 
 interface Customer360ModalProps {
@@ -225,6 +226,7 @@ export function Customer360Modal({
           <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
           {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
+          <DealWorkflowActions key={`deal-actions-${lead._id}`} leadId={lead._id} />
           <div ref={messagesRef}><CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
           }} /></div>

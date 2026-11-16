@@ -1,4 +1,5 @@
 'use client';
+import { PulseDashboard } from '@/components/views/SalesOperations';
 
 import { DailyOversight } from '@/components/views/DailyOversight';
 import { useCallback, useEffect, useState } from 'react';
@@ -107,6 +108,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigat
   }
 
   return <div className="view-stack space-y-4">
+    <PulseDashboard key={`pulse-${rooftop}`} rooftop={rooftop} onOpenLead={onOpenLead} />
     <DailyOversight key={rooftop} rooftop={rooftop} onOpenLead={onOpenLead} />
     <section className={card}>
       <h2 className="text-xl font-extrabold text-slate-900">My sales day</h2>

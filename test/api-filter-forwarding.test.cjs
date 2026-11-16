@@ -47,6 +47,25 @@ function uploadProxy(fetch) {
   return module.exports;
 }
 
+test('private archive downloads retain binary bytes and attachment headers, and contractor proof retains its image type', async () => {
+  const bytes = new Uint8Array([0, 255, 128, 13, 10]);
+  let forwarded;
+  const proxy = uploadProxy(async (url, options) => {
+    forwarded = options;
+    return new Response(bytes, { headers: { 'content-type': 'application/octet-stream', 'content-disposition': 'attachment; filename="original.mov"' } });
+  });
+  const response = await proxy.GET({ nextUrl: new URL('https://floor.test/api/iappraise/archive/record/media/movie'), method: 'GET', headers: new Headers({ cookie: 'booran_session=fixture' }) }, { params: Promise.resolve({ path: ['iappraise', 'archive', 'record', 'media', 'movie'] }) });
+  assert.equal(response.headers.get('content-type'), 'application/octet-stream');
+  assert.equal(response.headers.get('content-disposition'), 'attachment; filename="original.mov"');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.equal(forwarded.headers.get('cookie'), 'booran_session=fixture');
+  assert.deepEqual(new Uint8Array(await response.arrayBuffer()), bytes);
+  const images = uploadProxy(async () => new Response(bytes, { headers: { 'content-type': 'image/jpeg' } }));
+  const proof = await images.GET({ nextUrl: new URL('https://floor.test/api/deliveries/delivery/accessories/job/proof'), method: 'GET', headers: new Headers() }, { params: Promise.resolve({ path: ['deliveries', 'delivery', 'accessories', 'job', 'proof'] }) });
+  assert.equal(proof.headers.get('content-type'), 'image/jpeg');
+  assert.deepEqual(new Uint8Array(await proof.arrayBuffer()), bytes);
+});
+
 test('media proxy preserves arbitrary binary bytes and authenticated chunk offsets', async () => {
   let forwarded;
   const proxy = uploadProxy(async (url, options) => { forwarded = { url, options }; return Response.json({ success: true, data: { next_offset: 5 } }); });

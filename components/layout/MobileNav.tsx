@@ -52,8 +52,11 @@ export function MobileNav({
     { id: 'leads', label: 'Leads Centre (CRM)', icon: Users, badge: leadsCount },
     { id: 'inventory', label: 'Live Inventory', icon: Car, badge: inventoryCount },
     { id: 'calendar', label: 'Showroom Floor', icon: Calendar },
+    { id: 'appraisals', label: 'Appraisals & Wholesale', icon: Car },
   ];
   const managementNavItems = [
+    { id: 'pulse', label: 'PULSE Dashboard', icon: LayoutDashboard },
+    { id: 'deliveries', label: 'Delivery Centre', icon: Car },
     { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount, badgeColor: 'bg-amber-600' },
     { id: 'rooftops', label: 'Locations & Rooftops', icon: MapPin },
     { id: 'staff', label: 'Staff & Allocation', icon: UserCheck },

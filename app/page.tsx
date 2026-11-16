@@ -5,6 +5,8 @@ import { localDate, localDayRange } from '@/lib/dates';
 import { canOpenTab } from '@/lib/navigation';
 import { DailyOversight } from '@/components/views/DailyOversight';
 import { MySalesDay, TeamActivity } from '@/components/views/SalesWorkspace';
+import { AppraisalCentre } from '@/components/views/AppraisalCentre';
+import { PulseDashboard, DeliveryCentre } from '@/components/views/SalesOperations';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -276,6 +278,9 @@ export default function BooranSalesFloorApp() {
 
           {activeTab === 'staff' && <StaffView selectedRooftop={selectedRooftop} onRooftopChange={setSelectedRooftop} />}
 
+          {activeTab === 'appraisals' && <AppraisalCentre key={selectedRooftop} rooftop={selectedRooftop} />}
+          {activeTab === 'pulse' && <PulseDashboard key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} />}
+          {activeTab === 'deliveries' && <DeliveryCentre key={selectedRooftop} rooftop={selectedRooftop} />}
           {activeTab === 'feed-logs' && user?.role === 'super_admin' && <FeedLogsView />}
         </main>
       </div>

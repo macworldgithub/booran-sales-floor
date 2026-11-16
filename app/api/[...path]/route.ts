@@ -19,6 +19,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const url = new URL(`${base.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}`);
     url.search = request.nextUrl.search;
     const binaryUpload = request.method === 'PUT' && path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content' && request.headers.get('content-type') === 'application/octet-stream';
+    const archiveDownload = ['GET', 'HEAD'].includes(request.method) && path.length === 5 && path[0] === 'iappraise' && path[1] === 'archive' && path[3] === 'media';
     const headers = new Headers({ 'Content-Type': binaryUpload ? 'application/octet-stream' : 'application/json' });
     let body: string | ArrayBuffer | undefined;
     if (!['GET', 'HEAD'].includes(request.method)) {
@@ -54,14 +55,21 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       method: request.method,
       headers,
       body,
-      signal: AbortSignal.timeout(binaryUpload ? 85000 : 25000),
+      signal: AbortSignal.timeout(binaryUpload || archiveDownload ? 85000 : 25000),
       cache: 'no-store',
       redirect: 'error',
     });
     const outgoing = new Headers({ 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' });
-    const privateImage = request.method === 'GET' && path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content';
+    const privateImage = ['GET', 'HEAD'].includes(request.method) && path.length === 5 && (
+      (path[0] === 'leads' && path[2] === 'media' && path[4] === 'content') ||
+      (path[0] === 'deliveries' && path[2] === 'accessories' && path[4] === 'proof')
+    );
     const responseType = response.headers.get('content-type') || '';
     if (privateImage && /^image\/(?:jpeg|png|webp|gif|heic|heif)$/.test(responseType)) outgoing.set('Content-Type', responseType);
+    if (archiveDownload && response.ok) {
+      outgoing.set('Content-Type', 'application/octet-stream');
+      outgoing.set('Content-Disposition', response.headers.get('content-disposition') || 'attachment');
+    }
     outgoing.set('X-Content-Type-Options', 'nosniff');
     for (const cookieValue of response.headers.getSetCookie()) outgoing.append('Set-Cookie', cookieValue);
     const retry = response.headers.get('retry-after');

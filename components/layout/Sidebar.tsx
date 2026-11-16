@@ -62,9 +62,12 @@ export function Sidebar({
       source: 'booran_inventory',
     },
     { id: 'calendar', label: 'Showroom Floor', icon: Calendar },
+    { id: 'appraisals', label: 'Appraisals & Wholesale', icon: FileText },
   ];
 
   const managementNavItems = [
+    { id: 'pulse', label: 'PULSE Dashboard', icon: BarChart3 },
+    { id: 'deliveries', label: 'Delivery Centre', icon: Car },
     { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount > 0 ? actionItemsCount.toLocaleString() : undefined },
     { id: 'rooftops', label: 'Locations & Rooftops', icon: MapPin },
     { id: 'staff', label: 'Staff & Allocation', icon: UserCheck },

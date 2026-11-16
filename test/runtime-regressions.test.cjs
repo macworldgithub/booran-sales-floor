@@ -312,6 +312,8 @@ test('late lead, vehicle and notification updates cannot reopen closed dialogs o
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { role: 'manager' } }) } };
   mocks['@/components/views/SalesWorkspace'] = { MySalesDay: () => null, TeamActivity: () => null };
   mocks['@/components/views/DailyOversight'] = { DailyOversight: () => null };
+  mocks['@/components/views/AppraisalCentre'] = { AppraisalCentre: () => null };
+  mocks['@/components/views/SalesOperations'] = { PulseDashboard: () => null, DeliveryCentre: () => null };
   mocks['@/lib/use-sms-notifications'] = { useSmsNotifications: () => ({ feed: null, refresh() {}, read: async () => {} }) };
   for (const name of ['layout/Sidebar', 'layout/Header', 'layout/MobileNav', 'layout/BottomNav', 'views/TodayView', 'views/LeadsView', 'views/InventoryView', 'views/ActionItemsView', 'views/CalendarView', 'views/RooftopsView', 'views/StaffView', 'views/FeedLogsView', 'modals/Customer360Modal', 'modals/VehicleDetailModal', 'modals/AddProspectModal', 'modals/BookTestDriveModal', 'modals/NotificationCenterModal']) {
     mocks[`@/components/${name}`] = { [name.split('/').at(-1)]: () => null };

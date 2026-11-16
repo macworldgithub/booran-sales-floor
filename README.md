@@ -1,5 +1,13 @@
 # Booran Sales Floor
 
+## Appraisals, PULSE and Delivery Centre
+
+Open **Appraisals & Wholesale** to create customer-linked walk-around inspections, capture private photos and licence images, record internal test drives and signed loan-car forms, and request configured Rego/PPSR/AI services. Managers can maintain dealer and wholesaler contacts, record received offers, select a final valuation and search imported historical iAppraise records. Manager-only financial offer fields are removed by the backend from consultant responses.
+
+Management navigation now includes **PULSE Dashboard** and **Delivery Centre**. Salespeople see PULSE summary metrics on their home view. PULSE includes Today/Weekly/Month-to-Date results, report export and categorised customer alerts. Customer360 has linked deal, DMS submission, delivery-booking and manager follow-up controls. Delivery coordinators can assign accessory work, inspect completion photographs, reschedule and complete handover when the backend confirms every accessory is finished.
+
+Historical archive imports preserve source records and do not automatically merge customers or certify full iAppraise replacement. Provider-dependent buttons return an error until their backend adapters are configured. Source inspection media and an external wholesaler directory are not included in the official appraisal CSV; see the backend migration documentation before cutover.
+
 Next.js 16 frontend for the sales floor, inventory, appointments, and location management.
 
 ## Local development
