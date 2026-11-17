@@ -1,6 +1,6 @@
 # SMHY web changes — 16 November 2026 scope
 
-Prepared on `feat/smhy-16nov-scope`; not deployed. Automatic Vercel Git deployment is disabled for this branch. The matching backend branch contains the API, migration and detailed requirement mapping.
+Prepared on `feat/smhy-16nov-scope` and promoted to `main`; not deployed. Automatic Vercel Git deployment is disabled for both branches to preserve the request to push code without deploying. Re-enable automatic deployment only when a release is requested. The matching backend contains the API, migration and detailed requirement mapping.
 
 ## Where to use the changes after deployment
 

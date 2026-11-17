@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "git": { "deploymentEnabled": { "feat/smhy-16nov-scope": false } },
+  "git": { "deploymentEnabled": { "feat/smhy-16nov-scope": false, "main": false } },
   "buildCommand": "npm run build",
   "installCommand": "npm ci --include=dev"
 }
