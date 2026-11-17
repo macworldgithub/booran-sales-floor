@@ -32,6 +32,8 @@ function mountView(filename, name) {
     useEffect() {}, useCallback: (callback) => callback,
   };
   const mocks = {
+    '@/components/customer/HoldingCost': { HoldingCostValue: () => null },
+    '@/components/customer/EngagementIndicator': { EngagementIndicator: () => null, InventoryEngagementSummary: () => null },
     '@/components/customer/BulkLeadAssignment': { BulkLeadAssignment: () => null },
     '@/lib/crm-updates': { needsActionToday: () => true },
     react: hookReact,

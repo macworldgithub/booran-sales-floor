@@ -148,6 +148,7 @@ export const inventoryApi = {
     return fetchApi<Vehicle[]>(`/inventory/vehicles${query}`, options);
   },
   getVehicle: (id: string) => fetchApi<Vehicle>(`/inventory/vehicles/${encodeURIComponent(id)}`),
+  getVehicleProspects: (params: Record<string, string | number>, options?: RequestInit) => fetchApi<Lead[]>(`/inventory/vehicles/${encodeURIComponent(String(params.vehicleId))}/prospects?page=${params.page || 1}&limit=10`, options),
   softHold: (id: string, payload: { prospectName: string; notes?: string; consultant?: string }) =>
     fetchApi<any>(`/inventory/vehicles/${encodeURIComponent(id)}/soft-hold`, {
       method: 'POST',

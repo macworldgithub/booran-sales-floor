@@ -1,4 +1,6 @@
 'use client';
+import { HoldingCostValue } from '@/components/customer/HoldingCost';
+import { InventoryEngagementSummary } from '@/components/customer/EngagementIndicator';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import { vehicleStatus } from '@/lib/vehicle-status';
@@ -284,14 +286,15 @@ export function InventoryView({
                     </div>
                     <div>
                       <span className="text-[9px] uppercase font-bold text-slate-400 block font-mono">
-                        Hold Cost
+                        Holding Cost
                       </span>
                       <span className="text-xs font-semibold text-amber-700 font-mono">
-                        ${v.accumulatedHoldingCost?.toLocaleString() || 0}
+                        <HoldingCostValue vehicle={v} />
                       </span>
                     </div>
                   </div>
 
+                  <InventoryEngagementSummary summary={v.engagementSummary} />
                   {/* Bottom: Dealership & Action */}
                   <div className="flex items-center justify-between pt-1 gap-2">
                     <span className="text-[11px] text-slate-500 truncate">{v.rooftopName}</span>
@@ -361,6 +364,7 @@ export function InventoryView({
                             <p className="text-[10px] text-slate-500 truncate">
                               {v.variant || v.colour || 'Standard'} · {v.category}
                             </p>
+                            <InventoryEngagementSummary summary={v.engagementSummary} />
                           </div>
                         </div>
                       </td>
@@ -402,7 +406,7 @@ export function InventoryView({
                       {/* Holding Cost */}
                       <td className="py-3 px-4">
                         <span className="font-semibold text-amber-700">
-                          ${v.accumulatedHoldingCost ? v.accumulatedHoldingCost.toLocaleString() : 0}
+                          <HoldingCostValue vehicle={v} />
                         </span>
                       </td>
 

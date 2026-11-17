@@ -304,6 +304,7 @@ export default function BooranSalesFloorApp() {
         isOpen={!!selectedVehicle}
         onClose={() => setSelectedVehicle(null)}
         onVehicleUpdated={handleVehicleUpdated}
+        onOpenLead={lead => { setSelectedVehicle(null); setSelectedLead(lead); }}
       />
 
       <AddProspectModal key={`${isAddProspectOpen}-${selectedRooftop}`}

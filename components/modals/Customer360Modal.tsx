@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
+import { EngagementIndicator } from '@/components/customer/EngagementIndicator';
 import { useDialog } from '@/lib/use-dialog';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -160,6 +161,7 @@ export function Customer360Modal({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <EngagementIndicator engagement={lead.engagement} active={['new_lead', 'following_up', 'returned'].includes(lead.status)} />
           {/* Quick Details Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-slate-100/80 border border-slate-200/80">
             <div className="flex items-center gap-2.5">

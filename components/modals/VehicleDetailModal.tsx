@@ -18,7 +18,9 @@ import {
   ShieldCheck,
   Calendar,
 } from 'lucide-react';
-import { Vehicle } from '@/lib/types';
+import { Vehicle, Lead } from '@/lib/types';
+import { HoldingCostValue, HoldingCostDetails } from '@/components/customer/HoldingCost';
+import { InventoryProspectEngagement } from '@/components/customer/InventoryProspectEngagement';
 import { inventoryApi } from '@/lib/api';
 
 interface VehicleDetailModalProps {
@@ -26,6 +28,7 @@ interface VehicleDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onVehicleUpdated?: (updatedVehicle: Vehicle) => void;
+  onOpenLead?: (lead: Lead) => void;
 }
 
 export function VehicleDetailModal({
@@ -33,6 +36,7 @@ export function VehicleDetailModal({
   isOpen,
   onClose,
   onVehicleUpdated,
+  onOpenLead,
 }: VehicleDetailModalProps) {
   const [isSubmittingHold, setIsSubmittingHold] = useState(false);
   const [holdError, setHoldError] = useState<string | null>(null);
@@ -153,14 +157,16 @@ export function VehicleDetailModal({
               </p>
             </div>
             <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <p className="text-[10px] font-bold text-slate-400 uppercase font-mono">Holding Cost Eaten</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase font-mono">Holding Cost</p>
               <p className="text-base font-bold text-amber-600 mt-0.5">
-                ${vehicle.accumulatedHoldingCost ? vehicle.accumulatedHoldingCost.toLocaleString() : '0'}
+                <HoldingCostValue vehicle={vehicle} />
               </p>
             </div>
 </>}
           </div>
 
+          {user?.viewCost && <HoldingCostDetails vehicle={vehicle} />}
+          {vehicle.category === 'Used' && <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Stock date → available online: {vehicle.usedCarLeadTimeDays == null ? 'Not recorded' : `${vehicle.usedCarLeadTimeDays} days`}. This lead time is separate from holding cost.</p>}
           {/* Vehicle Specifications */}
           <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono mb-2">
@@ -210,6 +216,7 @@ export function VehicleDetailModal({
             </div>
           )}
 
+          <InventoryProspectEngagement key={vehicle._id} vehicle={vehicle} onOpenLead={onOpenLead} />
           {isHeld && <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
             <h4 className="text-xs font-bold text-slate-900">Existing Soft Hold</h4>
             <p className="text-xs text-slate-600">Expires {expiresAt}</p>

@@ -35,7 +35,14 @@ export interface CustomerMessageHistory {
   history_warning?: string;
 }
 
+export type ProspectEngagement = { policyVersion: string; computedAt: string; score: number; state: 'buying' | 'losing' | 'neutral'; label: string; linkedVehicles: string[];
+  signals: { key: string; score: number; reason: string; metrics: Record<string, number | string | boolean | null>; evidenceCount: number }[] };
+export type HoldingCostBreakdown = { policyVersion: string; annualRate: number; yearDays: number; vehicleCost: number | null; daysInStock: number; floorplanCost: number | null;
+  carsalesLeads: number; driveLeads: number; carsalesRate: number; driveRate: number; carsalesCost: number; driveCost: number; leadCharges: number; total: number | null;
+  computedAt: string; leadDataCheckedAt: string | null; warnings: string[]; segments: { source: string; type: string; count: number }[] };
+export type VehicleEngagementSummary = { activeProspects: number; buying: number; losing: number; neutral: number };
 export interface Lead {
+  engagement?: ProspectEngagement | null;
   quick_walk_in?: boolean;
   overdue?: boolean;
   last_activity_at?: string;
@@ -130,8 +137,11 @@ export interface Vehicle {
   vehicleCost?: number;
   totalStockCost?: number;
   potentialGross?: number;
-  accumulatedHoldingCost?: number;
-  holdingCostPerDay?: number;
+  accumulatedHoldingCost?: number | null;
+  holdingCostPerDay?: number | null;
+  holdingCostBreakdown?: HoldingCostBreakdown;
+  engagementSummary?: VehicleEngagementSummary;
+  usedCarLeadTimeDays?: number | null;
   dateInStock?: string;
   daysInStock: number;
   agingBucket: '0-30' | '31-45' | '46-60' | '61-90' | '90+' | string;

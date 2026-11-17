@@ -1,4 +1,5 @@
 'use client';
+import { EngagementIndicator } from '@/components/customer/EngagementIndicator';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -284,6 +285,7 @@ export function LeadsView({
                   </span>
                 </div>
 
+                <EngagementIndicator engagement={lead.engagement} active={['new_lead', 'following_up', 'returned'].includes(lead.status)} />
                 {/* Vehicle & Dealership */}
                 <div className="text-xs text-slate-700">
                   <span className="font-semibold text-slate-900">
@@ -402,6 +404,7 @@ export function LeadsView({
                       <p className="text-[10px] text-slate-400 font-mono">
                         {[lead.source || 'Manual', lead.source_channel].filter(Boolean).join(' · ')}
                       </p>
+                      <EngagementIndicator engagement={lead.engagement} active={['new_lead', 'following_up', 'returned'].includes(lead.status)} />
                     </td>
 
                     {/* Status */}

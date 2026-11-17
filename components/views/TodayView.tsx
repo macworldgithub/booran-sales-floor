@@ -1,4 +1,6 @@
 'use client';
+import { HoldingCostValue } from '@/components/customer/HoldingCost';
+import { InventoryEngagementSummary } from '@/components/customer/EngagementIndicator';
 
 import React, { useState } from 'react';
 import {
@@ -357,10 +359,11 @@ export function TodayView({
                     </span>
                   </div>
 
+                  <InventoryEngagementSummary summary={v.engagementSummary} />
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
                     <span>{v.rooftopName}</span>
                     <span className="text-amber-600 font-semibold">
-                      Hold Cost: ${v.accumulatedHoldingCost?.toLocaleString() || 0}
+                      Holding Cost: <HoldingCostValue vehicle={v} />
                     </span>
                   </div>
                 </div>
