@@ -32,6 +32,8 @@ function mountView(filename, name) {
     useEffect() {}, useCallback: (callback) => callback,
   };
   const mocks = {
+    '@/components/customer/BulkLeadAssignment': { BulkLeadAssignment: () => null },
+    '@/lib/crm-updates': { needsActionToday: () => true },
     react: hookReact,
     '@/lib/auth': { useAuth: () => ({ user: { role: 'manager', site: 'South Morang', canAllocate: true }, locations: ['BYD South Morang', 'South Morang Hyundai'] }) },
     '@/lib/vehicle-status': { vehicleStatus: () => ({ label: 'In Stock', held: false, available: true }) },

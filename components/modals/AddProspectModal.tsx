@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, User, Phone, Mail, Car, MapPin, CheckCircle2 } from 'lucide-react';
 import { leadApi } from '@/lib/api';
 import { Lead } from '@/lib/types';
+import {crmApi} from '@/lib/crm-updates';
 
 interface AddProspectModalProps {
   isOpen: boolean;
@@ -39,6 +40,8 @@ export function AddProspectModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [existingId, setExistingId] = useState('');
+  const [duplicate,setDuplicate]=useState<{duplicate:boolean;customers:Lead[]}|null>(null);
+  useEffect(()=>{if(!isOpen||!dealership||(!phone.trim()&&!email.trim())){setDuplicate(null);return;}const controller=new AbortController();const timer=setTimeout(()=>{void crmApi.duplicateCheck(dealership,phone,email,controller.signal).then(result=>{if(!controller.signal.aborted)setDuplicate(result.data||null);}).catch(()=>{if(!controller.signal.aborted)setDuplicate(null);});},350);return()=>{clearTimeout(timer);controller.abort();};},[isOpen,dealership,phone,email]);
 
   useEffect(() => { if (locations.length && !locations.includes(dealership)) setDealership(locations.includes(defaultDealership) ? defaultDealership : locations[0]); }, [directoryLocations, dealership, defaultDealership]);
 
@@ -90,6 +93,7 @@ export function AddProspectModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
       <div ref={dialogRef} data-app-dialog role="dialog" aria-modal="true" aria-label="AddProspect" tabIndex={-1} className="relative w-full max-w-full sm:max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-10 max-h-[92dvh] sm:max-h-[90dvh] flex flex-col animate-in fade-in slide-in-from-bottom-4 sm:zoom-in-95">
+        {duplicate?.duplicate&&<div role="status" className="border-b border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This phone or email matches an existing customer. Creating another card will request manager review.{duplicate.customers.map(customer=><button type="button" className="ml-2 min-h-11 font-bold underline" key={customer._id} onClick={()=>onOpenExisting?.(customer)}>{customer.name} · Open existing customer</button>)}</div>}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0">

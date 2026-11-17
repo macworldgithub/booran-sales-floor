@@ -31,7 +31,7 @@ const post = (value: unknown) => ({ method: 'POST', body: JSON.stringify(value) 
 export const oversightApi = {
   daily: (rooftop: string, signal?: AbortSignal, queuePage = 0, date = '') => fetchApi<DailyOversight>(`/daily-oversight?rooftop=${encodeURIComponent(rooftop)}&queuePage=${queuePage + 1}${date ? `&date=${encodeURIComponent(date)}` : ''}`, { signal }),
   policy: (id: string) => fetchApi<FollowupPolicy & { afterContact: FollowupPolicy }>(`${leadPath(id)}/follow-up-policy`),
-  nextAction: (id: string, data: { title: string; note: string; dueAt: string }) => fetchApi<Lead>(`${leadPath(id)}/next-action`, post(data)),
+  nextAction: (id: string, data: { title: string; note: string; dueAt: string; requestId?: string }) => fetchApi<Lead>(`${leadPath(id)}/next-action`, post(data)),
   requestLoss: (id: string, reason: string, connexLostReason?: string) => fetchApi<Lead>(`${leadPath(id)}/loss-request`, post({ reason, connexLostReason })),
   reviewLoss: (id: string, data: { reviewId: string; action: LossAction; notes: string; assigneeId?: string; connexLostReason?: string }) => fetchApi<Lead>(`${leadPath(id)}/loss-review`, post(data)),
   intake: (source: IntakeSource, data: IntakeLead) => fetchApi<Lead>(`/lead-ingestion/${source}`, post(data)),

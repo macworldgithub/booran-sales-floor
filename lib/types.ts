@@ -40,7 +40,12 @@ export interface Lead {
   overdue?: boolean;
   last_activity_at?: string;
   followup_days?: string[];
-  next_action?: { title: string; due_at: string; recorded_at: string; author: string } | null;
+  next_action?: { title: string; due_at: string; recorded_at: string; author: string; status?: 'open' | 'completed' | 'awaiting_approval' } | null;
+  next_action_review?: { id: string; status: string; due_at: string; title: string; requested_name: string; notes?: string } | null;
+  communication_consent?: { opted_out: boolean; reason: string; changed_at: string };
+  consent_review?: { id: string; status: string; opt_out: boolean; reason: string; requested_name: string };
+  opted_out?: boolean;
+  last_video_viewed_at?: string;
   loss_review?: { id: string; status: 'pending' | 'approved' | 'returned'; reason: string; requested_name: string; requested_at: string; notes?: string; last_action?: string; reviewed_name?: string; connex_lost_reason?: string };
   external?: { id: string; source: string; opportunity_status?: string; details_revealed?: boolean };
   source_refs?: { source: string; deal_id?: string; sms_campaign?: { stage?: string; active?: boolean }; nexgate?: { stage?: string; comments?: string } }[];
@@ -97,6 +102,8 @@ export interface Lead {
   };
   diary_entries?: {
     author: string;
+    author_role?: string;
+    kind?: string;
     date: string;
     note: string;
   }[];

@@ -44,3 +44,12 @@ test('a transient chunk failure retries identical bytes and advances progress on
   assert.equal(chunks[0].url, chunks[1].url);
   assert.deepEqual(progress, [50, 100]);
 });
+
+test('a lost upload-completion response retries the same durable upload rather than uploading another copy',async()=>{
+  const code=ts.transpileModule(readFileSync('lib/api.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,mod={exports:{}};
+  let prepared=0,chunks=0,completions=0;
+  const fetch=async(url)=>{if(url.endsWith('/media')){prepared++;return Response.json({success:true,data:{id:'durable-video',upload:{chunk_size:2097152}}});}if(url.endsWith('/complete')){completions++;if(completions===1)throw Error('Response interrupted');return Response.json({success:true,data:{id:'durable-video',status:'ready'}});}chunks++;return Response.json({success:true,data:{next_offset:3}});};
+  new Function('require','module','exports','fetch',code)(require,mod,mod.exports,fetch);
+  const result=await mod.exports.customerMessageApi.upload('lead',new File(['abc'],'clip.mp4',{type:'video/mp4'}));
+  assert.equal(result.data.id,'durable-video');assert.equal(prepared,1);assert.equal(chunks,1);assert.equal(completions,2);
+});

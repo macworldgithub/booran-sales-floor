@@ -16,7 +16,8 @@ export interface ConnexStatus {
   discoveryWarning?: string; activeDiscovered?: number; activeCoverageConfirmed?: boolean;
   complete: boolean; discovered: number; pendingDetails: number; failedPulls: number; error?: string; records: number; imported: number; mergeReviews: number; masked: number;
   acceptanceOverdue: number; notAcceptedThreeDays: number; openSixWeeks: number; jobs: ConnexJob[];
-  staff: { id: string; name: string; connexName: string }[];
+  revealManagerId?: string;
+  staff: { id: string; name: string; connexName: string; manager?: boolean; role?: string }[];
 }
 export interface ConnexCustomer { configured: boolean; writesEnabled: boolean; records: ConnexRecord[]; jobs: ConnexJob[]; lostReasons?: string[] }
 export interface ConnexFilters { view: string; search: string; stage: string; type: string; salesperson: string; from: string; to: string; sort: string }

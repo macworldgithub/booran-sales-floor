@@ -13,12 +13,12 @@ test('manager sections have distinct sibling keys through background refreshes',
   t.after(() => { harness.cleanup(); global.window = saved.window; global.document = saved.document; });
   const data = { date: '2026-11-12', refreshedAt: '2026-11-12T00:00:00Z', members: [], unassigned: [], losses: [],
     summary: { allGreen: true }, report: { available: false } };
-  const ManagerMergeRequests = () => null, LeadIntegrationStatus = () => null;
+  const ManagerApprovals = () => null, LeadIntegrationStatus = () => null;
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { id: 'manager', canAllocate: true }, locations: [] }) },
     '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {},
     '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} },
     '@/components/customer/ConnexIntegration': { ConnexIntegration: () => null },
-    '@/components/customer/ManagerMergeRequests': { ManagerMergeRequests }, '@/components/customer/LeadIntegrationStatus': { LeadIntegrationStatus },
+    '@/components/customer/ManagerApprovals': { ManagerApprovals }, '@/components/customer/LeadIntegrationStatus': { LeadIntegrationStatus },
     '@/components/customer/LeadAssignment': { LeadAssignment: () => null }, '@/components/customer/LostLeadReview': { LostLeadReview: () => null } };
   const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
@@ -37,7 +37,7 @@ test('manager sections have distinct sibling keys through background refreshes',
   let tree = render(); await new Promise(resolve => setImmediate(resolve));
   for (let i = 0; i < 12; i++) {
     tree = render(); assertKeys(tree);
-    assert.equal(nodes(tree).filter(node => node.type === ManagerMergeRequests).length, 1);
+    assert.equal(nodes(tree).filter(node => node.type === ManagerApprovals).length, 1);
     const button = nodes(tree).find(node => node.type === 'button' && node.props.children === 'Refresh overview');
     button.props.onClick(); await new Promise(resolve => setImmediate(resolve));
   }
@@ -55,7 +55,7 @@ test('workday table shows selected-day counts and sends the chosen date without 
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
     '@/lib/oversight': { oversightApi: { daily: async (site, signal, page, date) => { requests.push(date); return { data: data(date) }; } } },
     '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
-  for (const name of ['ManagerMergeRequests', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
+  for (const name of ['ManagerApprovals', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
   const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
@@ -85,7 +85,7 @@ test('daily traffic lights use customer coverage, recover on refresh and leave s
     workday: { date: '2026-11-14', ...progress, totals: counts, members: [{ id: 'paul', name: 'Paul Daoud', ...counts, ...progress, events: [] }] } };
   const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
     '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
-  for (const name of ['ManagerMergeRequests', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
+  for (const name of ['ManagerApprovals', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
   const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);

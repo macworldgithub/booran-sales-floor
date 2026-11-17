@@ -49,7 +49,7 @@ export function TeamActivity({ rooftop, onOpenLeads, onOpenCalendar }: {
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div>
         <h2 className="text-lg font-extrabold text-slate-900">Team activity</h2>
-        <p className={muted}>Active leads, open follow-ups, and today’s activity for your sales team.</p>
+        <p className={muted}>Active leads, open follow-ups, and today’s activity for your sales team. Customers updated today counts completed record updates, not customers still needing action.</p>
       </div>
       <button type="button" onClick={refresh} className={link}>Refresh team activity</button>
     </div>
@@ -61,7 +61,7 @@ export function TeamActivity({ rooftop, onOpenLeads, onOpenCalendar }: {
         <p className="text-xs text-slate-600">{member.site}</p>
         <dl className="my-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
           {[
-            ['Active leads', member.activeLeads], ['Leads updated today', member.leadsUpdated],
+            ['Active leads', member.activeLeads], ['Customers updated today', member.leadsUpdated],
             ['Open follow-ups', member.openTasks], ['Follow-ups done today', member.tasksCompleted],
             ['Bookings today', member.appointments],
           ].map(([label, count]) => <div key={label}><dt className="text-slate-600">{label}</dt><dd className="font-bold text-slate-900">{count}</dd></div>)}
@@ -87,7 +87,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigat
   const [busy, setBusy] = useState(false);
   const [taskError, setTaskError] = useState('');
   const { data: tasks, pagination, isLoading, error, refresh } = usePaginatedQuery(
-    salesWorkApi.tasks, { rooftop, page, limit: pageSize, status: 'open', assignee: 'me', sortBy: 'due_at', sortOrder: 'asc' }, setPage,
+    salesWorkApi.tasks, { rooftop, page, limit: pageSize, status: 'open', assignee: 'me', due: 'today', sortBy: 'due_at', sortOrder: 'asc' }, setPage,
   );
 
   async function taskAction(task: SalesTask, complete: boolean) {
@@ -115,10 +115,10 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigat
       <p className={muted}>Your follow-ups, assigned leads, and appointments.</p>
     </section>
     <section className={`${card} space-y-3`}>
-      <h3 className="font-bold text-slate-900">Actions needed</h3>
+      <h3 className="font-bold text-slate-900">Actions due today & overdue</h3>
       <QueryStatus error={error} isLoading={isLoading} onRetry={refresh} />
       {taskError && <p role="alert" className="text-sm text-red-700">{taskError}</p>}
-      {!isLoading && !error && !tasks.length && <p className={muted}>You have no open follow-ups.</p>}
+      {!isLoading && !error && !tasks.length && <p className={muted}>No follow-ups due today. Future and awaiting-approval actions stay in your diary.</p>}
       {tasks.map(task => <div key={task._id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
         <div className="min-w-0">
           <p className="break-words text-sm font-semibold">{task.title}</p>

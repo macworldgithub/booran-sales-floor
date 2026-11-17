@@ -32,6 +32,8 @@ import { LeadFollowUp } from '@/components/customer/LeadFollowUp';
 import { WorkflowHistory } from '@/components/customer/WorkflowHistory';
 import { DealWorkflowActions } from '@/components/customer/DealWorkflowActions';
 import { ConnexLeadActions } from '@/components/customer/ConnexLeadActions';
+import { CustomerConsent } from '@/components/customer/CustomerConsent';
+import { CustomerActivityFeed } from '@/components/customer/CustomerActivityFeed';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -60,6 +62,7 @@ export function Customer360Modal({
   const [editingPhone, setEditingPhone] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [requestLost, setRequestLost] = useState(false);
+  const noteAttempt=useRef<{note:string;id:string}|null>(null), noteLock=useRef(false);
 
   const { user } = useAuth();
   const dialogRef = useDialog(isOpen, onClose);
@@ -72,21 +75,24 @@ export function Customer360Modal({
 
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNote.trim() || isUpdatingStatus || isSubmittingNote) return;
+    if (!newNote.trim() || isUpdatingStatus || isSubmittingNote || noteLock.current) return;
+    noteLock.current=true;
     setMutationError(null);
     setIsSubmittingNote(true);
     try {
-      const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name);
+      if(noteAttempt.current?.note!==newNote.trim())noteAttempt.current={note:newNote.trim(),id:crypto.randomUUID()};
+      const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name,noteAttempt.current!.id);
       if (res.success && res.data) {
         onLeadUpdated?.(res.data);
         setToastMessage('Note added to customer timeline');
         setNewNote('');
+        noteAttempt.current=null;
         setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err: any) {
       setMutationError(err.message || 'Unable to save note.');
     } finally {
-      setIsSubmittingNote(false);
+      noteLock.current=false;setIsSubmittingNote(false);
     }
   };
 
@@ -223,6 +229,8 @@ export function Customer360Modal({
           {!!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
           {!!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
           <LeadFollowUp key={`${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
+          <CustomerConsent key={`consent-${lead._id}`} lead={lead} onUpdated={updated=>onLeadUpdated?.(updated)}/>
+          {(!lead.next_action||lead.next_action.status==='completed')&&lead.loss_review?.status!=='pending'&&!['sold','lost'].includes(lead.status)&&<p className="rounded-lg bg-blue-50 p-3 text-sm">Next best action: record a customer contact and choose the next follow-up date above.</p>}
           <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
           {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
@@ -238,23 +246,7 @@ export function Customer360Modal({
               CRM Activity & Diary Notes
             </h4>
 
-            {lead.diary_entries && lead.diary_entries.length > 0 ? (
-              <div className="space-y-2.5">
-                {lead.diary_entries.map((entry, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                    <div className="flex items-center justify-between text-slate-400 text-[10px] mb-1 font-mono">
-                      <span>{entry.author || 'Consultant'}</span>
-                      <span>{entry.date ? new Date(entry.date).toLocaleString('en-AU') : ''}</span>
-                    </div>
-                    <p className="text-slate-800 font-medium">{entry.note}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
-                No previous notes recorded for this deal.
-              </div>
-            )}
+            <CustomerActivityFeed key={`activity-${lead._id}`} lead={lead}/>
 
             {/* Add Note Form */}
             <form onSubmit={handleAddNote} className="mt-3 flex gap-2">

@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
 import { LostLeadReview } from '@/components/customer/LostLeadReview';
-import { ManagerMergeRequests } from '@/components/customer/ManagerMergeRequests';
+import { ManagerApprovals } from '@/components/customer/ManagerApprovals';
 import { LeadIntegrationStatus } from '@/components/customer/LeadIntegrationStatus';
 import { ConnexIntegration } from '@/components/customer/ConnexIntegration';
 import type { Lead } from '@/lib/types';
@@ -84,7 +84,7 @@ export function DailyOversight({ rooftop, onOpenLead }: { rooftop: string; onOpe
       {manager && <div className="grid gap-4 xl:grid-cols-2"><details className="rounded-xl border p-3" open={(data.unassignedPagination?.total ?? data.unassigned.length) > 0}><summary className="cursor-pointer text-sm font-bold">Unassigned / new leads ({(data.unassignedPagination?.total ?? data.unassigned.length)})</summary>{!(data.unassignedPagination?.total ?? data.unassigned.length) && <p className="mt-2 text-xs">No leads awaiting allocation.</p>}{(data.unassignedPagination ? data.unassigned : data.unassigned.slice(page * 5, page * 5 + 5)).map(lead => <div key={lead._id} className="mt-3 space-y-1 text-xs"><button className="font-semibold text-blue-800 underline" onClick={() => onOpenLead(lead)}>{lead.name}</button><p><Signal value="red">{lead.overdue ? 'Overdue · awaiting allocation' : 'Awaiting allocation'}</Signal> · {lead.source} · {lead.dealership}</p>{lead.source_owner && <p>DealerSocket owner · {lead.source_owner}</p>}{lead.quick_walk_in && <p>{lead.diary_entries?.[0]?.note}</p>}<LeadAssignment lead={lead} onUpdated={refresh} quick /></div>)}{queuePages > 1 && <div className="mt-3 flex items-center gap-2"><button className={button} disabled={page === 0} onClick={() => setQueuePage(page - 1)}>Previous</button><span>{page + 1}/{queuePages}</span><button className={button} disabled={page + 1 === queuePages} onClick={() => setQueuePage(page + 1)}>Next</button></div>}</details>
         <details className="rounded-xl border border-amber-200 p-3" open={data.losses.length > 0}><summary className="cursor-pointer text-sm font-bold">Lost-lead review ({data.losses.length} pending · {data.summary.lossesApprovedToday} approved today)</summary>{!data.losses.length && <p className="mt-2 text-xs">No losses awaiting approval.</p>}{data.losses.map(lead => <details key={lead._id} className="mt-3"><summary className="cursor-pointer text-xs font-semibold">{lead.name} · {lead.owner_name} · {lead.loss_review?.reason}</summary><button onClick={() => onOpenLead(lead)} className={`${button} my-2`}>Open customer</button><LostLeadReview lead={lead} onUpdated={refresh} /></details>)}</details>
       </div>}
-      {manager && <ManagerMergeRequests key={`merges-${rooftop}`} rooftop={rooftop} revision={revision} onOpenLead={onOpenLead} />}
+      {manager && <ManagerApprovals key={`approvals-${rooftop}`} rooftop={rooftop} revision={revision} onOpenLead={onOpenLead} />}
       {manager && <LeadIntegrationStatus key={`feeds-${rooftop}`} rooftop={rooftop} revision={revision} />}
       {manager && <ConnexIntegration key={`connex-${rooftop}`} rooftop={rooftop} revision={revision} onOpenLead={onOpenLead} />}
       {manager && <LeadIntake key={`intake-${rooftop}`} rooftop={rooftop} onImported={lead => { refresh(); onOpenLead(lead); }} />}

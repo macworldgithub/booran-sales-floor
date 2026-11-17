@@ -33,7 +33,7 @@ function mount(overrides = {}, leadOverrides = {}, environment = {}, extraProps 
   };
   let updates = 0;
   const mocks = { react: harness.react, '@/lib/api': { customerMessageApi: api }, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} },
-    './VideoRecorder': { VideoRecorder: () => null } };
+    './VideoLibrary': { VideoLibrary: () => null }, './VideoRecorder': { VideoRecorder: () => null } };
   const compiled = ts.transpileModule(readFileSync('components/customer/CustomerMessages.tsx', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const module = { exports: {} };
   new Function('require', 'module', 'exports', ...Object.keys(environment), compiled)((id) => mocks[id] || require(id), module, module.exports, ...Object.values(environment));
@@ -120,6 +120,15 @@ test('a recording with pending branding cannot be attached or sent', async () =>
   assert.match(view.text(view.render()), /Adding dealership end card/);
   assert.equal(view.find(node => node.props.type === 'submit').props.disabled, true);
   view.cleanup();
+});
+
+test('a processing video attaches automatically when the next refresh confirms it is ready',async()=>{
+  let ready=false,payload;const uploaded={id:'pending-video',name:'welcome.mp4',content_type:'video/mp4',status:'processing',size:100,url:''};
+  const view=mount({upload:async()=>({data:uploaded}),media:async()=>({data:ready?[{...uploaded,status:'ready',url:'https://media.test/ready'}]:[]}),send:async(_id,input)=>{payload=input;return{data:{status:'queued'}};}});
+  view.render();await settle();view.render();view.find(node=>node.props.type==='file').props.onChange({target:{files:[{name:uploaded.name,type:uploaded.content_type,size:100}]}});await settle();view.render();
+  assert.equal(view.find(node=>node.props.type==='submit').props.disabled,true);
+  ready=true;view.find(node=>node.props?.['aria-label']==='Refresh messages').props.onClick();await settle();view.render();
+  assert.equal(view.find(node=>node.props.type==='submit').props.disabled,false);await view.find(node=>node.type==='form').props.onSubmit({preventDefault(){}});assert.deepEqual(payload.media_ids,['pending-video']);view.cleanup();
 });
 
 test('delivered and received history stays visible when loading the media library fails', async () => {

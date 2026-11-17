@@ -23,6 +23,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import { leadApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { LeadAssignment } from '@/components/customer/LeadAssignment';
+import {BulkLeadAssignment} from '@/components/customer/BulkLeadAssignment';
 import { useDialog } from '@/lib/use-dialog';
 
 interface LeadsViewProps {
@@ -54,6 +55,7 @@ export function LeadsView({
   const [statusFilter, setStatusFilter] = useState('all');
   const [source, setSource] = useState('all');
   const [assignment, setAssignment] = useState('all');
+  const [ownerFilter,setOwnerFilter]=useState('');
   const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -64,7 +66,7 @@ export function LeadsView({
   const { data: leads, pagination, isLoading, isRefreshing, error, refresh: fetchLeads } = usePaginatedQuery(
     leadApi.getLeads,
     { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
-    dealership: rooftopFilter, source, assignment, ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    dealership: rooftopFilter, source, assignment, owner:ownerFilter.trim(), ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
     setCurrentPage,
   );
   useEffect(() => {
@@ -327,9 +329,12 @@ export function LeadsView({
           )}
         </div>
 
+        {user?.canAllocate&&<label className="my-3 block text-sm font-semibold">Filter by current consultant name<input aria-label="Current consultant name" value={ownerFilter} onChange={event=>{setOwnerFilter(event.target.value);setCurrentPage(1);}} placeholder="Exact name, including former staff such as George Jacobs" className="mt-1 min-h-11 w-full rounded-lg border p-2 font-normal"/></label>}
+        <BulkLeadAssignment leads={leads}/>
         {/* Desktop View: Full Data Table (sm+) */}
         <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+          <table className="w-full table-fixed text-left text-sm border-collapse [&_td_p]:whitespace-normal [&_td_p]:break-words [&_td_p]:overflow-visible [&_th]:px-2 [&_td]:px-2">
+            <colgroup>{[18,18,17,11,14,12,10].map((width,index)=><col key={index} style={{width:`${width}%`}}/>)}</colgroup>
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 font-mono uppercase text-[10px] tracking-wider">
                 <th className="py-3 px-4">Prospect</th>

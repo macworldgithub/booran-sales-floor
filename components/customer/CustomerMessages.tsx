@@ -6,6 +6,7 @@ import { customerMessageApi } from '@/lib/api';
 import { CustomerMedia, CustomerMessageHistory, Lead } from '@/lib/types';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { VideoRecorder } from './VideoRecorder';
+import { VideoLibrary } from './VideoLibrary';
 
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'];
 const buttonClass = 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50';
@@ -31,6 +32,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
   const mutationPending = useRef(false);
   const refreshPending = useRef(false);
   const latestInbound = useRef('');
+  const pendingAttachments=useRef(new Set<string>());
   const fileInput = useRef<HTMLInputElement>(null);
   const phone = lead.phone || lead.customer_phone;
   const text = [body.trim(), ...selected.map((item) => item.url)].filter(Boolean).join('\n');
@@ -51,7 +53,11 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
         if (messages.value.pagination?.page && messages.value.pagination.page !== page) setPage(messages.value.pagination.page);
         setHistoryError('');
       } else setHistoryError(messages.reason instanceof Error ? messages.reason.message : 'Unable to load customer messages.');
-      if (uploads.status === 'fulfilled') { setMedia(uploads.value.data || []); setMediaError(''); }
+      if (uploads.status === 'fulfilled') {
+        const ready=(uploads.value.data||[]).filter(item=>pendingAttachments.current.has(item.id)&&item.status==='ready');
+        if(ready.length&&!mutationPending.current){setSelected(previous=>[...new Map([...previous,...ready].map(item=>[item.id,item])).values()].slice(0,5));for(const item of ready)pendingAttachments.current.delete(item.id);setNotice('Video ready and attached. Send its link with your message.');}
+        setMedia(uploads.value.data || []); setMediaError('');
+      }
       else setMediaError('Photo/video library is temporarily unavailable. SMS history is still shown.');
     } catch (err) {
       if (active.current && generation === loadGeneration.current) setHistoryError(err instanceof Error ? err.message : 'Unable to load customer messages.');
@@ -76,7 +82,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
 
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (mutationPending.current || contactBusy || !text || !phone) return;
+    if (mutationPending.current || contactBusy || !text || !phone || lead.opted_out) return;
     mutationPending.current = true;
     setSending(true); setError(''); setNotice('');
     // Keep the same payload and identity after a lost response: checking it cannot double-send.
@@ -114,7 +120,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
   const upload = async (files: FileList | File[] | null, recorded = false) => {
     if (!files?.length || mutationPending.current || attempt) return;
     const list = Array.from(files);
-    if (selected.length + list.length > 5) { setError('Attach up to five photos or videos per SMS.'); return; }
+    if (selected.length + pendingAttachments.current.size + list.length > 5) { setError('Attach up to five photos or videos per SMS, including processing uploads.'); return; }
     if (list.some((file) => !allowedTypes.includes(file.type) || file.size < 1 || file.size > 100 * 1024 * 1024)) {
       setError('Choose JPG, PNG, WebP, GIF, HEIC, MP4, MOV or WebM files, up to 100 MB each.'); return;
     }
@@ -130,10 +136,10 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
         if (!result.data) throw new Error('The upload could not be confirmed.');
         const uploaded = result.data;
         setMedia((previous) => [uploaded, ...previous.filter(item => item.id !== uploaded.id)]);
-        if (uploaded.status && uploaded.status !== 'ready') processing = true;
+        if (uploaded.status && uploaded.status !== 'ready') {processing = true;pendingAttachments.current.add(uploaded.id);}
         else setSelected((previous) => [...previous, uploaded]);
       }
-      setNotice(processing ? 'Video saved. Attach it from Recent customer uploads once the dealership end card is ready.' : 'Uploaded. The selected photo/video links will be included in your SMS.');
+      setNotice(processing ? 'Video saved. It will attach automatically when the Good Showroom end card is ready. You can keep working while it processes.' : 'Uploaded. The selected photo/video links will be included in your SMS.');
     } catch (err) {
       if (active.current) setError(err instanceof Error ? err.message : 'Unable to upload this file.');
     } finally {
@@ -159,6 +165,8 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
       {mediaError && <p role="status" className="text-xs text-amber-700">{mediaError}</p>}
       {history?.history_warning && <p role="status" className="text-xs text-amber-700">{history.history_warning}</p>}
       {notice && <p role="status" className="rounded-lg bg-slate-100 p-3 text-xs text-slate-700">{notice}</p>}
+      {lead.opted_out&&<p role="alert" className="rounded-lg bg-amber-50 p-3 text-xs text-amber-900">Customer opted out. Sending is blocked until a manager restores consent.</p>}
+      {lead.last_video_viewed_at&&<p className="text-xs text-emerald-800">Customer last viewed a video: {new Date(lead.last_video_viewed_at).toLocaleString('en-AU',{timeZone:'Australia/Melbourne'})}</p>}
       {loading && !history && <p className="text-xs text-slate-500">Loading messages…</p>}
       {history && <>
         {!phone && <p className="text-xs text-amber-700">Add a mobile number to this customer before sending SMS.</p>}
@@ -173,7 +181,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
             <input ref={fileInput} type="file" multiple accept={allowedTypes.join(',')} className="hidden" aria-label="Upload photos or videos" onChange={(e) => { void upload(e.target.files); }} />
             <button type="button" disabled={!history.media_available || sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => fileInput.current?.click()} className={`${buttonClass} flex items-center gap-1.5`}><ImagePlus className="h-4 w-4" />{uploading ? `Uploading ${uploading}…` : 'Upload photos / videos'}</button>
             {history.recording_available && <button type="button" disabled={sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => setRecording(true)} className={buttonClass}>Record customer video</button>}
-            <button type="submit" disabled={sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
+            <button type="submit" disabled={lead.opted_out || sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
           </div>
           <p className="text-[11px] text-slate-500">Up to 5 files, 100 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
           {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Branded video recording is currently unavailable for this dealership.</p>}
@@ -209,6 +217,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
           {totalPages > 1 && <div className="flex items-center justify-between"><button type="button" className={buttonClass} disabled={page <= 1 || loading} onClick={() => setPage((value) => value - 1)}>Newer</button><span className="text-xs text-slate-500">Page {page} of {totalPages}</span><button type="button" className={buttonClass} disabled={page >= totalPages || loading} onClick={() => setPage((value) => value + 1)}>Older</button></div>}
         </div>
       </>}
+      <VideoLibrary lead={lead} media={media} onAttach={item=>{setMedia(v=>[item,...v]);setSelected(v=>v.length<5?[...v,item]:v);onMessageSent();}}/>
     </section>
   );
 }

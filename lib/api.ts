@@ -96,8 +96,8 @@ export const leadApi = {
     fetchApi<Lead>('/prospects', { method: 'POST', body: JSON.stringify(data) }),
   updateLead: (id: string, data: Partial<Lead>) =>
     fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  addNote: (id: string, note: string, author?: string) =>
-    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ newNote: note, author }) }),
+  addNote: (id: string, note: string, author?: string, requestId = crypto.randomUUID()) =>
+    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}/notes`, { method: 'POST', body: JSON.stringify({ note, requestId }) }),
   getCrmStats: () => fetchApi<any>('/crm/stats'),
   getCrmRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/crm/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getOrganization: () => fetchApi<any>('/crm/organization'),
@@ -128,7 +128,10 @@ export const customerMessageApi = {
       }
       onProgress?.(Math.round(Math.min(offset + chunk.size, file.size) * 100 / file.size));
     }
-    return customerMessageApi.completeMedia(id, prepared.data.id);
+    for(let attempt=0;;attempt++){
+      try{return await customerMessageApi.completeMedia(id, prepared.data.id);}
+      catch(error){const status=(error as Error & {status?:number}).status;if(attempt>=2||(status&&status<500&&status!==429))throw error;}
+    }
   },
 };
 

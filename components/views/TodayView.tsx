@@ -23,6 +23,7 @@ import {
 import { Lead, Vehicle, ActionItem, Appointment } from '@/lib/types';
 import { useAuth } from '@/lib/auth';
 import { MetricCard } from '@/components/ui/MetricCard';
+import {needsActionToday} from '@/lib/crm-updates';
 
 interface TodayViewProps {
   leads: Lead[];
@@ -59,7 +60,7 @@ export function TodayView({
 
   // Urgent leads needing attention (new_lead or priority)
   const urgentLeads = leads
-    .filter((l) => l.status === 'new_lead' || l.status === 'following_up')
+    .filter((lead) => needsActionToday(lead))
     .slice(0, 5);
 
   // Critical aging vehicles (>90 days in stock)
