@@ -9,6 +9,7 @@ import { usePaginatedQuery } from '@/lib/use-paginated-query';
 import { Pagination } from '@/components/ui/Pagination';
 import { QueryStatus } from '@/components/ui/QueryStatus';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
+import { InternalDrives } from '@/components/customer/InternalDrives';
 import { LoanSignature, Signature } from '@/components/customer/LoanSignature';
 
 const field = 'w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900';
@@ -104,6 +105,7 @@ function AppraisalDetail({ initial, manager, onClose }: { initial: Appraisal; ma
       <h3 className="font-semibold capitalize">{section.section} · {section.condition}</h3><p>{section.notes}</p>
       <div className="flex flex-wrap gap-2">{section.photos.map(photo => <a key={photo.id} href={`/api/leads/${encodeURIComponent(row.lead_id)}/media/${encodeURIComponent(photo.id)}/content`} target="_blank" rel="noreferrer"><img className="h-28 w-36 rounded object-cover" alt={`${section.section} inspection`} src={`/api/leads/${encodeURIComponent(row.lead_id)}/media/${encodeURIComponent(photo.id)}/content`} /></a>)}</div>
     </div>)}</div>
+    <InternalDrives appraisal={row} onChange={setRow} />
     {row.internalDrive && <p className="text-sm">Internal drive: {row.internalDrive.driver} · {new Date(row.internalDrive.when).toLocaleString()} · {row.internalDrive.notes}</p>}
     {row.loanCar && <p className="text-sm">Loan form: signed by {row.loanCar.signer} on {new Date(row.loanCar.signedAt).toLocaleString()}</p>}
     <label className="block text-sm">Inspection notes<textarea className={field} maxLength={5000} value={notes} onChange={e => setNotes(e.target.value)} /></label>

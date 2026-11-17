@@ -1,5 +1,7 @@
 # Booran Sales Floor
 
+The appraisal extension provides internal-drive checkout/return controls, private signed-contract attachment, trade appraisal relinking, prospect/deal registration lookup and deal PPSR controls. It requires the matching backend inspection-lifecycle endpoints. External AI/Rego/PPSR provider setup is deferred; these controls do not imply configured live providers or a complete historical media migration. This extension does not include a new native app release.
+
 ## Appraisals, PULSE and Delivery Centre
 
 Open **Appraisals & Wholesale** to create customer-linked walk-around inspections, capture private photos and licence images, record internal test drives and signed loan-car forms, and request configured Rego/PPSR/AI services. Managers can maintain dealer and wholesaler contacts, record received offers, select a final valuation and search imported historical iAppraise records. Manager-only financial offer fields are removed by the backend from consultant responses.

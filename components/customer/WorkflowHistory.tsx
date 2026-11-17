@@ -9,9 +9,10 @@ type Records = {
   appraisals: {
     _id: string; rego?: string; vin?: string; notes?: string; ppsr?: PPSR; licence?: Photo[];
     inspection?: { section: string; condition: string; notes?: string; photos: Photo[] }[];
+    internal_drives?: { id: string; status: string; driver: string; started_at: string; ended_at?: string; distance_km?: number }[];
     loanCar?: { signer: string; signedAt: string };
   }[];
-  deals: { _id: string; status: string; stockNumber?: string; appraisal_id?: string; ppsr?: PPSR; appraisal_ppsr?: PPSR }[];
+  deals: { _id: string; status: string; stockNumber?: string; appraisal_id?: string; ppsr?: PPSR; appraisal_ppsr?: PPSR; contract?: { reference: string; signed_at: string; media_id: string } }[];
   deliveries: { _id: string; when: string; status: string; accessories: { id: string; completedAt?: string }[] }[];
 };
 
@@ -45,6 +46,7 @@ export function WorkflowHistory({ leadId }: { leadId: string }) {
           <h4 className="font-semibold">I-Appraise · {row.rego || row.vin}</h4>
           <p>{ppsr(row.ppsr)}</p>
           {row.notes && <p>{row.notes}</p>}
+          {row.internal_drives?.map(drive => <p key={drive.id}>Internal drive · {drive.driver} · {drive.status} · {new Date(drive.started_at).toLocaleString()}{drive.ended_at && ` → ${new Date(drive.ended_at).toLocaleString()} · ${drive.distance_km} km`}</p>)}
           {row.loanCar && <p>Loan-car form signed by {row.loanCar.signer}</p>}
           {row.inspection?.map(section => <div key={section.section} className="flex flex-wrap gap-2">
             <span>{section.section} · {section.condition} {section.notes}</span>
@@ -57,6 +59,7 @@ export function WorkflowHistory({ leadId }: { leadId: string }) {
         {records.deals.map(row => <div key={row._id} className="rounded-lg bg-slate-50 p-2">
           <h4 className="font-semibold">Deal · {row.status} {row.stockNumber}</h4>
           <p>{ppsr(row.ppsr)}</p>
+          {row.contract && <p>Signed contract · {row.contract.reference} · {new Date(row.contract.signed_at).toLocaleString()} · <a className="underline" target="_blank" rel="noreferrer" href={`/api/leads/${leadId}/media/${row.contract.media_id}/content`}>View document</a></p>}
           {row.appraisal_id && <a className="text-xs text-blue-700 underline" href={`#appraisal-${row.appraisal_id}`}>Linked appraisal</a>}
           {row.appraisal_ppsr && <p>Appraisal · {ppsr(row.appraisal_ppsr)}</p>}
         </div>)}

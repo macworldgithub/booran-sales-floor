@@ -9,6 +9,7 @@ export type Appraisal = {
   ppsr?: { status: string; reference?: string; error?: string };
   offers?: Offer[]; offer_requests?: { id: string; name: string; company?: string; status: string }[];
   final_offer?: Offer; licence?: { id: string; name: string }[];
+  internal_drives?: { id: string; status: string; driver: string; started_at: string; start_odometer: number; end_odometer?: number; distance_km?: number; duration_seconds?: number; start_notes?: string; end_notes?: string }[];
   internalDrive?: { when: string; notes: string; driver: string };
   loanCar?: { signer: string; signedAt: string; terms: string };
 };
@@ -26,7 +27,8 @@ export function saveJson(value: unknown, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export async function uploadInspection(leadId: string, file: File, purpose = 'inspection') {
-  if (!file.type.startsWith('image/') || file.size > 2 * 1024 * 1024) throw new Error('Choose an inspection photo up to 2 MB.');
+  const contract = purpose === 'contract';
+  if ((!file.type.startsWith('image/') && !(contract && file.type === 'application/pdf')) || file.size > (contract ? 20 : 2) * 1024 * 1024) throw new Error(contract ? 'Choose a PDF or contract image up to 20 MB.' : 'Choose an inspection photo up to 2 MB.');
   const base = `/leads/${encodeURIComponent(leadId)}/media`;
   const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(base, { method: 'POST', body: JSON.stringify({ name: file.name, size: file.size, content_type: file.type, visibility: 'private', purpose }) });
   const media = prepared.data;

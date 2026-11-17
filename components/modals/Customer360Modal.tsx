@@ -234,7 +234,7 @@ export function Customer360Modal({
           <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
           {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
           <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
-          <DealWorkflowActions key={`deal-actions-${lead._id}`} leadId={lead._id} />
+          <DealWorkflowActions key={`deal-actions-${lead._id}`} leadId={lead._id} rooftop={lead.dealership} />
           <div ref={messagesRef}><CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
           }} /></div>

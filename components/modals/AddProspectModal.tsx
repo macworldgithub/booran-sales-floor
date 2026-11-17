@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Sparkles, User, Phone, Mail, Car, MapPin, CheckCircle2 } from 'lucide-react';
 import { leadApi } from '@/lib/api';
 import { Lead } from '@/lib/types';
+import { VehicleLookup, VehicleLookupResult } from '@/components/customer/VehicleLookup';
 import {crmApi} from '@/lib/crm-updates';
 
 interface AddProspectModalProps {
@@ -33,6 +34,7 @@ export function AddProspectModal({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [trade, setTrade] = useState<VehicleLookupResult | null>(null);
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [dealership, setDealership] = useState(defaultDealership);
@@ -43,6 +45,7 @@ export function AddProspectModal({
   const [duplicate,setDuplicate]=useState<{duplicate:boolean;customers:Lead[]}|null>(null);
   useEffect(()=>{if(!isOpen||!dealership||(!phone.trim()&&!email.trim())){setDuplicate(null);return;}const controller=new AbortController();const timer=setTimeout(()=>{void crmApi.duplicateCheck(dealership,phone,email,controller.signal).then(result=>{if(!controller.signal.aborted)setDuplicate(result.data||null);}).catch(()=>{if(!controller.signal.aborted)setDuplicate(null);});},350);return()=>{clearTimeout(timer);controller.abort();};},[isOpen,dealership,phone,email]);
 
+  useEffect(() => { setTrade(null); }, [dealership]);
   useEffect(() => { if (locations.length && !locations.includes(dealership)) setDealership(locations.includes(defaultDealership) ? defaultDealership : locations[0]); }, [directoryLocations, dealership, defaultDealership]);
 
   const dialogRef = useDialog(isOpen, onClose);
@@ -69,6 +72,7 @@ export function AddProspectModal({
         customer_phone: phone.trim(),
         customer_email: email.trim(),
         business_name: businessName.trim(),
+        ...(trade ? { tradeIn: { rego: trade.rego, vin: trade.vin, make: trade.make, model: trade.model, year: trade.year } } : {}),
         vehicle_make: vehicleMake,
         vehicle_model: vehicleModel,
         dealership_name: dealership,
@@ -222,6 +226,7 @@ export function AddProspectModal({
             />
           </div>
 
+          <details className="space-y-2 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Trade-in vehicle (optional)</summary><VehicleLookup key={dealership} rooftop={dealership} onResult={setTrade} />{trade && <p className="text-xs">{[trade.rego, trade.vin, trade.year, trade.make, trade.model].filter(Boolean).join(' · ')}<button type="button" className="ml-2 underline" onClick={() => setTrade(null)}>Remove trade</button></p>}</details>
           <div className="pt-2 flex justify-end gap-2">
             <button
               type="button"

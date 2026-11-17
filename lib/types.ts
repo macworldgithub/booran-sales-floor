@@ -94,6 +94,7 @@ export interface Lead {
     confirmed?: boolean;
   };
   tradeIn?: {
+    vin?: string;
     make?: string;
     model?: string;
     year?: number;
