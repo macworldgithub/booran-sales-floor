@@ -103,6 +103,35 @@ export function InventoryView({
         </div>
       </div>
 
+      {/* Category Tabs: All, New Vehicles, Used Cars, Demo */}
+      <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
+        {[
+          { id: 'all', label: 'All Inventory' },
+          { id: 'New', label: 'New Vehicles' },
+          { id: 'Used', label: 'Used Cars' },
+          { id: 'Demo', label: 'Demo' },
+        ].map((tab) => {
+          const isActive = categoryFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setCategoryFilter(tab.id);
+                setCurrentPage(1);
+              }}
+              className={`flex-1 min-w-[110px] py-2 px-3.5 rounded-xl text-xs font-bold transition-all text-center whitespace-nowrap ${
+                isActive
+                  ? 'bg-red-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 items-stretch sm:items-center justify-between">

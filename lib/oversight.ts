@@ -9,10 +9,37 @@ export type DailyMember = {
   unactioned: number; mtdSales: number; monthlyNorthStar: number; allGreen: boolean;
   signals: { activity: string; videos: string; nextActions: string; tasks: string }; leads: DailyLead[]; tasks: DailyTask[];
 };
+export type DailyNewLead = {
+  id: string;
+  name: string;
+  phone: string;
+  dealership: string;
+  owner_name: string;
+  owner_id: string | null;
+  createdAt: string | null;
+  assignedAt: string | null;
+  isAllocatedToday: boolean;
+  isCreatedToday: boolean;
+  videoSent: boolean;
+  followUpSet: boolean;
+  next_action: any | null;
+  status: string;
+};
+
+export type DailyNewTracking = {
+  total: number;
+  videoSentCount: number;
+  followUpSetCount: number;
+  fullyCoveredCount: number;
+  signal: 'green' | 'red' | 'neutral';
+  leads: DailyNewLead[];
+};
+
 export type DailyOversight = {
   today?: string;
   workday?: WorkdayProgress & { date: string; timezone: string; members: WorkdayMember[]; totals: WorkdayCounts };
   date: string; timezone: string; refreshedAt: string; members: DailyMember[]; unassigned: Lead[]; losses: Lead[];
+  dailyNew?: DailyNewTracking;
   unassignedPagination?: { page: number; limit: number; total: number; totalPages: number };
   summary: { activeProspects: number; activityRemaining: number; nextActionsRemaining: number; tasksCompleted: number; tasksTotal: number; tasksRemaining: number; overdueTasks: number; overdueProspects: number; carryOvers: number; unactioned: number; unassigned: number; pendingLosses: number; lossesApprovedToday: number; videosRemaining: number; mtdSales: number; allGreen: boolean };
   dealerSocket?: { active: number; assigned: number; snapshotAt?: string } | null;

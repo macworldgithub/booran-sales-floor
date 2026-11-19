@@ -63,6 +63,7 @@ export function Customer360Modal({
   const [editingPhone, setEditingPhone] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [requestLost, setRequestLost] = useState(false);
+  const [completeAction, setCompleteAction] = useState(true);
   const noteAttempt=useRef<{note:string;id:string}|null>(null), noteLock=useRef(false);
 
   const { user } = useAuth();
@@ -74,6 +75,8 @@ export function Customer360Modal({
 
   if (!isOpen || !lead) return null;
 
+  const hasOpenAction = Boolean(lead.next_action && lead.next_action.status !== 'completed');
+
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNote.trim() || isUpdatingStatus || isSubmittingNote || noteLock.current) return;
@@ -82,10 +85,11 @@ export function Customer360Modal({
     setIsSubmittingNote(true);
     try {
       if(noteAttempt.current?.note!==newNote.trim())noteAttempt.current={note:newNote.trim(),id:crypto.randomUUID()};
-      const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name,noteAttempt.current!.id);
+      const shouldComplete = hasOpenAction && completeAction;
+      const res = await leadApi.addNote(lead._id, newNote.trim(), user?.name, noteAttempt.current!.id, shouldComplete);
       if (res.success && res.data) {
         onLeadUpdated?.(res.data);
-        setToastMessage('Note added to customer timeline');
+        setToastMessage(shouldComplete ? 'Note added and action marked as completed' : 'Note added to customer timeline');
         setNewNote('');
         noteAttempt.current=null;
         setTimeout(() => setToastMessage(null), 3000);
@@ -251,22 +255,37 @@ export function Customer360Modal({
             <CustomerActivityFeed key={`activity-${lead._id}`} lead={lead}/>
 
             {/* Add Note Form */}
-            <form onSubmit={handleAddNote} className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Log customer contact notes, callback requests..."
-                className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500"
-              />
-              <button
-                type="submit"
-                disabled={isSubmittingNote || isUpdatingStatus || !newNote.trim()}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>Post Note</span>
-              </button>
+            <form onSubmit={handleAddNote} className="mt-3 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Log customer contact notes, callback requests..."
+                  className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:border-red-500"
+                />
+                <button
+                  type="submit"
+                  disabled={isSubmittingNote || isUpdatingStatus || !newNote.trim()}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Post Note</span>
+                </button>
+              </div>
+              {hasOpenAction && (
+                <label className="flex items-center gap-2 text-xs text-slate-700 font-medium cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={completeAction}
+                    onChange={(e) => setCompleteAction(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                  />
+                  <span>
+                    Mark current action as completed ({lead.next_action?.title || 'Next follow-up'})
+                  </span>
+                </label>
+              )}
             </form>
           </div>
         </div>

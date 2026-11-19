@@ -4,6 +4,7 @@ export interface CustomerMedia {
   views?: number;
   reviews?: number;
   branded?: boolean;
+  sent?: boolean;
   id: string;
   name: string;
   content_type: string;

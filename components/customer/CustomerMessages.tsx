@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ImagePlus, MessageSquare, RefreshCw, Send, X, Copy, Film, Image as ImageIcon } from 'lucide-react';
+import { ImagePlus, MessageSquare, RefreshCw, Send, X, Copy, Film, Image as ImageIcon, Play, Trash2 } from 'lucide-react';
 import { customerMessageApi } from '@/lib/api';
 import { CustomerMedia, CustomerMessageHistory, Lead } from '@/lib/types';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
@@ -51,6 +51,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState('');
   const [recording, setRecording] = useState(false);
+  const [playingVideo, setPlayingVideo] = useState<CustomerMedia | null>(null);
   const [error, setError] = useState('');
   const [historyError, setHistoryError] = useState('');
   const [mediaError, setMediaError] = useState('');
@@ -183,6 +184,22 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
     catch { setError('Unable to copy. Open the photo/video and copy the link from your browser.'); }
   };
 
+  const handleDeleteMedia = async (item: CustomerMedia) => {
+    if (!window.confirm(`Delete "${item.name}"? This action cannot be undone.`)) return;
+    setError('');
+    try {
+      const res = await customerMessageApi.deleteMedia(lead._id, item.id);
+      if (res.success) {
+        setMedia(prev => prev.filter(m => m.id !== item.id));
+        setSelected(prev => prev.filter(m => m.id !== item.id));
+        setNotice('Photo/video deleted.');
+        setTimeout(() => setNotice(''), 3000);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete photo/video.');
+    }
+  };
+
   return (
     <section aria-label="Customer SMS and media" className="space-y-4 rounded-xl border border-slate-200 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -226,8 +243,29 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
             </> : <>
             <a href={item.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-red-700 underline">{item.name}</a>
             {item.content_type.startsWith('video/') && <span>{item.views ?? 0} views · {item.reviews ?? 0} reviews</span>}
+            {item.content_type.startsWith('video/') && item.url && (
+              <button
+                type="button"
+                className={`${buttonClass} flex items-center gap-1 text-emerald-700`}
+                aria-label={`Play ${item.name}`}
+                onClick={() => setPlayingVideo(item)}
+              >
+                <Play className="h-3 w-3 fill-current" /> Play
+              </button>
+            )}
             <button type="button" className={buttonClass} aria-label={`Copy link for ${item.name}`} onClick={() => { void copy(item.url); }}><Copy className="h-3 w-3" /></button>
             <button type="button" className={buttonClass} disabled={selected.some((file) => file.id === item.id) || selected.length >= 5 || sending || !!uploading || !!attempt} onClick={() => setSelected((previous) => [...previous, item])}>Attach</button>
+            {!item.sent && (
+              <button
+                type="button"
+                className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                aria-label={`Delete unsent ${item.name}`}
+                title="Delete unsent media"
+                onClick={() => handleDeleteMedia(item)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
             </>}
           </div>)}</div>
         </details>}
@@ -247,6 +285,31 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
         </div>
       </>}
       <VideoLibrary lead={lead} media={media} onAttach={item=>{setMedia(v=>[item,...v]);setSelected(v=>v.length<5?[...v,item]:v);onMessageSent();}}/>
+      {playingVideo && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label="Video playback">
+          <div className="relative w-full max-w-3xl rounded-2xl bg-slate-900 p-4 text-white shadow-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm truncate">{playingVideo.name}</h4>
+              <button
+                type="button"
+                onClick={() => setPlayingVideo(null)}
+                className="rounded-lg border border-white/30 p-1.5 text-white hover:bg-white/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="aspect-video w-full overflow-hidden rounded-xl bg-black">
+              <video
+                src={playingVideo.url}
+                controls
+                autoPlay
+                playsInline
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

@@ -96,8 +96,8 @@ export const leadApi = {
     fetchApi<Lead>('/prospects', { method: 'POST', body: JSON.stringify(data) }),
   updateLead: (id: string, data: Partial<Lead>) =>
     fetchApi<Lead>(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
-  addNote: (id: string, note: string, author?: string, requestId = crypto.randomUUID()) =>
-    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}/notes`, { method: 'POST', body: JSON.stringify({ note, requestId }) }),
+  addNote: (id: string, note: string, author?: string, requestId = crypto.randomUUID(), completeAction?: boolean) =>
+    fetchApi<Lead>(`/leads/${encodeURIComponent(id)}/notes`, { method: 'POST', body: JSON.stringify({ note, requestId, ...(completeAction !== undefined ? { completeAction } : {}) }) }),
   getCrmStats: () => fetchApi<any>('/crm/stats'),
   getCrmRooftops: (rooftop?: string) => fetchApi<Rooftop[]>(`/crm/rooftops?rooftop=${encodeURIComponent(rooftop || 'All Locations')}`),
   getOrganization: () => fetchApi<any>('/crm/organization'),
@@ -109,6 +109,7 @@ export const customerMessageApi = {
   history: (id: string, page = 1, options?: RequestInit) => fetchApi<CustomerMessageHistory>(`/leads/${encodeURIComponent(id)}/messages?page=${page}`, options),
   media: (id: string, options?: RequestInit) => fetchApi<CustomerMedia[]>(`/leads/${encodeURIComponent(id)}/media?includeProcessing=true`, options),
   completeMedia: (id: string, mediaId: string) => fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}/complete`, { method: 'POST', body: '{}' }),
+  deleteMedia: (id: string, mediaId: string) => fetchApi<{ success: boolean; message?: string }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`, { method: 'DELETE' }),
   send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
   upload: async (id: string, file: File, recorded = false, onProgress?: (percent: number) => void) => {
     const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';

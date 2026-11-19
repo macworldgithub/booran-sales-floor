@@ -11,9 +11,13 @@ export function VideoRecorder({ onSave, onClose }: { onSave: (file: File) => voi
   const preview = useRef<HTMLVideoElement>(null), session = useRef<Session>({ closed: false });
   const [orientation, setOrientation] = useState<VideoOrientation>(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
   const [recording, setRecording] = useState(false), [ready, setReady] = useState(false), [error, setError] = useState('');
+  const [recordedFile, setRecordedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const dialog = useDialog(true, onClose);
 
   useEffect(() => {
+    if (previewUrl) return;
     const current: Session = { closed: false };
     session.current = current;
     setReady(false); setError('');
@@ -38,7 +42,20 @@ export function VideoRecorder({ onSave, onClose }: { onSave: (file: File) => voi
       current.camera?.getTracks().forEach(track => track.stop());
       current.output?.getTracks().forEach(track => track.stop());
     };
-  }, [orientation]);
+  }, [orientation, retryCount, previewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const reRecord = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setRecordedFile(null);
+    setRetryCount(c => c + 1);
+  };
 
   const start = () => {
     const current = session.current, video = preview.current;
@@ -81,7 +98,10 @@ export function VideoRecorder({ onSave, onClose }: { onSave: (file: File) => voi
         setRecording(false); setReady(false);
         if (!chunks.length) { setError('The recording was empty. Close this recorder and try again.'); return; }
         const type = (chunks[0].type || recorder.mimeType).split(';')[0];
-        onSave(new File(chunks, `customer-video-${orientation}.${type === 'video/mp4' ? 'mp4' : 'webm'}`, { type }));
+        const file = new File(chunks, `customer-video-${orientation}.${type === 'video/mp4' ? 'mp4' : 'webm'}`, { type });
+        const url = URL.createObjectURL(file);
+        setRecordedFile(file);
+        setPreviewUrl(url);
       };
       recorder.start(1000); setRecording(true);
       current.timer = window.setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 179000);
@@ -93,12 +113,30 @@ export function VideoRecorder({ onSave, onClose }: { onSave: (file: File) => voi
   };
 
   return <div ref={dialog} data-app-dialog role="dialog" aria-modal="true" aria-label="Customer video recorder" tabIndex={-1} className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-3 overflow-y-auto bg-slate-950 p-4 text-white">
-    <div className="flex w-full max-w-5xl flex-wrap items-center justify-between gap-3"><h3 className="font-bold">Record customer video</h3><button type="button" onClick={onClose} className="rounded-lg border border-white/40 px-3 py-2 text-sm">Cancel recording</button></div>
-    <label className="flex items-center gap-2 text-sm">Video orientation<select aria-label="Video orientation" disabled={recording} value={orientation} onChange={event => setOrientation(event.target.value as VideoOrientation)} className="rounded-lg border bg-slate-900 p-2"><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
-    <div className={`relative w-full overflow-hidden rounded-xl bg-black ${orientation === 'portrait' ? 'max-w-[min(75vw,36dvh)] aspect-[9/16]' : 'max-w-5xl aspect-video'}`}>
-      <video ref={preview} autoPlay muted playsInline aria-label="Camera preview" className="absolute inset-0 h-full w-full object-cover" />
+    <div className="flex w-full max-w-5xl flex-wrap items-center justify-between gap-3">
+      <h3 className="font-bold">{previewUrl ? 'Review recorded video' : 'Record customer video'}</h3>
+      <button type="button" onClick={onClose} className="rounded-lg border border-white/40 px-3 py-2 text-sm">Cancel</button>
     </div>
-    <p className="text-center text-sm" role="status">{error || (recording ? `Recording ${orientation} · up to three minutes` : ready ? 'Rotate your device if needed, then start recording. Orientation stays fixed for this clip.' : 'Opening camera…')}</p>
-    <button type="button" disabled={recording ? false : !ready} onClick={() => recording ? session.current.recorder?.stop() : start()} className="rounded-lg bg-red-600 px-5 py-3 text-sm font-bold disabled:opacity-50">{recording ? 'Stop and save' : 'Start recording'}</button>
+    {!previewUrl && (
+      <label className="flex items-center gap-2 text-sm">Video orientation<select aria-label="Video orientation" disabled={recording} value={orientation} onChange={event => setOrientation(event.target.value as VideoOrientation)} className="rounded-lg border bg-slate-900 p-2"><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
+    )}
+    <div className={`relative w-full overflow-hidden rounded-xl bg-black ${orientation === 'portrait' ? 'max-w-[min(75vw,36dvh)] aspect-[9/16]' : 'max-w-5xl aspect-video'}`}>
+      {previewUrl ? (
+        <video controls autoPlay playsInline src={previewUrl} aria-label="Recorded video playback" className="h-full w-full object-contain" />
+      ) : (
+        <video ref={preview} autoPlay muted playsInline aria-label="Camera preview" className="absolute inset-0 h-full w-full object-cover" />
+      )}
+    </div>
+    {previewUrl ? (
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button type="button" onClick={reRecord} className="rounded-lg border border-white/60 bg-transparent px-5 py-2.5 text-sm font-semibold hover:bg-white/10">Re-record video</button>
+        <button type="button" onClick={() => { if (recordedFile) onSave(recordedFile); }} className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white shadow hover:bg-emerald-700">Use this video</button>
+      </div>
+    ) : (
+      <>
+        <p className="text-center text-sm" role="status">{error || (recording ? `Recording ${orientation} · up to three minutes` : ready ? 'Rotate your device if needed, then start recording. Orientation stays fixed for this clip.' : 'Opening camera…')}</p>
+        <button type="button" disabled={recording ? false : !ready} onClick={() => recording ? session.current.recorder?.stop() : start()} className="rounded-lg bg-red-600 px-5 py-3 text-sm font-bold disabled:opacity-50">{recording ? 'Stop and review' : 'Start recording'}</button>
+      </>
+    )}
   </div>;
 }

@@ -147,15 +147,26 @@ export default function BooranSalesFloorApp() {
 
   useEffect(() => {
     loadInitialData();
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') loadInitialData();
+    }, 20000);
     window.addEventListener('booran:data-changed', loadInitialData);
-    return () => { loadVersion.current += 1; window.removeEventListener('booran:data-changed', loadInitialData); };
+    return () => {
+      loadVersion.current += 1;
+      clearInterval(timer);
+      window.removeEventListener('booran:data-changed', loadInitialData);
+    };
   }, [loadInitialData]);
 
   // Handle lead update from modal
   const handleLeadUpdated = (updatedLead: Lead) => {
-    setLeads((prev) =>
-      prev.map((l) => (l._id === updatedLead._id ? { ...l, ...updatedLead } : l))
-    );
+    if (updatedLead.status === 'lost') {
+      setLeads((prev) => prev.filter((l) => l._id !== updatedLead._id));
+    } else {
+      setLeads((prev) =>
+        prev.map((l) => (l._id === updatedLead._id ? { ...l, ...updatedLead } : l))
+      );
+    }
     setSelectedLead((current) => current?._id === updatedLead._id ? updatedLead : current);
   };
 

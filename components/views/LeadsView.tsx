@@ -71,12 +71,12 @@ export function LeadsView({
     setCurrentPage,
   );
   useEffect(() => {
-    if (!user?.canAllocate || currentPage !== 1 || isLoading || isRefreshing) return;
+    if (currentPage !== 1 || isLoading || isRefreshing) return;
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') fetchLeads();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [user?.canAllocate, currentPage, fetchLeads, isLoading, isRefreshing]);
+  }, [currentPage, fetchLeads, isLoading, isRefreshing]);
   const totalPages = pagination.totalPages;
   const totalLeads = pagination.total;
   const resetFilters = () => {

@@ -65,6 +65,111 @@ export function DailyOversight({ rooftop, onOpenLead }: { rooftop: string; onOpe
     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}{data ? ' · Showing the last successful update.' : ''}</p>}
     {!data && !error && <p role="status" className="text-sm text-slate-500">Loading daily activity…</p>}
     {data && <>
+      {/* Daily New Tracking Indicator (Manager Priority) */}
+      {data.dailyNew && (
+        <section aria-label="Daily New Tracking Indicator" className="rounded-2xl border-2 border-red-500/20 bg-gradient-to-br from-red-50/50 via-white to-slate-50 p-4 sm:p-5 shadow-sm space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100 px-2 py-0.5 rounded-full font-mono">
+                  Manager Priority
+                </span>
+                <Signal value={data.dailyNew.signal}>
+                  <span className="font-bold text-xs uppercase tracking-wider">
+                    {data.dailyNew.signal === 'green' ? 'All Daily New Covered' : data.dailyNew.signal === 'red' ? 'Daily New Needs Attention' : 'No Daily New Work'}
+                  </span>
+                </Signal>
+              </div>
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
+                Daily New Tracking Indicator
+              </h3>
+              <p className="text-xs text-slate-600">
+                Tracking all leads allocated or customers created today ({data.date}). Every daily new customer requires a sent video and a scheduled next follow-up.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-center shadow-xs">
+                <p className="text-[10px] font-bold uppercase text-slate-500">Total New Today</p>
+                <p className="text-lg font-black text-slate-900 tabular-nums">{data.dailyNew.total}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-center shadow-xs">
+                <p className="text-[10px] font-bold uppercase text-slate-500">Videos Sent</p>
+                <p className={`text-lg font-black tabular-nums ${data.dailyNew.videoSentCount === data.dailyNew.total && data.dailyNew.total > 0 ? 'text-emerald-700' : data.dailyNew.total > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                  {data.dailyNew.videoSentCount}/{data.dailyNew.total}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-center shadow-xs">
+                <p className="text-[10px] font-bold uppercase text-slate-500">Follow-up Set</p>
+                <p className={`text-lg font-black tabular-nums ${data.dailyNew.followUpSetCount === data.dailyNew.total && data.dailyNew.total > 0 ? 'text-emerald-700' : data.dailyNew.total > 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                  {data.dailyNew.followUpSetCount}/{data.dailyNew.total}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {data.dailyNew.leads.length === 0 ? (
+            <p className="rounded-xl bg-slate-100/80 p-3 text-xs text-slate-600">No leads allocated or customers added today.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b bg-slate-50 text-slate-600 font-semibold">
+                    <th scope="col" className="p-2.5">Customer</th>
+                    <th scope="col" className="p-2.5">Trigger</th>
+                    <th scope="col" className="p-2.5">Salesperson</th>
+                    <th scope="col" className="p-2.5 text-center">Video Sent?</th>
+                    <th scope="col" className="p-2.5 text-center">Next Follow-up Set?</th>
+                    <th scope="col" className="p-2.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {data.dailyNew.leads.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/70">
+                      <td className="p-2.5 font-bold text-slate-900">
+                        <button type="button" onClick={() => open(item.id)} className="text-blue-800 underline hover:text-blue-900 text-left">
+                          {item.name}
+                        </button>
+                        <span className="block text-[11px] font-normal text-slate-500">{item.dealership}</span>
+                      </td>
+                      <td className="p-2.5">
+                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
+                          {item.isAllocatedToday && item.isCreatedToday ? 'Created & Allocated Today' : item.isAllocatedToday ? 'Allocated Today' : 'Added Today'}
+                        </span>
+                      </td>
+                      <td className="p-2.5 font-medium text-slate-700">
+                        {item.owner_name}
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${item.videoSent ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                          <span className={`h-2 w-2 rounded-full ${item.videoSent ? 'bg-emerald-600' : 'bg-red-600'}`} />
+                          {item.videoSent ? 'Sent' : 'Missing'}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-center">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${item.followUpSet ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                          <span className={`h-2 w-2 rounded-full ${item.followUpSet ? 'bg-emerald-600' : 'bg-red-600'}`} />
+                          {item.followUpSet ? 'Set' : 'Missing'}
+                        </span>
+                        {item.next_action?.due_at && (
+                          <span className="block text-[10px] text-slate-500 font-normal mt-0.5">
+                            Due: {dateTime(item.next_action.due_at)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-2.5 text-right">
+                        <button type="button" onClick={() => open(item.id)} className={button}>
+                          Open
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
       <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">Workday activity · <strong>{workday?.date}</strong> · Australia/Melbourne. Only events recorded on this date contribute to these counts.</p>
       <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-3 xl:grid-cols-6">
         {workdayColumns.map(([field, label]) => <div key={field} className="rounded-lg bg-slate-50 p-3"><WorkdayMetric field={field} counts={workday?.totals} progress={workday} /><p className="mt-1 text-slate-600">{label}</p></div>)}
