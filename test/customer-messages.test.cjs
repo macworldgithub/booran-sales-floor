@@ -90,10 +90,10 @@ test('invalid files never upload and customers without mobile numbers cannot sen
   const view = mount({ upload: async () => { uploads++; } }, { phone: '' });
   view.render(); await settle(); view.render();
   assert.equal(view.find((node) => node.props.type === 'submit').props.disabled, true);
-  view.find((node) => node.props.type === 'file').props.onChange({ target: { files: [{ name: 'large.mp4', type: 'video/mp4', size: 101 * 1024 * 1024 }] } });
+  view.find((node) => node.props.type === 'file').props.onChange({ target: { files: [{ name: 'large.mp4', type: 'video/mp4', size: 501 * 1024 * 1024 }] } });
   await settle(); view.render();
   assert.equal(uploads, 0);
-  assert.match(view.text(view.find((node) => node.props.role === 'alert')), /100 MB/);
+  assert.match(view.text(view.find((node) => node.props.role === 'alert')), /500 MB/);
   view.cleanup();
 });
 

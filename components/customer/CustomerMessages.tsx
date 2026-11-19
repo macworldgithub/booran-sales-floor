@@ -8,7 +8,36 @@ import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { VideoRecorder } from './VideoRecorder';
 import { VideoLibrary } from './VideoLibrary';
 
-const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'];
+const MAX_MEDIA_SIZE = 500 * 1024 * 1024; // 500 MB
+
+const ALLOWED_MIME_TYPES = new Set([
+  // Photos (iOS / iPhone, Android, Web)
+  'image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/x-png', 'image/webp', 'image/gif',
+  'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence',
+  'image/x-adobe-dng', 'image/dng', 'image/bmp', 'image/x-ms-bmp', 'image/tiff',
+  // Videos (iOS / iPhone, Android, Web)
+  'video/mp4', 'video/quicktime', 'video/x-quicktime', 'video/x-m4v', 'video/m4v', 'video/webm',
+  'video/3gpp', 'video/3gpp2', 'video/3gp', 'video/x-msvideo', 'video/avi', 'video/msvideo',
+  'video/x-matroska', 'video/mkv', 'video/mpeg', 'video/mpg', 'video/mp2t', 'video/ts', 'video/x-ms-wmv',
+]);
+
+const EXTENSION_MAP: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+  heic: 'image/heic', heif: 'image/heif', dng: 'image/x-adobe-dng', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff',
+  mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', webm: 'video/webm',
+  '3gp': 'video/3gpp', '3gpp': 'video/3gpp', '3g2': 'video/3gpp2', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+  mpg: 'video/mpeg', mpeg: 'video/mpeg', ts: 'video/mp2t', wmv: 'video/x-ms-wmv',
+};
+
+function isMediaFileAllowed(file: File): boolean {
+  if (file.size < 1 || file.size > MAX_MEDIA_SIZE) return false;
+  const type = (file.type || '').trim().toLowerCase();
+  if (type && ALLOWED_MIME_TYPES.has(type)) return true;
+  const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+  if (ext && EXTENSION_MAP[ext]) return true;
+  return false;
+}
+
 const buttonClass = 'rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold hover:bg-slate-100 disabled:opacity-50';
 
 export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onBusyChange }: { lead: Lead; onMessageSent: () => void; contactBusy?: boolean; onBusyChange?: (busy: boolean) => void }) {
@@ -121,8 +150,8 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
     if (!files?.length || mutationPending.current || attempt) return;
     const list = Array.from(files);
     if (selected.length + pendingAttachments.current.size + list.length > 5) { setError('Attach up to five photos or videos per SMS, including processing uploads.'); return; }
-    if (list.some((file) => !allowedTypes.includes(file.type) || file.size < 1 || file.size > 100 * 1024 * 1024)) {
-      setError('Choose JPG, PNG, WebP, GIF, HEIC, MP4, MOV or WebM files, up to 100 MB each.'); return;
+    if (list.some((file) => !isMediaFileAllowed(file))) {
+      setError('Choose supported photos or videos (JPG, PNG, WebP, GIF, HEIC, DNG, MP4, MOV, WebM, 3GP, M4V, etc.), up to 500 MB each.'); return;
     }
     mutationPending.current = true; setError(''); setNotice('');
     let processing = false;
@@ -178,12 +207,12 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
           {selected.length > 0 && <div className="space-y-1">{selected.map((item) => <div key={item.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs"><a href={item.url} target="_blank" rel="noreferrer" className="truncate text-red-700 underline">{item.name}</a><button type="button" disabled={sending || !!uploading || !!attempt} aria-label={`Remove ${item.name}`} onClick={() => setSelected((previous) => previous.filter((file) => file.id !== item.id))}><X className="h-3.5 w-3.5" /></button></div>)}</div>}
           <p className={`text-[11px] ${text.length > 1530 ? 'text-red-700' : 'text-slate-500'}`}>{text.length} characters including links. Longer messages use multiple SMS credits; emojis and Unicode reduce characters per part.</p>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <input ref={fileInput} type="file" multiple accept={allowedTypes.join(',')} className="hidden" aria-label="Upload photos or videos" onChange={(e) => { void upload(e.target.files); }} />
+            <input ref={fileInput} type="file" multiple accept="image/*,video/*,.heic,.heif,.dng,.mov,.mp4,.webm,.3gp,.m4v,.avi,.mkv,.jpg,.jpeg,.png,.webp,.gif" className="hidden" aria-label="Upload photos or videos" onChange={(e) => { void upload(e.target.files); }} />
             <button type="button" disabled={!history.media_available || sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => fileInput.current?.click()} className={`${buttonClass} flex items-center gap-1.5`}><ImagePlus className="h-4 w-4" />{uploading ? `Uploading ${uploading}…` : 'Upload photos / videos'}</button>
             {history.recording_available && <button type="button" disabled={sending || recording || !!uploading || !!attempt || selected.length >= 5} onClick={() => setRecording(true)} className={buttonClass}>Record customer video</button>}
             <button type="submit" disabled={lead.opted_out || sending || contactBusy || !!uploading || !phone || !history.sms_available || !text || text.length > 1530} className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"><Send className="h-3.5 w-3.5" />{sending ? 'Sending…' : attempt ? 'Check send result' : 'Send SMS'}</button>
           </div>
-          <p className="text-[11px] text-slate-500">Up to 5 files, 100 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
+          <p className="text-[11px] text-slate-500">Up to 5 files, 500 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
           {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Branded video recording is currently unavailable for this dealership.</p>}
         </form>
         {recording && <VideoRecorder onClose={() => setRecording(false)} onSave={file => { setRecording(false); void upload([file], true); }} />}

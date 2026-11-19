@@ -111,7 +111,16 @@ export const customerMessageApi = {
   completeMedia: (id: string, mediaId: string) => fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}/complete`, { method: 'POST', body: '{}' }),
   send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
   upload: async (id: string, file: File, recorded = false, onProgress?: (percent: number) => void) => {
-    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: file.type, size: file.size, ...(recorded ? { recorded } : {}) }) });
+    const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
+    const extMap: Record<string, string> = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+      heic: 'image/heic', heif: 'image/heif', dng: 'image/x-adobe-dng', bmp: 'image/bmp', tif: 'image/tiff', tiff: 'image/tiff',
+      mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/x-m4v', webm: 'video/webm',
+      '3gp': 'video/3gpp', '3gpp': 'video/3gpp', '3g2': 'video/3gpp2', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
+      mpg: 'video/mpeg', mpeg: 'video/mpeg', ts: 'video/mp2t', wmv: 'video/x-ms-wmv',
+    };
+    const resolvedType = (file.type && file.type !== 'application/octet-stream') ? file.type : (extMap[ext] || file.type || 'application/octet-stream');
+    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: resolvedType, size: file.size, ...(recorded ? { recorded } : {}) }) });
     if (!prepared.data) throw new Error('Unable to prepare this upload.');
     const chunkSize = prepared.data.upload.chunk_size;
     if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 2 * 1024 * 1024) throw new Error('Invalid upload configuration.');
