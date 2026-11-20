@@ -75,11 +75,13 @@ export function TeamActivity({ rooftop, onOpenLeads, onOpenCalendar }: {
   </section>;
 }
 
-export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigate }: {
+export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onOpenSms, onBookAppointment, onNavigate }: {
   rooftop: string;
   leads: Lead[];
   appointments: Appointment[];
   onOpenLead: (lead: Lead) => void;
+  onOpenSms?: (lead: Lead) => void;
+  onBookAppointment?: (lead: Lead) => void;
   onNavigate: (tab: 'leads' | 'calendar') => void;
 }) {
   const [page, setPage] = useState(1);
@@ -108,7 +110,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onNavigat
   }
 
   return <div className="view-stack space-y-4">
-    <PulseDashboard key={`pulse-${rooftop}`} rooftop={rooftop} onOpenLead={onOpenLead} />
+    <PulseDashboard key={`pulse-${rooftop}`} rooftop={rooftop} onOpenLead={onOpenLead} onOpenSms={onOpenSms} onBookAppointment={onBookAppointment} />
     <DailyOversight key={rooftop} rooftop={rooftop} onOpenLead={onOpenLead} />
     <section className={card}>
       <h2 className="text-xl font-extrabold text-slate-900">My sales day</h2>

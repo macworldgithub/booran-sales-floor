@@ -219,8 +219,10 @@ function BooranSalesFloorApp() {
           {isInitialLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
           {activeTab === 'today' && salesOnly && <MySalesDay rooftop={selectedRooftop} leads={leads} appointments={appointments}
-            onOpenLead={setSelectedLead} onNavigate={setActiveTab} />}
-          {activeTab === 'today' && !salesOnly && (
+            onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} onNavigate={setActiveTab} />}
+          {activeTab === 'today' && !salesOnly && (<>
+            <PulseDashboard key={'crm-'+selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} />
+            <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-semibold text-slate-700">Daily team activity & inventory overview</summary>
             <TodayView
               leads={leads}
               vehicles={vehicles}
@@ -241,8 +243,8 @@ function BooranSalesFloorApp() {
                 <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
                   onOpenCalendar={member => setActiveTab('calendar', member)} />
               </>}
-            />
-          )}
+            /></details>
+          </>)}
 
           {activeTab === 'leads' && (
             <LeadsView
@@ -296,7 +298,7 @@ function BooranSalesFloorApp() {
           {activeTab === 'staff' && <StaffView selectedRooftop={selectedRooftop} onRooftopChange={setSelectedRooftop} />}
 
           {activeTab === 'appraisals' && <AppraisalCentre key={selectedRooftop} rooftop={selectedRooftop} />}
-          {activeTab === 'pulse' && <PulseDashboard key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} />}
+          {activeTab === 'pulse' && <PulseDashboard key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} />}
           {activeTab === 'deliveries' && <DeliveryCentre key={selectedRooftop} rooftop={selectedRooftop} />}
           {activeTab === 'feed-logs' && user?.role === 'super_admin' && <FeedLogsView />}
         </main>
