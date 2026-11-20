@@ -1,15 +1,15 @@
 import {fetchApi} from './api';
 import type {Lead} from './types';
 export type TrafficState='green'|'amber'|'red'|'grey';
-export type TrafficMetric='customersUpdated'|'videosAdded'|'videosSent'|'nextActionsSet'|'tasksCompleted'|'sales'|'lost';
+export type TrafficMetric='customersUpdated'|'videosAdded'|'videosSent'|'nextActionsSet'|'tasksCompleted'|'sales'|'lost'|'diaryItems';
 export type TrafficProgress={newCustomers:number;fullyCovered:number;coveragePercent:number|null;coverageSignal:TrafficState;targets:Record<Exclude<TrafficMetric,'sales'|'lost'>,number>;coverage:Record<Exclude<TrafficMetric,'sales'|'lost'>,number>;signals:Record<TrafficMetric,TrafficState>;counts:Record<TrafficMetric,number>;allGreen:boolean};
 export type TrafficMember=TrafficProgress&{id:string;name:string;diary?:{total:number;outstanding:number;carriedForward:number};events:{kind:string;at:string;leadId:string|null;customer:string;detail:string}[]};
 export type TrafficData={date:string;today:string;timezone:string;computedAt:string;members:TrafficMember[];summary:TrafficProgress;dailyUnassigned:number;definitions:Record<string,string>;
  priorities:{unassigned:number;overdue:number;asOf:string;approvals:{total:number;loss:number;dates:number;consent:number;merges:number}}};
 export type TrafficAction={id:string;leadId?:string;kind:'customer'|'task'|'sale'|'loss';name?:string;customer?:string;title?:string;missing:string[];ownerId?:string;due_at?:string;createdAt?:string;at?:string};
-export type DiaryItem={id:string;leadId:string;memberId:string;kind:'task'|'appointment'|'followup';customer:string;title:string;notes?:string;dueAt:string;originalDueAt:string;diaryDate:string;status:string;complete:boolean;carriedForward:boolean;overdue:boolean};
+export type DiaryItem={id:string;leadId:string;memberId:string;kind:'task'|'appointment'|'followup'|'new_lead';customer:string;title:string;notes?:string;dueAt:string;originalDueAt:string;diaryDate:string;status:string;complete:boolean;carriedForward:boolean;overdue:boolean};
 export type TrafficQueueRow={lead:Lead;ageMinutes:number|null;dueAt:string|null};
-export const trafficColumns:[TrafficMetric,string][]=[['customersUpdated','Customers updated'],['videosAdded','Videos added'],['videosSent','Videos sent'],['nextActionsSet','Next date set'],['tasksCompleted','Tasks completed'],['lost','Lost today'],['sales','Sales']];
+export const trafficColumns:[TrafficMetric,string][]=[['diaryItems','Diary Items'],['nextActionsSet','Next Action Set'],['lost','Lost'],['sales','Sold']];
 export const missingActionLabels:Record<string,string>={customersUpdated:'Update customer',videosAdded:'Add a video',videosSent:'Send a video',nextActionsSet:'Schedule follow-up',tasksCompleted:'Complete task'};
 const query=(params:Record<string,string|number>)=>new URLSearchParams(Object.entries(params).map(([key,value])=>[key,String(value)])).toString();
 export const trafficApi={
