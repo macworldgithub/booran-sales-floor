@@ -11,6 +11,7 @@ import { leadApi } from '@/lib/api';
 import { Lead } from '@/lib/types';
 import { VehicleLookup, VehicleLookupResult } from '@/components/customer/VehicleLookup';
 import {crmApi} from '@/lib/crm-updates';
+import { leadSources } from '@/lib/lead-sources';
 
 interface AddProspectModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function AddProspectModal({
   const { locations: directoryLocations, user } = useAuth();
   const locations = specificDealerships(directoryLocations);
   const [quick, setQuick] = useState(false);
+  const [source, setSource] = useState('Walk-in Showroom');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -67,6 +69,7 @@ export function AddProspectModal({
       if (!locations.includes(dealership)) throw new Error('Select an available dealership.');
       const res = await leadApi.createLead({
         quick_walk_in: quick,
+        source: quick ? 'Walk-in Showroom' : source,
         customer_name: name.trim() || 'Walk-in — details pending',
         name: name.trim() || 'Walk-in — details pending',
         customer_phone: phone.trim(),
@@ -104,7 +107,7 @@ export function AddProspectModal({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Add Walk-in Prospect</h3>
+              <h3 className="text-sm font-bold text-slate-900">Add Prospect</h3>
               <p className="text-[10px] text-slate-500">Create a prospect at the selected dealership</p>
             </div>
           </div>
@@ -126,6 +129,11 @@ export function AddProspectModal({
 
           {user?.canAllocate && <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={quick} onChange={event => setQuick(event.target.checked)} />Quick walk-in log — description now, customer details later</label>}
           {quick && <p className="text-xs text-slate-600">Creates a red, unassigned walk-in for allocation. The salesperson can complete the profile.</p>}
+          <label className="block text-xs font-bold text-slate-700">Lead source
+            <select aria-label="Prospect source" value={quick ? 'Walk-in Showroom' : source} disabled={quick} onChange={event => setSource(event.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              {leadSources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1">Customer name {quick ? '(if known)' : '*'}</label>
             <input

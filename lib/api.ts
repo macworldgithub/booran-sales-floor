@@ -236,6 +236,9 @@ export interface TeamActivityMember {
 }
 
 export interface SalesTask {
+  carriedForward?: boolean;
+  diaryDate?: string;
+  overdue?: boolean;
   _id: string;
   title: string;
   notes?: string;

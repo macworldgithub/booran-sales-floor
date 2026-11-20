@@ -2,6 +2,7 @@
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { useSmsNotifications } from '@/lib/use-sms-notifications';
 import { useTradeInAlerts } from '@/lib/use-trade-in-alerts';
+import { useManagerNoteAlerts } from '@/lib/use-manager-note-alerts';
 import { localDate, localDayRange } from '@/lib/dates';
 import { canOpenTab } from '@/lib/navigation';
 import { DailyOversight } from '@/components/views/DailyOversight';
@@ -74,6 +75,7 @@ function BooranSalesFloorApp() {
   }, [role]);
   const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
   const smsReplies = useSmsNotifications(selectedRooftop, Boolean(user) && role !== 'contractor');
+  const managerNotes = useManagerNoteAlerts(selectedRooftop, user && role !== 'contractor' ? user.id : '');
   const tradeAlerts = useTradeInAlerts(selectedRooftop, Boolean(user) && ['super_admin','manager','dealer_principal','general_manager','sales_manager'].includes(role));
   const [today, setToday] = useState(localDate);
   useEffect(() => {
@@ -204,11 +206,11 @@ function BooranSalesFloorApp() {
       {/* Main Content Area */}
       <div className="app-content flex-1 flex flex-col overflow-hidden min-w-0">
         <Header selectedRooftop={selectedRooftop}
-          unreadNotifications={Boolean(tradeAlerts.total || unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
+          unreadNotifications={Boolean(managerNotes.total || tradeAlerts.total || unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
           unreadSmsReplies={smsReplies.feed?.unreadCount || 0}
           role={role}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
-          onOpenNotifications={role === 'contractor' ? undefined : () => { ++notificationVersion.current; smsReplies.refresh(); setIsNotificationsOpen(true); }}
+          onOpenNotifications={role === 'contractor' ? undefined : () => { ++notificationVersion.current; smsReplies.refresh(); managerNotes.refresh(); setIsNotificationsOpen(true); }}
           onSelectLead={(l) => setSelectedLead(l)}
           onSelectVehicle={(v) => setSelectedVehicle(v)}
           onSelectAction={(item) => { setActionTarget((previous) => ({ search: item.stockNumber || item.vehicleTitle || '', status: item.status, version: previous.version + 1 })); setActiveTab('action-items'); }}
@@ -217,6 +219,7 @@ function BooranSalesFloorApp() {
 
         {/* View Container */}
         <main id="main-content" tabIndex={-1} className="app-main flex-1 overflow-x-hidden">
+          {managerNotes.total > 0 && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"><span>{managerNotes.total} unread manager note {managerNotes.total === 1 ? 'change' : 'changes'} on your customers.</span><button type="button" className="min-h-11 font-bold underline" onClick={() => { managerNotes.refresh(); setIsNotificationsOpen(true); }}>Review manager notes</button></div>}
           {locationsError && <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-red-50 p-4 text-sm text-red-800">{locationsError}<button onClick={reloadLocations} className="font-bold underline">Retry dealerships</button></div>}
           {isInitialLoading && <p role="status" className="mx-auto mb-4 max-w-screen-xl text-sm text-slate-500">Loading showroom data...</p>}
           {loadError && <div role="alert" className="mx-auto mb-4 flex max-w-screen-xl flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">Some showroom data could not be loaded.<button onClick={loadInitialData} className="font-bold underline">Retry</button></div>}
@@ -354,7 +357,17 @@ function BooranSalesFloorApp() {
         sms={smsReplies.feed} smsError={smsReplies.error} smsLoading={smsReplies.loading}
         unreadOnly={smsReplies.unreadOnly} onUnreadOnlyChange={smsReplies.setUnreadOnly}
         page={smsReplies.page} totalPages={smsReplies.totalPages} onPageChange={smsReplies.setPage}
-        onRefresh={() => { smsReplies.refresh(); tradeAlerts.refresh(); }} onReadAll={smsReplies.readAll}
+        onRefresh={() => { smsReplies.refresh(); tradeAlerts.refresh(); managerNotes.refresh(); }} onReadAll={smsReplies.readAll}
+        managerNotes={managerNotes.items} managerNoteTotal={managerNotes.total} managerNoteError={managerNotes.error}
+        onOpenManagerNote={async alert => {
+          const version = ++notificationVersion.current;
+          const result = await leadApi.getLead(alert.lead_id);
+          if (version !== notificationVersion.current) return;
+          if (!result.data) throw new Error('This customer is no longer available.');
+          await managerNotes.read(alert._id);
+          if (version !== notificationVersion.current) return;
+          setSelectedLead(result.data); setIsNotificationsOpen(false);
+        }}
         tradeAlerts={tradeAlerts.items} tradeError={tradeAlerts.error}
         onOpenTradeAlert={async alert => {
           const version = ++notificationVersion.current;

@@ -1,4 +1,5 @@
 'use client';
+import { leadSources } from '@/lib/lead-sources';
 import { EngagementIndicator } from '@/components/customer/EngagementIndicator';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 
@@ -185,12 +186,7 @@ export function LeadsView({
           </button>}
           <select aria-label="Lead source" value={source} onChange={event => { setSource(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
             <option value="all">All sources</option>
-            <option value="Nextgate">Nextgate</option>
-            <option value="FLWUP Dashboard">FLWUP</option>
-            <option value="SMS Campaign">SMS Campaign</option>
-            <option value="DealerSocket">DealerSocket</option>
-            <option value="Connex">Connex</option>
-            <option value="Inbound Email">Website email</option>
+            {leadSources.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
           {user?.canAllocate && <select aria-label="Lead assignment" value={assignment} onChange={event => { setAssignment(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
             <option value="all">Any assignment</option>

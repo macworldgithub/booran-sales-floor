@@ -110,6 +110,9 @@ export interface Lead {
     estimatedValue?: number;
   };
   diary_entries?: {
+    id?: string;
+    edited_at?: string;
+    edited_by_name?: string;
     author: string;
     author_role?: string;
     kind?: string;

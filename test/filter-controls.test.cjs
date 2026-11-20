@@ -32,6 +32,7 @@ function mountView(filename, name) {
     useEffect() {}, useCallback: (callback) => callback,
   };
   const mocks = {
+    '@/lib/lead-sources': { leadSources: (() => { const module = { exports: {} }; new Function('module', 'exports', ts.transpileModule(readFileSync('lib/lead-sources.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(module, module.exports); return module.exports.leadSources; })() },
     '@/components/customer/HoldingCost': { HoldingCostValue: () => null },
     '@/components/customer/EngagementIndicator': { EngagementIndicator: () => null, InventoryEngagementSummary: () => null },
     '@/components/customer/BulkLeadAssignment': { BulkLeadAssignment: () => null },

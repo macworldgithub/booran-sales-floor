@@ -252,7 +252,7 @@ export function Customer360Modal({
               CRM Activity & Diary Notes
             </h4>
 
-            <CustomerActivityFeed key={`activity-${lead._id}`} lead={lead}/>
+            <CustomerActivityFeed key={`activity-${lead._id}`} lead={lead} onUpdated={onLeadUpdated}/>
 
             {/* Add Note Form */}
             <form onSubmit={handleAddNote} className="mt-3 space-y-2">

@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { X, Bell, MessageSquare } from 'lucide-react';
 import type { SmsReplyFeed, SmsReplyNotification } from '@/lib/sms-notifications';
 import type { TradeInAlert } from '@/lib/use-trade-in-alerts';
+import type { ManagerNoteAlert } from '@/lib/use-manager-note-alerts';
 
 interface NotificationCenterModalProps {
   summary: UnifiedSummary | null;
@@ -27,6 +28,10 @@ interface NotificationCenterModalProps {
   tradeAlerts?: TradeInAlert[];
   tradeError?: string;
   onOpenTradeAlert?: (alert: TradeInAlert) => Promise<void>;
+  managerNotes?: ManagerNoteAlert[];
+  managerNoteTotal?: number;
+  managerNoteError?: string;
+  onOpenManagerNote?: (alert: ManagerNoteAlert) => Promise<void>;
 }
 
 export function NotificationCenterModal({
@@ -37,6 +42,7 @@ export function NotificationCenterModal({
   sms, smsError, smsLoading = false, unreadOnly = true, onUnreadOnlyChange, onOpenReply, onReadAll, onRefresh,
   page = 1, totalPages = 0, onPageChange,
   tradeAlerts = [], tradeError, onOpenTradeAlert,
+  managerNotes = [], managerNoteTotal = 0, managerNoteError, onOpenManagerNote,
 }: NotificationCenterModalProps) {
   const dialogRef = useDialog(isOpen, onClose);
   const [busy, setBusy] = useState(''), [actionError, setActionError] = useState('');
@@ -69,6 +75,9 @@ export function NotificationCenterModal({
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          {managerNoteError && <p role="alert" className="text-sm text-red-700">{managerNoteError}</p>}
+          {!!managerNoteTotal && <section aria-label="Manager note notifications" className="space-y-2"><h4 className="text-sm font-bold">Manager note changes ({managerNoteTotal} unread)</h4>{managerNotes.map(alert => <button type="button" key={alert._id} disabled={Boolean(busy)} className="min-h-11 w-full rounded-xl border border-blue-200 bg-blue-50 p-3 text-left" onClick={() => { if (onOpenManagerNote) void run(alert._id, () => onOpenManagerNote(alert)); }}><span className="block text-sm font-semibold">{alert.title}</span><span className="mt-1 block text-xs">{alert.dealership} · {new Date(alert.createdAt).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne' })}</span><span className="mt-1 block text-xs font-bold text-blue-800">Open updated customer notes</span></button>)}{managerNoteTotal > managerNotes.length && <p className="text-xs text-slate-600">Showing the latest {managerNotes.length}. Open these to see older unread changes.</p>}</section>}
+          {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
           {tradeError && <p role="alert" className="text-sm text-red-700">{tradeError}</p>}
           {!!tradeAlerts.length && <section aria-label="Service trade opportunities" className="space-y-2"><h4 className="text-sm font-bold">Upcoming service opportunities</h4>{tradeAlerts.map(alert => <button key={alert._id} disabled={Boolean(busy)} className="min-h-11 w-full space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left" onClick={() => { if (onOpenTradeAlert) void run(alert._id,() => onOpenTradeAlert(alert)); }}><span className="block text-sm">{alert.title}</span><span className="block text-xs text-slate-600">{alert.dealership} · Open customer</span></button>)}</section>}
           {onOpenReply && <section aria-label="SMS reply notifications" className="space-y-3">

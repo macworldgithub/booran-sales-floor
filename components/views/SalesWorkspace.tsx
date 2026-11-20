@@ -126,6 +126,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onOpenSms
         <div className="min-w-0">
           <p className="break-words text-sm font-semibold">{task.title}</p>
           <p className="text-xs text-slate-600">Due {melbourneDateTime.format(new Date(task.due_at))}</p>
+          {task.carriedForward && <p className="text-xs font-bold text-red-700">Outstanding · carried forward to {task.diaryDate}</p>}
           {task.notes && <p className="break-words text-xs text-slate-600">{task.notes}</p>}
         </div>
         <div className="flex flex-wrap gap-3">

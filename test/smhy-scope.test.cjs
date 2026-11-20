@@ -30,7 +30,7 @@ test('manager profile consent submits an audited opt-out reason',async t=>{
 });
 
 test('manager activity badges and role, author and video filters remain distinct',()=>{
-  const harness=hookHarness();const {CustomerActivityFeed}=load('components/customer/CustomerActivityFeed.tsx',{react:harness.react});
+  const harness=hookHarness();const {CustomerActivityFeed}=load('components/customer/CustomerActivityFeed.tsx',{react:harness.react,'./ManagerNoteEdit':{ManagerNoteEdit:()=>null}});
   const lead={diary_entries:[{author:'Quoc',author_role:'sales_manager',kind:'note',date:'2026-11-17T00:00:00Z',note:'Manager note text'},{author:'Paul',author_role:'sales_consultant',kind:'video_sent',note:'Video sent'},{author:'Customer',author_role:'customer',kind:'video_viewed',note:'Video viewed'}]};
   const render=()=>harness.render(()=>CustomerActivityFeed({lead}));let tree=render();assert.equal(nodes(tree).filter(n=>n.type==='article').length,3);assert.match(text(tree),/Manager note/);
   nodes(tree).find(n=>n.props?.['aria-label']==='Activity author role').props.onChange({target:{value:'manager'}});tree=render();assert.equal(nodes(tree).filter(n=>n.type==='article').length,1);
