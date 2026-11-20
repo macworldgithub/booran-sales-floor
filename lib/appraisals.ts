@@ -9,6 +9,7 @@ export type Appraisal = {
   ppsr?: { status: string; reference?: string; error?: string };
   offers?: Offer[]; offer_requests?: { id: string; name: string; company?: string; status: string }[];
   final_offer?: Offer; licence?: { id: string; name: string }[];
+  valuation?: { amount_cents: number; gross_amount_cents?: number; buffer_cents?: number; valued_by_name: string; valued_by: string; valued_at: string };
   internal_drives?: { id: string; status: string; driver: string; started_at: string; start_odometer: number; end_odometer?: number; distance_km?: number; duration_seconds?: number; start_notes?: string; end_notes?: string }[];
   internalDrive?: { when: string; notes: string; driver: string };
   loanCar?: { signer: string; signedAt: string; terms: string };

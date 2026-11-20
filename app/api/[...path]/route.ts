@@ -18,7 +18,10 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
     const base = process.env.API_URL || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001/api' : 'https://booran-sales-floor-backend.vercel.app/api');
     const url = new URL(`${base.replace(/\/$/, '')}/${path.map(encodeURIComponent).join('/')}`);
     url.search = request.nextUrl.search;
-    const binaryUpload = request.method === 'PUT' && path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content' && request.headers.get('content-type') === 'application/octet-stream';
+    const binaryUpload = request.method === 'PUT' && request.headers.get('content-type') === 'application/octet-stream' && (
+      path.length === 5 && path[0] === 'leads' && path[2] === 'media' && path[4] === 'content' ||
+      path.length === 6 && path[0] === 'public' && path[1] === 'trade-ins' && path[3] === 'photos' && path[5] === 'content'
+    );
     const archiveDownload = ['GET', 'HEAD'].includes(request.method) && path.length === 5 && path[0] === 'iappraise' && path[1] === 'archive' && path[3] === 'media';
     const headers = new Headers({ 'Content-Type': binaryUpload ? 'application/octet-stream' : 'application/json' });
     let body: string | ArrayBuffer | undefined;

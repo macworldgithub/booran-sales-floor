@@ -1,6 +1,7 @@
 'use client';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { useSmsNotifications } from '@/lib/use-sms-notifications';
+import { useTradeInAlerts } from '@/lib/use-trade-in-alerts';
 import { localDate, localDayRange } from '@/lib/dates';
 import { canOpenTab } from '@/lib/navigation';
 import { DailyOversight } from '@/components/views/DailyOversight';
@@ -28,7 +29,7 @@ import { AddProspectModal } from '@/components/modals/AddProspectModal';
 import { BookTestDriveModal } from '@/components/modals/BookTestDriveModal';
 import { NotificationCenterModal } from '@/components/modals/NotificationCenterModal';
 
-import { useAuth } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/lib/auth';
 import {
   leadApi,
   inventoryApi,
@@ -37,7 +38,11 @@ import {
 } from '@/lib/api';
 import { Lead, Vehicle, ActionItem, Appointment, UnifiedSummary } from '@/lib/types';
 
-export default function BooranSalesFloorApp() {
+export default function SalesFloorPage() {
+  return <AuthProvider><BooranSalesFloorApp /></AuthProvider>;
+}
+
+function BooranSalesFloorApp() {
   const { user, locationsError, reloadLocations } = useAuth();
   const role = user?.role || 'sales_consultant';
   const salesOnly = role === 'sales_consultant';
@@ -67,6 +72,7 @@ export default function BooranSalesFloorApp() {
   }, [role]);
   const [selectedRooftop, updateSelectedRooftop] = useState<string>('All Locations');
   const smsReplies = useSmsNotifications(selectedRooftop, Boolean(user) && role !== 'contractor');
+  const tradeAlerts = useTradeInAlerts(selectedRooftop, Boolean(user) && ['super_admin','manager','dealer_principal','general_manager','sales_manager'].includes(role));
   const [today, setToday] = useState(localDate);
   useEffect(() => {
     const sync = () => setToday(localDate());
@@ -196,7 +202,7 @@ export default function BooranSalesFloorApp() {
       {/* Main Content Area */}
       <div className="app-content flex-1 flex flex-col overflow-hidden min-w-0">
         <Header selectedRooftop={selectedRooftop}
-          unreadNotifications={Boolean(unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
+          unreadNotifications={Boolean(tradeAlerts.total || unifiedSummary?.crm.newLeads || unifiedSummary?.inventory.openActionItems)}
           unreadSmsReplies={smsReplies.feed?.unreadCount || 0}
           role={role}
           onOpenMobileNav={() => setIsMobileNavOpen(true)}
@@ -344,7 +350,17 @@ export default function BooranSalesFloorApp() {
         sms={smsReplies.feed} smsError={smsReplies.error} smsLoading={smsReplies.loading}
         unreadOnly={smsReplies.unreadOnly} onUnreadOnlyChange={smsReplies.setUnreadOnly}
         page={smsReplies.page} totalPages={smsReplies.totalPages} onPageChange={smsReplies.setPage}
-        onRefresh={smsReplies.refresh} onReadAll={smsReplies.readAll}
+        onRefresh={() => { smsReplies.refresh(); tradeAlerts.refresh(); }} onReadAll={smsReplies.readAll}
+        tradeAlerts={tradeAlerts.items} tradeError={tradeAlerts.error}
+        onOpenTradeAlert={async alert => {
+          const version = ++notificationVersion.current;
+          const result = await leadApi.getLead(alert.lead_id);
+          if (version !== notificationVersion.current) return;
+          if (!result.data) throw new Error('This service customer is no longer available.');
+          await tradeAlerts.read(alert._id);
+          if (version !== notificationVersion.current) return;
+          setSelectedLead(result.data); setIsNotificationsOpen(false);
+        }}
         onOpenReply={async reply => {
           const version = ++notificationVersion.current;
           const result = await leadApi.getLead(reply.leadId);

@@ -11,6 +11,7 @@ import { QueryStatus } from '@/components/ui/QueryStatus';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
 import { InternalDrives } from '@/components/customer/InternalDrives';
 import { LoanSignature, Signature } from '@/components/customer/LoanSignature';
+import { TradeInWorkspace } from './TradeInWorkspace';
 
 const field = 'w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900';
 const button = 'rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40';
@@ -24,28 +25,40 @@ export function AppraisalCentre({ rooftop }: { rooftop: string }) {
   const { user } = useAuth();
   const manager = user?.canAllocate || ['super_admin', 'manager', 'dealer_principal', 'general_manager', 'sales_manager'].includes(user?.role || '');
   const [tab, setTab] = useState('appraisals');
+  const [openAppraisal, setOpenAppraisal] = useState('');
   return <div className="view-stack space-y-4">
     <section className={card}>
       <h1 className="text-2xl font-extrabold text-slate-900">Booran Appraisals</h1>
       <p className="text-sm text-slate-600">Vehicle inspections, trade valuations and your dealer network.</p>
       <nav aria-label="Appraisal workspace" className="flex flex-wrap gap-2">
-        {['appraisals', 'new inspection', 'partners', ...(manager ? ['legacy archive'] : [])].map(value => <button key={value} type="button" aria-pressed={tab === value}
+        {['appraisals', 'vehicle buying', 'new inspection', 'partners', ...(manager ? ['legacy archive'] : [])].map(value => <button key={value} type="button" aria-pressed={tab === value}
           className={tab === value ? button : 'rounded-lg border px-3 py-2 text-sm'} onClick={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
       </nav>
     </section>
-    {tab === 'appraisals' && <AppraisalList key={rooftop} rooftop={rooftop} manager={!!manager} />}
+    {tab === 'appraisals' && <AppraisalList key={rooftop} rooftop={rooftop} manager={!!manager} openId={openAppraisal} />}
+    {tab === 'vehicle buying' && <TradeInWorkspace key={rooftop} rooftop={rooftop} manager={!!manager} onShowAppraisal={id => { setOpenAppraisal(id); setTab('appraisals'); }} />}
     {tab === 'new inspection' && <NewInspection key={rooftop} rooftop={rooftop} onSaved={() => setTab('appraisals')} />}
     {tab === 'partners' && <Partners key={rooftop} rooftop={rooftop} manager={!!manager} />}
     {tab === 'legacy archive' && manager && <LegacyArchive key={rooftop} rooftop={rooftop} />}
   </div>;
 }
 
-function AppraisalList({ rooftop, manager }: { rooftop: string; manager: boolean }) {
+function AppraisalList({ rooftop, manager, openId }: { rooftop: string; manager: boolean; openId: string }) {
   const [page, setPage] = useState(1), [search, setSearch] = useState(''), [stage, setStage] = useState('');
   const [selected, setSelected] = useState<Appraisal | null>(null);
+  const [detailError, setDetailError] = useState('');
+  useEffect(() => {
+    if (!openId) return;
+    const controller = new AbortController();
+    fetchApi<Appraisal>('/appraisals/' + encodeURIComponent(openId) + '?rooftop=' + encodeURIComponent(rooftop), { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setSelected(result.data || null); })
+      .catch(reason => { if (!controller.signal.aborted) setDetailError(reason.message); });
+    return () => controller.abort();
+  }, [openId,rooftop]);
   const rows = usePaginatedQuery(appraisalApi.list, { rooftop, page, limit: 20, search, ...(stage ? { stage } : {}) }, setPage);
   return <>
     <section className={card}>
+      {detailError && <p role="alert" className="text-red-700">{detailError}</p>}
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Search rego, VIN or vehicle<input value={search} className={field} onChange={e => { setSearch(e.target.value); setPage(1); }} /></label>
         <label className="text-sm">Stage<select value={stage} className={field} onChange={e => { setStage(e.target.value); setPage(1); }}><option value="">All stages</option>{stages.map(value => <option key={value} value={value}>{label(value)}</option>)}</select></label>
@@ -55,7 +68,7 @@ function AppraisalList({ rooftop, manager }: { rooftop: string; manager: boolean
       <div className="grid gap-3 md:grid-cols-2">{rows.data.map(row => <button key={row._id} type="button" onClick={() => setSelected(row)} className="rounded-lg border p-3 text-left hover:bg-slate-50">
         <strong>{row.rego || row.vin} · {[row.year, row.make, row.model].filter(Boolean).join(' ')}</strong>
         <span className="block text-sm text-slate-600">{row.dealership} · {label(row.workflow_status || 'ready')}</span>
-        {manager && row.final_offer && <span className="text-sm">Final valuation {money(row.final_offer.amount_cents)}</span>}
+        {row.valuation && <span className="block text-sm">Customer valuation {money(row.valuation.amount_cents)} · {row.valuation.valued_by_name}</span>}
       </button>)}</div>
       <Pagination currentPage={page} totalPages={rows.pagination.totalPages} totalItems={rows.pagination.total} pageSize={20} onPageChange={setPage} itemName="appraisals" />
     </section>
@@ -69,6 +82,7 @@ function AppraisalDetail({ initial, manager, onClose }: { initial: Appraisal; ma
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('');
   const [partnerPage, setPartnerPage] = useState(1), [hasMorePartners, setHasMorePartners] = useState(false);
   const requestId = useRef<string>('');
+  const [valueAmount,setValueAmount] = useState(''), [buffer,setBuffer] = useState('0');
   useEffect(() => {
     const controller = new AbortController();
     appraisalApi.partners({ rooftop: row.dealership, kind: 'wholesaler', page: partnerPage, limit: 100 }, { signal: controller.signal }).then(result => {
@@ -89,6 +103,16 @@ function AppraisalDetail({ initial, manager, onClose }: { initial: Appraisal; ma
   return <section className={card} aria-label="Appraisal detail">
     <div className="flex flex-wrap justify-between gap-2"><h2 className="text-xl font-bold">{row.rego || row.vin} · {row.make} {row.model}</h2><button type="button" onClick={onClose}>Close appraisal</button></div>
     <p className="text-sm text-slate-600">{row.dealership} · VIN {row.vin || 'not recorded'} · {row.odometer?.toLocaleString() ?? '—'} km</p>
+    {row.valuation && <p className="rounded-lg bg-emerald-50 p-3 text-sm"><strong>Customer valuation {money(row.valuation.amount_cents)}</strong><br />Valued by {row.valuation.valued_by_name} · {new Date(row.valuation.valued_at).toLocaleString('en-AU')}{manager && row.valuation.gross_amount_cents !== undefined && <span className="block">Gross {money(row.valuation.gross_amount_cents)} · Buffer {money(row.valuation.buffer_cents || 0)}</span>}</p>}
+    {manager && <form className="space-y-3 rounded-lg border p-3" onSubmit={event => {
+      event.preventDefault(); void run(() => update('/valuation', { revision: row.revision ?? 0, amountCents: Math.round(Number(valueAmount)*100), bufferCents: Math.round(Number(buffer)*100) }));
+    }}>
+      <h3 className="font-bold">Record valuation</h3>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Valuation (AUD)<input className={field} required type="number" min="0" max="10000000" step="0.01" value={valueAmount} onChange={e => setValueAmount(e.target.value)} /></label>
+      <label className="text-sm">Internal buffer (AUD)<input className={field} required type="number" min="0" step="0.01" value={buffer} onChange={e => setBuffer(e.target.value)} /></label></div>
+      <p className="text-sm text-slate-600">The valuation minus the buffer is visible to sales staff. Your name and time are recorded.</p>
+      <button className={button} disabled={busy || ['archived','traded','lost'].includes(row.workflow_status || '')}>Save valuation</button>
+    </form>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-700">{notice}</p>}
     <div className="flex flex-wrap gap-2">
       <button className={button} type="button" disabled={busy} onClick={() => run(async () => {

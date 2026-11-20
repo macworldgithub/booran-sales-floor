@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { AuthProvider } from '@/lib/auth';
 import PWAInstallPrompt from '@/components/pwa/PWAInstallPrompt';
 import ServiceWorkerRegistrar from '@/components/pwa/ServiceWorkerRegistrar';
 
@@ -65,7 +64,7 @@ export default function RootLayout({
         />
       </head>
       <body suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        {children}
         <ServiceWorkerRegistrar />
         <PWAInstallPrompt />
       </body>

@@ -6,6 +6,7 @@ import { useDialog } from '@/lib/use-dialog';
 import React, { useState } from 'react';
 import { X, Bell, MessageSquare } from 'lucide-react';
 import type { SmsReplyFeed, SmsReplyNotification } from '@/lib/sms-notifications';
+import type { TradeInAlert } from '@/lib/use-trade-in-alerts';
 
 interface NotificationCenterModalProps {
   summary: UnifiedSummary | null;
@@ -23,6 +24,9 @@ interface NotificationCenterModalProps {
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
+  tradeAlerts?: TradeInAlert[];
+  tradeError?: string;
+  onOpenTradeAlert?: (alert: TradeInAlert) => Promise<void>;
 }
 
 export function NotificationCenterModal({
@@ -32,6 +36,7 @@ export function NotificationCenterModal({
   onNavigateTab,
   sms, smsError, smsLoading = false, unreadOnly = true, onUnreadOnlyChange, onOpenReply, onReadAll, onRefresh,
   page = 1, totalPages = 0, onPageChange,
+  tradeAlerts = [], tradeError, onOpenTradeAlert,
 }: NotificationCenterModalProps) {
   const dialogRef = useDialog(isOpen, onClose);
   const [busy, setBusy] = useState(''), [actionError, setActionError] = useState('');
@@ -64,6 +69,8 @@ export function NotificationCenterModal({
         </div>
 
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          {tradeError && <p role="alert" className="text-sm text-red-700">{tradeError}</p>}
+          {!!tradeAlerts.length && <section aria-label="Service trade opportunities" className="space-y-2"><h4 className="text-sm font-bold">Upcoming service opportunities</h4>{tradeAlerts.map(alert => <button key={alert._id} disabled={Boolean(busy)} className="min-h-11 w-full space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left" onClick={() => { if (onOpenTradeAlert) void run(alert._id,() => onOpenTradeAlert(alert)); }}><span className="block text-sm">{alert.title}</span><span className="block text-xs text-slate-600">{alert.dealership} · Open customer</span></button>)}</section>}
           {onOpenReply && <section aria-label="SMS reply notifications" className="space-y-3">
             <div className="flex items-center justify-between gap-2"><h4 className="flex items-center gap-2 text-sm font-bold"><MessageSquare className="h-4 w-4" />SMS replies{sms ? ` (${sms.unreadCount} unread)` : ''}</h4><button type="button" disabled={smsLoading} onClick={onRefresh} className="min-h-11 px-2 text-xs font-bold text-blue-800 disabled:opacity-50">Refresh</button></div>
             <div className="flex flex-wrap items-center justify-between gap-2"><label className="flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={unreadOnly} onChange={event => onUnreadOnlyChange?.(event.target.checked)} />Unread only</label><button type="button" disabled={Boolean(busy) || !sms?.unreadCount} onClick={() => { if (onReadAll) void run('all', onReadAll); }} className="min-h-11 px-2 text-xs font-bold text-blue-800 disabled:opacity-50">{busy === 'all' ? 'Marking read…' : 'Mark all SMS replies read'}</button></div>

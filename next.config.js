@@ -14,6 +14,12 @@ const nextConfig = {
       { source: '/', headers: [
         { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=()' },
       ] },
+      { source: '/trade-in/:path*', headers: [
+        { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
+        { key: 'Referrer-Policy', value: 'no-referrer' },
+        { key: 'Cache-Control', value: 'private, no-store' },
+        { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+      ] },
       { source: '/sw.js', headers: [
         { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
         { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },

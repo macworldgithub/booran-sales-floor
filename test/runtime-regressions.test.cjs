@@ -315,13 +315,16 @@ test('late lead, vehicle and notification updates cannot reopen closed dialogs o
   mocks['@/components/views/AppraisalCentre'] = { AppraisalCentre: () => null };
   mocks['@/components/views/SalesOperations'] = { PulseDashboard: () => null, DeliveryCentre: () => null };
   mocks['@/lib/use-sms-notifications'] = { useSmsNotifications: () => ({ feed: null, refresh() {}, read: async () => {} }) };
+  mocks['@/lib/use-trade-in-alerts'] = { useTradeInAlerts: () => ({ items: [], total: 0, refresh() {}, read: async () => {} }) };
   for (const name of ['layout/Sidebar', 'layout/Header', 'layout/MobileNav', 'layout/BottomNav', 'views/TodayView', 'views/LeadsView', 'views/InventoryView', 'views/ActionItemsView', 'views/CalendarView', 'views/RooftopsView', 'views/StaffView', 'views/FeedLogsView', 'modals/Customer360Modal', 'modals/VehicleDetailModal', 'modals/AddProspectModal', 'modals/BookTestDriveModal', 'modals/NotificationCenterModal']) {
     mocks[`@/components/${name}`] = { [name.split('/').at(-1)]: () => null };
   }
   const pending = () => new Promise(() => {});
   let resolveReply;
   mocks['@/lib/api'] = { leadApi: { getLeads: pending, getLead: () => new Promise(resolve => { resolveReply = resolve; }) }, inventoryApi: { getVehicles: pending, getActionItems: pending }, appointmentApi: { getAppointments: pending }, unifiedApi: { getSummary: pending } };
-  const App = load('app/page.tsx', { window, document: new EventTarget() }, mocks).default;
+  const Page = load('app/page.tsx', { window, document: new EventTarget() }, mocks).default;
+  // Exercise the protected application inside its new page-level auth boundary.
+  const App = Page().props.children.type;
   const render = () => harness.render(() => App());
   let tree = render();
   const find = (name) => nodes(tree).find((node) => node.type === mocks[`@/components/${name}`][name.split('/').at(-1)]);
@@ -339,6 +342,11 @@ test('late lead, vehicle and notification updates cannot reopen closed dialogs o
   const notifications = find('modals/NotificationCenterModal').props;
   const opening = notifications.onOpenReply({ id: 'reply', leadId: 'late-reply' });
   notifications.onClose(); resolveReply({ data: { _id: 'late-reply' } }); await opening;
+  tree = render(); assert.equal(find('modals/Customer360Modal').props.isOpen, false);
+  find('layout/Header').props.onOpenNotifications(); tree = render();
+  const serviceNotifications = find('modals/NotificationCenterModal').props;
+  const openingService = serviceNotifications.onOpenTradeAlert({ _id: 'service-alert', lead_id: 'late-service' });
+  serviceNotifications.onClose(); resolveReply({ data: { _id: 'late-service' } }); await openingService;
   tree = render(); assert.equal(find('modals/Customer360Modal').props.isOpen, false);
   harness.cleanup();
 });

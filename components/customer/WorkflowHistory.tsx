@@ -8,6 +8,7 @@ type PPSR = { status: string; reference?: string };
 type Records = {
   appraisals: {
     _id: string; rego?: string; vin?: string; notes?: string; ppsr?: PPSR; licence?: Photo[];
+    valuation?: { amount_cents: number; valued_by_name: string; valued_at: string };
     inspection?: { section: string; condition: string; notes?: string; photos: Photo[] }[];
     internal_drives?: { id: string; status: string; driver: string; started_at: string; ended_at?: string; distance_km?: number }[];
     loanCar?: { signer: string; signedAt: string };
@@ -45,6 +46,7 @@ export function WorkflowHistory({ leadId }: { leadId: string }) {
         {records.appraisals.map(row => <div key={row._id} id={`appraisal-${row._id}`} className="space-y-1 rounded-lg bg-slate-50 p-2">
           <h4 className="font-semibold">I-Appraise · {row.rego || row.vin}</h4>
           <p>{ppsr(row.ppsr)}</p>
+          {row.valuation && <p className="font-semibold">Customer valuation {new Intl.NumberFormat('en-AU', {style:'currency',currency:'AUD'}).format(row.valuation.amount_cents/100)} · Valued by {row.valuation.valued_by_name} · {new Date(row.valuation.valued_at).toLocaleString('en-AU')}</p>}
           {row.notes && <p>{row.notes}</p>}
           {row.internal_drives?.map(drive => <p key={drive.id}>Internal drive · {drive.driver} · {drive.status} · {new Date(drive.started_at).toLocaleString()}{drive.ended_at && ` → ${new Date(drive.ended_at).toLocaleString()} · ${drive.distance_km} km`}</p>)}
           {row.loanCar && <p>Loan-car form signed by {row.loanCar.signer}</p>}
