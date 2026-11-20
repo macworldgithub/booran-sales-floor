@@ -48,6 +48,8 @@ function BooranSalesFloorApp() {
   const salesOnly = role === 'sales_consultant';
 
   // Navigation & Scope
+  const [managerAnalytics, setManagerAnalytics] = useState(false);
+  const [managerInventory, setManagerInventory] = useState(false);
   const [requestedTab, updateActiveTab] = useState<string>('today');
   const activeTab = canOpenTab(requestedTab, role) ? requestedTab : 'today';
   const [teamMember, setTeamMember] = useState<{ id: string; name: string } | null>(null);
@@ -221,9 +223,10 @@ function BooranSalesFloorApp() {
           {activeTab === 'today' && salesOnly && <MySalesDay rooftop={selectedRooftop} leads={leads} appointments={appointments}
             onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} onNavigate={setActiveTab} />}
           {activeTab === 'today' && !salesOnly && (<>
-            <PulseDashboard key={'crm-'+selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} />
-            <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-semibold text-slate-700">Daily team activity & inventory overview</summary>
-            <TodayView
+            <DailyOversight key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} />
+            <details className="mt-4 rounded-2xl border bg-white p-4" onToggle={event=>setManagerAnalytics(event.currentTarget.open)}><summary className="cursor-pointer font-semibold text-slate-700">CRM analytics & pipeline</summary>{managerAnalytics && <PulseDashboard key={'crm-'+selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} />}</details>
+            <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4" onToggle={event=>setManagerInventory(event.currentTarget.open)}><summary className="cursor-pointer font-semibold text-slate-700">Team activity & inventory overview</summary>
+            {managerInventory && <TodayView
               leads={leads}
               vehicles={vehicles}
               actionItems={actionItems}
@@ -239,11 +242,10 @@ function BooranSalesFloorApp() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               stats={unifiedSummary}
               afterBanner={user?.canAllocate && <>
-                <DailyOversight key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} />
                 <TeamActivity rooftop={selectedRooftop} onOpenLeads={member => setActiveTab('leads', member)}
                   onOpenCalendar={member => setActiveTab('calendar', member)} />
               </>}
-            /></details>
+            />}</details>
           </>)}
 
           {activeTab === 'leads' && (

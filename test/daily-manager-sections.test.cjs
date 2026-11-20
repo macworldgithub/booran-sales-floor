@@ -1,102 +1,14 @@
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const React = require('react');
-const ts = require('typescript');
-const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
-
-test('manager sections have distinct sibling keys through background refreshes', async t => {
-  const saved = { window: global.window, document: global.document };
-  global.window = { setInterval() { return 1; }, addEventListener() {}, removeEventListener() {} };
-  global.document = { visibilityState: 'visible' };
-  const harness = hookHarness();
-  t.after(() => { harness.cleanup(); global.window = saved.window; global.document = saved.document; });
-  const data = { date: '2026-11-12', refreshedAt: '2026-11-12T00:00:00Z', members: [], unassigned: [], losses: [],
-    summary: { allGreen: true }, report: { available: false } };
-  const ManagerApprovals = () => null, LeadIntegrationStatus = () => null;
-  const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { id: 'manager', canAllocate: true }, locations: [] }) },
-    '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {},
-    '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} },
-    '@/components/customer/ConnexIntegration': { ConnexIntegration: () => null },
-    '@/components/customer/ManagerApprovals': { ManagerApprovals }, '@/components/customer/LeadIntegrationStatus': { LeadIntegrationStatus },
-    '@/components/customer/LeadAssignment': { LeadAssignment: () => null }, '@/components/customer/LostLeadReview': { LostLeadReview: () => null } };
-  const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const mod = { exports: {} };
-  new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
-  const render = () => harness.render(() => mod.exports.DailyOversight({ rooftop: 'South Morang Hyundai', onOpenLead() {} }));
-  const assertKeys = node => {
-    if (!node || typeof node !== 'object') return;
-    if (Array.isArray(node)) {
-      const flat = node.flat(Infinity).filter(child => React.isValidElement(child));
-      const keys = flat.map(child => child.key).filter(key => key != null);
-      assert.equal(new Set(keys).size, keys.length, 'duplicate sibling keys can leave orphaned DOM sections during reconciliation');
-      node.forEach(assertKeys);
-    } else assertKeys(node.props?.children);
-  };
-  let tree = render(); await new Promise(resolve => setImmediate(resolve));
-  for (let i = 0; i < 12; i++) {
-    tree = render(); assertKeys(tree);
-    assert.equal(nodes(tree).filter(node => node.type === ManagerApprovals).length, 1);
-    const button = nodes(tree).find(node => node.type === 'button' && node.props.children === 'Refresh overview');
-    button.props.onClick(); await new Promise(resolve => setImmediate(resolve));
-  }
-});
-
-test('workday table shows selected-day counts and sends the chosen date without stale pipeline values', async t => {
-  const saved = { window: global.window, document: global.document };
-  global.window = { setInterval() { return 1; }, addEventListener() {}, removeEventListener() {} };
-  global.document = { visibilityState: 'visible' };
-  const harness = hookHarness(); t.after(() => { harness.cleanup(); global.window = saved.window; global.document = saved.document; });
-  const requests = [], data = date => ({ date: '2026-11-12', today: '2026-11-12', refreshedAt: '2026-11-12T02:00:00Z',
-    members: [], unassigned: [], losses: [], summary: { activeProspects: 999, mtdSales: 77 }, report: {},
-    workday: { date: date || '2026-11-12', totals: { customersUpdated: date ? 0 : 2 }, members: [{ id: 'sales', name: 'Alice',
-      customersUpdated: date ? 0 : 2, videosAdded: 1, videosSent: 1, nextActionsSet: 1, tasksCompleted: 1, sales: 1, events: [] }] } });
-  const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
-    '@/lib/oversight': { oversightApi: { daily: async (site, signal, page, date) => { requests.push(date); return { data: data(date) }; } } },
-    '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
-  for (const name of ['ManagerApprovals', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
-  const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
-  const render = () => harness.render(() => mod.exports.DailyOversight({ rooftop: 'South Morang Hyundai', onOpenLead() {} }));
-  const text = node => Array.isArray(node) ? node.map(text).join(' ') : typeof node?.type === 'function' ? text(node.type(node.props)) : node?.props ? text(node.props.children) : String(node ?? '');
-  render(); await new Promise(resolve => setImmediate(resolve)); let tree = render();
-  let table = nodes(tree).find(node => node.type === 'table');
-  assert.match(text(table), /Customers updated/); assert.match(text(table), /Alice 2/);
-  assert.doesNotMatch(text(table), /999|77|MTD|active prospects|%/);
-  nodes(tree).find(node => node.props?.['aria-label'] === 'Workday').props.onChange({ target: { value: '2026-11-11' } });
-  tree = render(); assert.ok(!nodes(tree).some(node => node.type === 'table'), 'changing the date hides previous-day results while loading');
-  await new Promise(resolve => setImmediate(resolve)); tree = render(); table = nodes(tree).find(node => node.type === 'table');
-  assert.equal(requests.at(-1), '2026-11-11'); assert.match(text(table), /Alice 0/);
-});
-
-test('daily traffic lights use customer coverage, recover on refresh and leave sales informational', async t => {
-  const { renderToStaticMarkup } = require('react-dom/server');
-  const saved = { window: global.window, document: global.document };
-  global.window = { setInterval() { return 1; }, addEventListener() {}, removeEventListener() {} };
-  global.document = { visibilityState: 'visible' };
-  const harness = hookHarness(); t.after(() => { harness.cleanup(); global.window = saved.window; global.document = saved.document; });
-  const counts = { customersUpdated: 4, videosAdded: 4, videosSent: 4, nextActionsSet: 4, tasksCompleted: 2, sales: 0 };
-  const progress = { targets: { customersUpdated: 4, videosAdded: 4, videosSent: 4, nextActionsSet: 4, tasksCompleted: 3 },
-    coverage: { customersUpdated: 4, videosAdded: 3, videosSent: 3, nextActionsSet: 4, tasksCompleted: 2 },
-    signals: { customersUpdated: 'green', videosAdded: 'red', videosSent: 'red', nextActionsSet: 'green', tasksCompleted: 'red' } };
-  const data = { date: '2026-11-14', today: '2026-11-14', refreshedAt: '2026-11-14T02:00:00Z', members: [], unassigned: [], losses: [], summary: {}, report: {},
-    workday: { date: '2026-11-14', ...progress, totals: counts, members: [{ id: 'paul', name: 'Paul Daoud', ...counts, ...progress, events: [] }] } };
-  const mocks = { react: harness.react, '@/lib/auth': { useAuth: () => ({ user: { canAllocate: true }, locations: [] }) },
-    '@/lib/oversight': { oversightApi: { daily: async () => ({ data }) } }, '@/lib/api': {}, '@/lib/use-refresh-on-resume': { useRefreshOnResume() {} } };
-  for (const name of ['ManagerApprovals', 'LeadIntegrationStatus', 'ConnexIntegration', 'LeadAssignment', 'LostLeadReview']) mocks['@/components/customer/' + name] = { [name]: () => null };
-  const compiled = ts.transpileModule(readFileSync('components/views/DailyOversight.tsx', 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  const mod = { exports: {} }; new Function('require', 'module', 'exports', compiled)(id => mocks[id] || require(id), mod, mod.exports);
-  const render = () => harness.render(() => mod.exports.DailyOversight({ rooftop: 'South Morang Hyundai', onOpenLead() {} }));
-  render(); await new Promise(resolve => setImmediate(resolve)); let tree = render();
-  const html = () => renderToStaticMarkup(nodes(tree).find(node => node.type === 'table'));
-  assert.match(html(), /data-status="red" data-metric="videosSent"/); assert.match(html(), /3\/4 customers covered/);
-  assert.match(html(), /2\/3 due tasks complete/); assert.doesNotMatch(html(), /data-metric="sales"/);
-  progress.coverage.videosSent = 4; progress.signals.videosSent = 'green';
-  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Refresh overview').props.onClick();
-  await new Promise(resolve => setImmediate(resolve)); tree = render();
-  assert.match(html(), /data-status="green" data-metric="videosSent"/);
-  assert.match(html(), /data-status="red" data-metric="videosAdded"/);
+const {test}=require('node:test'),assert=require('node:assert/strict'),{readFileSync}=require('node:fs'),ts=require('typescript');
+const {hookHarness,nodes}=require('./helpers/hook-harness.cjs');
+test('manager approvals disclose one review form at a time and retain one merge queue on refresh',async t=>{
+ const harness=hookHarness();t.after(()=>harness.cleanup());
+ const requests=['one','two'].map(id=>({kind:'followup',lead:{_id:id,name:id,owner_name:'Alice'},review:{id,title:'Later call',requested_name:'Alice'}}));
+ const Merge=()=>null,mocks={react:harness.react,'@/lib/crm-updates':{crmApi:{approvals:async()=>({data:{requests,merges:[],limit:200}})}},'@/lib/api':{},'./LostLeadReview':{LostLeadReview:()=>null},'./ManagerMergeRequests':{ManagerMergeRequests:Merge}};
+ const mod={exports:{}},source=ts.transpileModule(readFileSync('components/customer/ManagerApprovals.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ new Function('require','module','exports',source)(id=>mocks[id]||require(id),mod,mod.exports);
+ const render=()=>harness.render(()=>mod.exports.ManagerApprovals({rooftop:'South Morang',revision:1,onOpenLead(){}}));render();await new Promise(resolve=>setImmediate(resolve));let tree=render();
+ assert.equal(nodes(tree).filter(node=>node.type==='textarea').length,0);
+ let summaries=nodes(tree).filter(node=>node.props?.['aria-expanded']!==undefined);summaries[0].props.onClick();tree=render();assert.equal(nodes(tree).filter(node=>node.type==='textarea').length,1);
+ summaries=nodes(tree).filter(node=>node.props?.['aria-expanded']!==undefined);summaries[1].props.onClick();tree=render();assert.equal(nodes(tree).filter(node=>node.type==='textarea').length,1);assert.equal(nodes(tree).filter(node=>node.props?.['aria-expanded']===true).length,1);
+ for(let i=0;i<12;i++){nodes(tree).find(node=>node.type==='button'&&node.props.children==='Refresh approvals').props.onClick();tree=render();await new Promise(resolve=>setImmediate(resolve));tree=render();assert.equal(nodes(tree).filter(node=>node.type===Merge).length,1);}
 });

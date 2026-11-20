@@ -81,3 +81,14 @@ Runtime tests cover those session races, failed API responses, encoded record ID
 The second audit adds protection against delayed dialog updates and stale search results, clears protected UI state immediately when account permissions change, and uses actual vehicle status in stock badges. Search includes inventory actions and opens their matching status/filter. Booking forms exclude location groups and reject local times skipped by daylight saving. Failed PWA cache writes no longer prevent valid network assets from loading.
 
 Lists, search, the dashboard, and directories refresh after reconnection or returning to the visible app. Mutation refreshes immediately hide the previous result set, and the dashboard advances its appointment day when midnight passes. A PWA update accepted in another tab offers a reload action instead of discarding the current tab's open form; installations already in progress are also detected. Invalid upstream configuration produces a controlled 503 response.
+
+
+## Manager daily traffic lights
+
+The Today page now starts with the Melbourne workday dashboard. Managers see their authorised team; salespeople see only their own progress. Current Unassigned, Approvals and first-contact SLA queues remain independent of the selected historical date. Assignment uses one selected customer dialog, and approval forms open one request at a time. Integrations, CRM analytics and inventory are disclosed on demand.
+
+The six metrics are Customers Updated, Videos Added, Videos Sent, Next Actions Set, Tasks Completed and Sales. Green means complete, amber partial, red none completed, grey no applicable workload. Customer coverage uses unique customers first created or allocated on the selected day; overall daily-new coverage specifically requires a video sent and a follow-up scheduled that day. Raw activity counts also include work on older customers. Due tasks have their own denominator; Sales has no invented quota. Selecting any light or salesperson opens the missing customer/task actions. Sales opens the day’s sales records.
+
+Data refreshes every 20 seconds while visible and after successful platform changes. Export Daily PULSE / Traffic downloads the selected-day team CSV, with activity, coverage, targets and status separated. The matching backend `/daily-traffic` endpoints must be deployed together with this web build. The older `/daily-oversight` API remains compatible for other clients.
+
+Validated with automated API/UI regression tests, a production build, and local desktop (1366 px) and phone (390 px) browser checks. Stakeholder confirmation, Figma deliverables and the South Morang production pilot in the document’s rollout section remain business/design rollout steps; this change does not create a Figma file or deploy production.

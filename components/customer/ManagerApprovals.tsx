@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { crmApi } from '@/lib/crm-updates';
 import { leadApi } from '@/lib/api';
 import type { Lead } from '@/lib/types';
@@ -14,18 +14,22 @@ export function ManagerApprovals({ rooftop, revision, onOpenLead }: {
     const [data, setData] = useState<{
         site: string;
         queue: Queue;
-    } | null>(null), [reload, setReload] = useState(0), [notes, setNotes] = useState<Record<string, string>>({}), [error, setError] = useState(''), [busy, setBusy] = useState(false);
+    } | null>(null), [reload, setReload] = useState(0), [notes, setNotes] = useState<Record<string, string>>({}), [error, setError] = useState(''), [busy, setBusy] = useState(false), [expanded, setExpanded] = useState('');
     useEffect(() => { const controller = new AbortController(); crmApi.approvals(rooftop, controller.signal).then(result => { if (!controller.signal.aborted && result.data) {
         setData({ site: rooftop, queue: result.data });
         setError('');
     } }).catch(e => { if (!controller.signal.aborted)
         setError(e.message); }); return () => controller.abort(); }, [rooftop, revision, reload]);
+    const lifetime = useRef({active:true,site:rooftop});
+    lifetime.current.site=rooftop;
+    useEffect(()=>{lifetime.current.active=true;return()=>{lifetime.current.active=false;};},[]);
     const queue = data?.site === rooftop ? data.queue : null;
     return <section aria-label="Manager approval queue" className="space-y-3 rounded-xl border border-amber-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">Manager approval queue · date overrides, losses, merges & consent</h3><button className="min-h-11 rounded-lg border px-3 text-sm" onClick={() => setReload(v => v + 1)}>Refresh approvals</button></div>
     {error && <p role="alert" className="text-red-700">{error}</p>}{queue && !queue.requests.length && <p className="text-xs">No follow-up, loss or consent requests awaiting review.</p>}
-    {queue?.requests.map(({ kind, lead, review }) => <article key={`${kind}-${review.id}`} className="space-y-2 rounded-lg border bg-white p-3 text-sm"><button className="font-semibold text-blue-800 underline" disabled={busy} onClick={async () => { setBusy(true); try {
+    {queue?.requests.map(({ kind, lead, review }) => <article key={`${kind}-${review.id}`} className="space-y-2 rounded-lg border bg-white p-3 text-sm"><button type="button" aria-expanded={expanded === `${kind}-${review.id}`} className="min-h-11 text-left font-semibold text-blue-800 underline" onClick={() => setExpanded(expanded === `${kind}-${review.id}` ? '' : `${kind}-${review.id}`)}>{lead.name} · {lead.owner_name} · {kind === 'followup' ? 'Date override' : kind === 'loss' ? 'Loss review' : 'Consent change'}</button><p className="text-xs">Requested by {review.requested_name}</p>
+      {expanded === `${kind}-${review.id}` && <><button className="min-h-11 font-semibold text-blue-800 underline" disabled={busy} onClick={async () => { setBusy(true); try {
             const result = await leadApi.getLead(lead._id);
-            if (result.data)
+            if (lifetime.current.active && lifetime.current.site === rooftop && result.data)
                 onOpenLead(result.data);
         }
         catch (e) {
@@ -44,7 +48,7 @@ export function ManagerApprovals({ rooftop, revision, onOpenLead }: {
         finally {
             setBusy(false);
         } }}>{action === 'approve' ? 'Approve' : 'Reject'}</button>)}</div></>}
-    </article>)}
+    </>}</article>)}
     {queue && queue.requests.length >= queue.limit && <p className="text-xs">Showing the first {queue.limit} customers awaiting review. Resolve these and refresh to load the remaining queue.</p>}
     <ManagerMergeRequests rooftop={rooftop} revision={revision + reload} onOpenLead={onOpenLead}/>
   </section>;

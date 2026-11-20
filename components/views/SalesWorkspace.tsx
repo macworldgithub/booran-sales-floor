@@ -84,6 +84,7 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onOpenSms
   onBookAppointment?: (lead: Lead) => void;
   onNavigate: (tab: 'leads' | 'calendar') => void;
 }) {
+  const [analytics, setAnalytics] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [busy, setBusy] = useState(false);
@@ -110,8 +111,8 @@ export function MySalesDay({ rooftop, leads, appointments, onOpenLead, onOpenSms
   }
 
   return <div className="view-stack space-y-4">
-    <PulseDashboard key={`pulse-${rooftop}`} rooftop={rooftop} onOpenLead={onOpenLead} onOpenSms={onOpenSms} onBookAppointment={onBookAppointment} />
-    <DailyOversight key={rooftop} rooftop={rooftop} onOpenLead={onOpenLead} />
+    <DailyOversight key={rooftop} rooftop={rooftop} onOpenLead={onOpenLead} onOpenSms={onOpenSms} />
+    <details className={card} onToggle={event=>setAnalytics(event.currentTarget.open)}><summary className="cursor-pointer font-semibold">My CRM analytics & pipeline</summary>{analytics && <PulseDashboard key={`pulse-${rooftop}`} rooftop={rooftop} onOpenLead={onOpenLead} onOpenSms={onOpenSms} onBookAppointment={onBookAppointment} />}</details>
     <section className={card}>
       <h2 className="text-xl font-extrabold text-slate-900">My sales day</h2>
       <p className={muted}>Your follow-ups, assigned leads, and appointments.</p>
