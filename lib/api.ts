@@ -13,7 +13,11 @@ import {
   CustomerMessageHistory,
 } from './types';
 
+import type { RecordingDetails } from './video-recording';
+
 let sessionGeneration = 0;
+type RecordingUpload = { id: string; chunkSize: number; offset: number; generation: number };
+const recordingUploads = new WeakMap<File, Map<string, RecordingUpload>>();
 export function advanceSessionGeneration() { sessionGeneration += 1; }
 
 // Same-origin proxy keeps the HttpOnly session cookie on the frontend origin.
@@ -111,7 +115,7 @@ export const customerMessageApi = {
   completeMedia: (id: string, mediaId: string) => fetchApi<CustomerMedia>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}/complete`, { method: 'POST', body: '{}' }),
   deleteMedia: (id: string, mediaId: string) => fetchApi<{ success: boolean; message?: string }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(mediaId)}`, { method: 'DELETE' }),
   send: (id: string, data: { body: string; media_ids: string[]; request_id: string }) => fetchApi<CustomerMessage>(`/leads/${encodeURIComponent(id)}/messages`, { method: 'POST', body: JSON.stringify(data) }),
-  upload: async (id: string, file: File, recorded = false, onProgress?: (percent: number) => void) => {
+  upload: async (id: string, file: File, recorded = false, onProgress?: (percent: number) => void, details?: RecordingDetails) => {
     const ext = (file.name || '').split('.').pop()?.toLowerCase() || '';
     const extMap: Record<string, string> = {
       jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
@@ -121,25 +125,35 @@ export const customerMessageApi = {
       mpg: 'video/mpeg', mpeg: 'video/mpeg', ts: 'video/mp2t', wmv: 'video/x-ms-wmv',
     };
     const resolvedType = (file.type && file.type !== 'application/octet-stream') ? file.type : (extMap[ext] || file.type || 'application/octet-stream');
-    const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: resolvedType, size: file.size, ...(recorded ? { recorded } : {}) }) });
-    if (!prepared.data) throw new Error('Unable to prepare this upload.');
-    const chunkSize = prepared.data.upload.chunk_size;
+    let upload = recorded ? recordingUploads.get(file)?.get(id) : undefined;
+    if (upload?.generation !== sessionGeneration) upload = undefined;
+    if (!upload) {
+      const prepared = await fetchApi<{ id: string; upload: { chunk_size: number } }>(`/leads/${encodeURIComponent(id)}/media`, { method: 'POST', body: JSON.stringify({ name: file.name, content_type: resolvedType, size: file.size, ...(recorded ? { recorded, ...(details ? { duration_ms: details.durationMs } : {}) } : {}) }) });
+      if (!prepared.data) throw new Error('Unable to prepare this upload.');
+      upload = { id: prepared.data.id, chunkSize: prepared.data.upload.chunk_size, offset: 0, generation: sessionGeneration };
+      if (recorded) {
+        const uploads = recordingUploads.get(file) || new Map<string, RecordingUpload>();
+        uploads.set(id, upload); recordingUploads.set(file, uploads);
+      }
+    }
+    const chunkSize = upload.chunkSize;
     if (!Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 2 * 1024 * 1024) throw new Error('Invalid upload configuration.');
-    for (let offset = 0; offset < file.size; offset += chunkSize) {
+    for (let offset = upload.offset; offset < file.size; offset += chunkSize) {
       const chunk = file.slice(offset, Math.min(offset + chunkSize, file.size));
       for (let attempt = 0; ; attempt++) {
         try {
-          await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(prepared.data.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk, timeoutMs: 90000 });
+          await fetchApi<{ next_offset: number }>(`/leads/${encodeURIComponent(id)}/media/${encodeURIComponent(upload.id)}/content?offset=${offset}`, { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: chunk, timeoutMs: 90000 });
           break;
         } catch (error) {
           const status = (error as Error & { status?: number }).status;
           if (attempt >= 2 || (status && status < 500 && status !== 429)) throw error;
         }
       }
-      onProgress?.(Math.round(Math.min(offset + chunk.size, file.size) * 100 / file.size));
+      upload.offset = offset + chunk.size;
+      onProgress?.(Math.round(upload.offset * 100 / file.size));
     }
     for(let attempt=0;;attempt++){
-      try{return await customerMessageApi.completeMedia(id, prepared.data.id);}
+      try{const result = await customerMessageApi.completeMedia(id, upload.id); if (recorded) recordingUploads.get(file)?.delete(id); return result;}
       catch(error){const status=(error as Error & {status?:number}).status;if(attempt>=2||(status&&status<500&&status!==429))throw error;}
     }
   },

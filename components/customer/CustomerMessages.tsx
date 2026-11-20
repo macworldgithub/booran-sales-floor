@@ -6,6 +6,7 @@ import { customerMessageApi } from '@/lib/api';
 import { CustomerMedia, CustomerMessageHistory, Lead } from '@/lib/types';
 import { useRefreshOnResume } from '@/lib/use-refresh-on-resume';
 import { VideoRecorder } from './VideoRecorder';
+import type { RecordingDetails } from '@/lib/video-recording';
 import { VideoLibrary } from './VideoLibrary';
 
 const MAX_MEDIA_SIZE = 500 * 1024 * 1024; // 500 MB
@@ -147,12 +148,13 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
     }
   };
 
-  const upload = async (files: FileList | File[] | null, recorded = false) => {
-    if (!files?.length || mutationPending.current || attempt) return;
+  const upload = async (files: FileList | File[] | null, recorded = false, details?: RecordingDetails) => {
+    const rejectUpload = (message: string) => { setError(message); if (recorded) throw new Error(message); };
+    if (!files?.length || mutationPending.current || attempt) { rejectUpload('Finish the current operation before uploading.'); return; }
     const list = Array.from(files);
-    if (selected.length + pendingAttachments.current.size + list.length > 5) { setError('Attach up to five photos or videos per SMS, including processing uploads.'); return; }
+    if (selected.length + pendingAttachments.current.size + list.length > 5) { rejectUpload('Attach up to five photos or videos per SMS, including processing uploads.'); return; }
     if (list.some((file) => !isMediaFileAllowed(file))) {
-      setError('Choose supported photos or videos (JPG, PNG, WebP, GIF, HEIC, DNG, MP4, MOV, WebM, 3GP, M4V, etc.), up to 500 MB each.'); return;
+      rejectUpload('Choose supported photos or videos (JPG, PNG, WebP, GIF, HEIC, DNG, MP4, MOV, WebM, 3GP, M4V, etc.), up to 500 MB each.'); return;
     }
     mutationPending.current = true; setError(''); setNotice('');
     let processing = false;
@@ -161,7 +163,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
         setUploading(file.name);
         const result = await customerMessageApi.upload(lead._id, file, recorded, percent => {
           if (active.current) setUploading(`${file.name} · ${percent}%`);
-        });
+        }, details);
         if (!active.current) return;
         if (!result.data) throw new Error('The upload could not be confirmed.');
         const uploaded = result.data;
@@ -172,6 +174,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
       setNotice(processing ? 'Video saved. It will attach automatically when the Good Showroom end card is ready. You can keep working while it processes.' : 'Uploaded. The selected photo/video links will be included in your SMS.');
     } catch (err) {
       if (active.current) setError(err instanceof Error ? err.message : 'Unable to upload this file.');
+      if (recorded) throw err;
     } finally {
       mutationPending.current = false;
       if (active.current) setUploading('');
@@ -232,7 +235,7 @@ export function CustomerMessages({ lead, onMessageSent, contactBusy = false, onB
           <p className="text-[11px] text-slate-500">Up to 5 files, 500 MB each. Recipients can open the links without signing in.{!history.media_available ? ` ${history.media_unavailable_reason || 'Photo/video storage is unavailable.'}` : ''}</p>
           {history.media_available && !history.recording_available && lead.dealership?.toLowerCase() === 'south morang hyundai' && <p className="text-xs text-amber-700">Branded video recording is currently unavailable for this dealership.</p>}
         </form>
-        {recording && <VideoRecorder onClose={() => setRecording(false)} onSave={file => { setRecording(false); void upload([file], true); }} />}
+        {recording && <VideoRecorder uploadProgress={uploading} onClose={() => setRecording(false)} onSave={async (file, details) => { await upload([file], true, details); setRecording(false); }} />}
         {media.length > 0 && <details className="rounded-lg border border-slate-200 p-3">
           <summary className="cursor-pointer text-xs font-semibold text-slate-700">Recent customer uploads ({media.length})</summary>
           <div className="mt-3 max-h-48 space-y-2 overflow-y-auto">{media.map((item) => <div key={item.id} className="flex min-w-0 flex-wrap items-center gap-2 text-xs">

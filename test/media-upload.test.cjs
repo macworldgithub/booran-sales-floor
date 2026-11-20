@@ -3,6 +3,29 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const ts = require('typescript');
 
+test('retrying an interrupted recording resumes the same upload with duration metadata', async () => {
+  const code = ts.transpileModule(readFileSync('lib/api.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  const mod = { exports: {} }, calls = [];
+  let offline = true;
+  const fetch = async (url, options) => {
+    calls.push({ url, options });
+    if (url.endsWith('/media')) return Response.json({ success: true, data: { id: 'same-recording', upload: { chunk_size: 3 } } });
+    if (url.endsWith('/complete')) return Response.json({ success: true, data: { id: 'same-recording', status: 'processing' } });
+    if (url.endsWith('offset=3') && offline) throw new TypeError('Disconnected');
+    return Response.json({ success: true, data: {} });
+  };
+  new Function('module', 'exports', 'fetch', code)(mod, mod.exports, fetch);
+  const file = new File(['abcdef'], 'recording.webm', { type: 'video/webm' });
+  await assert.rejects(mod.exports.customerMessageApi.upload('lead', file, true, undefined, { durationMs: 2000 }), /Disconnected/);
+  offline = false;
+  const result = await mod.exports.customerMessageApi.upload('lead', file, true, undefined, { durationMs: 2000 });
+  assert.equal(result.data.status, 'processing');
+  assert.equal(calls.filter(call => call.url.endsWith('/media')).length, 1);
+  assert.equal(calls.filter(call => call.url.endsWith('offset=0')).length, 1);
+  assert.equal(calls.filter(call => call.url.endsWith('offset=3')).length, 4);
+  assert.deepEqual(JSON.parse(calls[0].options.body), { name: file.name, content_type: 'video/webm', size: 6, recorded: true, duration_ms: 2000 });
+});
+
 test('photo/video upload splits binary files into authenticated chunks before completion', async () => {
   const compiled = ts.transpileModule(readFileSync('lib/api.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
   const module = { exports: {} };

@@ -6,6 +6,25 @@ const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
 
 const settle = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
+test('recording remains open after upload failure and closes only after confirmed retry', async () => {
+  const calls = []; let fail = true;
+  const view = mount({ history: async () => ({ data: { messages: [], sms_available: true, media_available: true, recording_available: true } }), upload: async (...args) => { calls.push(args); if (fail) throw Error('Disconnected'); return { data: { id: 'recording', name: 'recorded.webm', content_type: 'video/webm', status: 'processing' } }; } });
+  view.render(); await settle(); view.render();
+  view.find(node => node.type === 'button' && /Record customer video/.test(view.text(node))).props.onClick();
+  view.render();
+  const recorder = () => view.find(node => typeof node.type === 'function' && node.type.name === 'VideoRecorder');
+  const file = new File(['abc'], 'recorded.webm', { type: 'video/webm' });
+  await assert.rejects(recorder().props.onSave(file, { durationMs: 2500 }), /Disconnected/);
+  view.render(); assert.ok(recorder());
+  fail = false;
+  await recorder().props.onSave(file, { durationMs: 2500 });
+  const tree = view.render();
+  assert.equal(nodes(tree).some(node => typeof node.type === 'function' && node.type.name === 'VideoRecorder'), false);
+  assert.equal(calls[0][1], file); assert.equal(calls[1][1], file);
+  assert.equal(calls[0][2], true); assert.deepEqual(calls[0][4], { durationMs: 2500 });
+  view.cleanup();
+});
+
 test('conversation shows incoming and outgoing messages with separate labels in chronological order', async () => {
   const view = mount({ history: async () => ({ data: { sms_available: true, media_available: true, messages: [
     { id: 'reply', direction: 'inbound', body: 'Customer reply', phone: '+61412345678', status: 'received', author: 'Alice', attachments: [], created_at: '2026-10-20T01:00:00Z' },
