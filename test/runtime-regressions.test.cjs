@@ -123,6 +123,17 @@ test('pagination keeps current rows during refresh and hides results from a prev
   assert.deepEqual(render().data, [{ id: 'updated' }]);
   assert.equal(render().isRefreshing, false);
   assert.equal(render().error, null);
+  // Incrementing revision in params keeps current rows mounted without refresh blinking
+  query = { ...query, revision: 1 };
+  assert.deepEqual(render().data, [{ id: 'updated' }]);
+  assert.equal(render().isLoading, false);
+  assert.equal(render().isRefreshing, true);
+  timers.run();
+  pending[4].resolve(response('revised'));
+  await new Promise(setImmediate);
+  assert.deepEqual(render().data, [{ id: 'revised' }]);
+  assert.equal(render().isLoading, false);
+  assert.equal(render().isRefreshing, false);
   query = { ...query, status: 'lost' };
   assert.deepEqual(render().data, []);
   assert.equal(render().pagination.total, 0);

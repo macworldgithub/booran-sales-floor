@@ -24,11 +24,13 @@ export function usePaginatedQuery<T>(
   params: Record<string, string | number>,
   onPageChange: (page: number) => void,
 ) {
+  const { revision: paramRevision, ...filterParams } = params;
   const [result, setResult] = useState<{ queryKey: string; data: T[]; pagination: PageMetadata } | null>(null);
   const [settled, setSettled] = useState<{ queryKey: string; requestKey: string | null; error: string | null } | null>(null);
   const [revision, setRevision] = useState(0);
-  const queryKey = JSON.stringify(params);
-  const requestKey = JSON.stringify([queryKey, revision]);
+  const effectiveRevision = (Number(paramRevision) || 0) + revision;
+  const queryKey = JSON.stringify(filterParams);
+  const requestKey = JSON.stringify([queryKey, effectiveRevision]);
   const currentKey = useRef(requestKey);
   currentKey.current = requestKey;
   const pageCallback = useRef(onPageChange);
@@ -58,7 +60,7 @@ export function usePaginatedQuery<T>(
       }
     }, 250);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [loader, queryKey, revision]);
+  }, [loader, queryKey, effectiveRevision]);
 
   useEffect(() => {
     const updated = () => setRevision((value) => value + 1);
@@ -72,7 +74,7 @@ export function usePaginatedQuery<T>(
   const pending = settled?.requestKey !== requestKey;
   return {
     data: current?.data ?? [],
-    pagination: current?.pagination ?? { total: 0, page: Number(params.page) || 1, limit: Number(params.limit) || 20, totalPages: 0 },
+    pagination: current?.pagination ?? { total: 0, page: Number(filterParams.page) || 1, limit: Number(filterParams.limit) || 20, totalPages: 0 },
     isLoading: pending && !current,
     isRefreshing: pending && Boolean(current),
     error: settled?.queryKey === queryKey ? settled.error : null,
