@@ -9,6 +9,7 @@ import { DailyOversight } from '@/components/views/DailyOversight';
 import { MySalesDay, TeamActivity } from '@/components/views/SalesWorkspace';
 import { AppraisalCentre } from '@/components/views/AppraisalCentre';
 import { PulseDashboard, DeliveryCentre } from '@/components/views/SalesOperations';
+import { DealerPrincipalDashboard } from '@/components/dp/DealerPrincipalDashboard';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -65,7 +66,7 @@ function BooranSalesFloorApp() {
   };
   useEffect(() => {
     const sync = () => {
-      const tab = new URL(window.location.href).searchParams.get('tab') || 'today';
+      const tab = new URL(window.location.href).searchParams.get('tab') || (role === 'dealer_principal' ? 'dp' : 'today');
       updateActiveTab(canOpenTab(tab, role) ? tab : 'today');
       setTeamMember(null);
     };
@@ -304,6 +305,7 @@ function BooranSalesFloorApp() {
 
           {activeTab === 'appraisals' && <AppraisalCentre key={selectedRooftop} rooftop={selectedRooftop} />}
           {activeTab === 'pulse' && <PulseDashboard key={selectedRooftop} rooftop={selectedRooftop} onOpenLead={setSelectedLead} onOpenSms={lead=>{setReplyLeadId(lead._id);setSelectedLead(lead);}} onBookAppointment={lead=>{setBookDriveLead(lead);setIsBookDriveOpen(true);}} />}
+          {activeTab === 'dp' && <DealerPrincipalDashboard rooftop={selectedRooftop} onRooftopChange={setSelectedRooftop} onOpenLead={setSelectedLead} onOpenVehicle={setSelectedVehicle}/>}
           {activeTab === 'deliveries' && <DeliveryCentre key={selectedRooftop} rooftop={selectedRooftop} />}
           {activeTab === 'feed-logs' && user?.role === 'super_admin' && <FeedLogsView />}
         </main>

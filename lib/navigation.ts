@@ -1,7 +1,7 @@
 import type { AuthUser } from './auth';
 
 const salesTabs = ['today', 'leads', 'calendar'];
-const managementTabs = ['inventory', 'action-items', 'rooftops', 'staff', 'deliveries', 'pulse'];
+const managementTabs = ['inventory', 'action-items', 'rooftops', 'staff', 'deliveries', 'pulse', 'dp'];
 
 export function canOpenTab(tab: string, role: AuthUser['role']) {
   if (tab === 'appraisals') return role !== 'contractor';

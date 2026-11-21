@@ -55,6 +55,7 @@ export function MobileNav({
     { id: 'appraisals', label: 'Appraisals & Wholesale', icon: Car },
   ];
   const managementNavItems = [
+    { id: 'dp', label: 'Dealer Principal', icon: LayoutDashboard },
     { id: 'pulse', label: 'PULSE Dashboard', icon: LayoutDashboard },
     { id: 'deliveries', label: 'Delivery Centre', icon: Car },
     { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount, badgeColor: 'bg-amber-600' },

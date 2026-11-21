@@ -1,5 +1,7 @@
 # Booran Sales Floor
 
+Management accounts can open **Dealer Principal** in Group Management for live sales, inventory, multi-site comparisons and a service matrix using Sales Floor data. Dealer Principal accounts land there by default. The matching backend's `docs/dealer-principal.md` contains staff training, formulas, setup, optional DMS feed and deployment prerequisites. Service observations and targets are entered within this view; missing measures remain unavailable. This code change does not deploy or relocate hosting.
+
 The appraisal extension provides internal-drive checkout/return controls, private signed-contract attachment, trade appraisal relinking, prospect/deal registration lookup and deal PPSR controls. It requires the matching backend inspection-lifecycle endpoints. External AI/Rego/PPSR provider setup is deferred; these controls do not imply configured live providers or a complete historical media migration. This extension does not include a new native app release.
 
 ## Appraisals, PULSE and Delivery Centre

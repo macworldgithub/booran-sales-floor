@@ -314,6 +314,7 @@ test('late lead, vehicle and notification updates cannot reopen closed dialogs o
   mocks['@/components/views/DailyOversight'] = { DailyOversight: () => null };
   mocks['@/components/views/AppraisalCentre'] = { AppraisalCentre: () => null };
   mocks['@/components/views/SalesOperations'] = { PulseDashboard: () => null, DeliveryCentre: () => null };
+  mocks['@/components/dp/DealerPrincipalDashboard'] = { DealerPrincipalDashboard: () => null };
   mocks['@/lib/use-sms-notifications'] = { useSmsNotifications: () => ({ feed: null, refresh() {}, read: async () => {} }) };
   mocks['@/lib/use-trade-in-alerts'] = { useTradeInAlerts: () => ({ items: [], total: 0, refresh() {}, read: async () => {} }) };
   mocks['@/lib/use-manager-note-alerts'] = { useManagerNoteAlerts: () => ({ items: [], total: 0, refresh() {}, read: async () => {} }) };

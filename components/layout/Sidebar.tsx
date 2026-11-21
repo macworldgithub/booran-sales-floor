@@ -66,6 +66,7 @@ export function Sidebar({
   ];
 
   const managementNavItems = [
+    { id: 'dp', label: 'Dealer Principal', icon: BarChart3 },
     { id: 'pulse', label: 'PULSE Dashboard', icon: BarChart3 },
     { id: 'deliveries', label: 'Delivery Centre', icon: Car },
     { id: 'action-items', label: 'Capital Radar', icon: AlertTriangle, badge: actionItemsCount > 0 ? actionItemsCount.toLocaleString() : undefined },
