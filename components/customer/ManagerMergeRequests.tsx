@@ -5,7 +5,7 @@ import { fetchApi } from '@/lib/api';
 import type { Lead } from '@/lib/types';
 import { MergeCustomerSummary } from './CustomerMerge';
 
-type Review = { id: string; dealership: string; requestedName: string; updatedAt: string; incoming: Lead; candidates: Lead[] };
+type Review = { id: string; dealership: string; requestedName: string; updatedAt: string; incoming: Lead; candidates: Lead[]; incomingPrimaryId?: string | null };
 const button = 'min-h-11 w-full rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50 sm:w-auto';
 
 function reviewKey(review: Review) {
@@ -13,7 +13,7 @@ function reviewKey(review: Review) {
     lead.status, lead.source, lead.vehicle, lead.diary_entries];
   // Polling can change updatedAt without changing the details the manager confirmed.
   // Keep that form mounted; require fresh confirmation when the reviewed details change.
-  return JSON.stringify([review.id, review.dealership, review.requestedName,
+  return JSON.stringify([review.id, review.dealership, review.requestedName, review.incomingPrimaryId,
     details(review.incoming), review.candidates.map(details)]);
 }
 
@@ -38,7 +38,7 @@ export function ManagerMergeRequests({ rooftop, revision, onOpenLead }: { roofto
     <summary className="cursor-pointer text-sm font-bold">Duplicate mobile / manager merge requests ({data?.total || 0})</summary>
     {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     {data?.total === 0 && <p className="text-xs">No new duplicate-mobile requests.</p>}
-    {data?.rows.map(review => <MergeReview key={reviewKey(review)} review={review} onOpenLead={onOpenLead} onResolved={() => {
+    {data?.rows.map(review => <MergeReview key={reviewKey(review)} review={review} onOpenLead={onOpenLead} onRefresh={() => setVersion(value => value + 1)} onResolved={() => {
       resolved.current.set(review.id, review.updatedAt);
       setStored(current => current?.site === rooftop ? { ...current, rows: current.rows.filter(row => row.id !== review.id),
         total: Math.max(0, current.total - 1) } : current);
@@ -48,8 +48,8 @@ export function ManagerMergeRequests({ rooftop, revision, onOpenLead }: { roofto
   </details>;
 }
 
-function MergeReview({ review, onOpenLead, onResolved }: { review: Review; onOpenLead: (lead: Lead) => void; onResolved: () => void }) {
-  const [primaryId, setPrimaryId] = useState(review.candidates.length === 1 ? review.candidates[0]._id : '');
+export function MergeReview({ review, onOpenLead, onResolved, onRefresh }: { review: Review; onOpenLead: (lead: Lead) => void; onResolved: () => void; onRefresh: () => void }) {
+  const [primaryId, setPrimaryId] = useState(review.incomingPrimaryId || (review.candidates.length === 1 ? review.candidates[0]._id : ''));
   const [confirmed, setConfirmed] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const active = useRef(true);
   const submitting = useRef(false);
@@ -58,6 +58,7 @@ function MergeReview({ review, onOpenLead, onResolved }: { review: Review; onOpe
   return <div className="min-w-0 space-y-3 break-words rounded-lg border p-3 text-xs">
     <p className="font-semibold">{review.incoming.name} · {review.incoming.phone} · {review.dealership}</p>
     <p>Flagged by {review.requestedName}. Creation was blocked to prevent another customer entity.</p>
+    {review.incomingPrimaryId && <p role="status" className="rounded-lg bg-blue-50 p-3 text-blue-900">This enquiry is already linked to its current primary customer. Confirm the details to transfer any missing information and clear this stale review.</p>}
     <label className="block min-w-0">Primary customer to keep<select aria-label={`Primary for ${review.incoming.name}`} value={primaryId} disabled={busy} onChange={event => { setPrimaryId(event.target.value); setConfirmed(false); }} className="mt-1 block min-h-11 w-full min-w-0 max-w-full rounded-lg border p-2"><option value="">Choose primary</option>{review.candidates.map(row => <option key={row._id} value={row._id}>{row.name} · {row.source} · {row.owner_name}</option>)}</select></label>
     {primary && <>
       <div className="grid gap-2 sm:grid-cols-2"><MergeCustomerSummary lead={primary} label="Primary survives" /><MergeCustomerSummary lead={review.incoming} label="Incoming details" /></div>
@@ -72,8 +73,9 @@ function MergeReview({ review, onOpenLead, onResolved }: { review: Review; onOpe
         try { await fetchApi(`/merge-requests/${encodeURIComponent(review.id)}/resolve`, { method: 'POST', body: JSON.stringify({ primaryId, expectedUpdatedAt: review.updatedAt }) }); if (active.current) onResolved(); }
         catch (reason) { if (active.current) setError((reason as Error).message); }
         finally { submitting.current = false; if (active.current) setBusy(false); }
-      }}>{busy ? 'Transferring…' : 'Transfer missing details to primary'}</button></div>
+      }}>{busy ? 'Transferring…' : review.incomingPrimaryId ? 'Transfer missing details and clear review' : 'Transfer missing details to primary'}</button></div>
     </>}
-    {error && <p role="alert" className="text-red-700">{error}</p>}
+    {error && <div className="space-y-2"><p role="alert" className="text-red-700">{error}</p><button type="button" disabled={busy} className={button} onClick={onRefresh}>Refresh this review</button></div>}
+    {!review.candidates.length && <p className="text-amber-800">The previous primary is no longer available in this review. <button type="button" className="min-h-11 font-semibold underline" onClick={onRefresh}>Refresh this review</button></p>}
   </div>;
 }

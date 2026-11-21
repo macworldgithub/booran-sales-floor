@@ -9,6 +9,7 @@ export type TrafficData={date:string;today:string;timezone:string;computedAt:str
 export type TrafficAction={id:string;leadId?:string;kind:'customer'|'task'|'sale'|'loss';name?:string;customer?:string;title?:string;missing:string[];ownerId?:string;due_at?:string;createdAt?:string;at?:string};
 export type DiaryItem={id:string;leadId:string;memberId:string;kind:'task'|'appointment'|'followup'|'new_lead';customer:string;title:string;notes?:string;dueAt:string;originalDueAt:string;diaryDate:string;status:string;complete:boolean;carriedForward:boolean;overdue:boolean};
 export type TrafficQueueRow={lead:Lead;ageMinutes:number|null;dueAt:string|null};
+export type TrafficCustomer={id:string;name:string;dealership:string;ownerId:string|null;ownerName:string;createdToday:boolean;allocatedToday:boolean;coverage:{customersUpdated:boolean;videosAdded:boolean;videosSent:boolean;nextActionsSet:boolean};fullyCovered:boolean;followUpDue:string|null};
 export const trafficColumns:[TrafficMetric,string][]=[['diaryItems','Diary Items'],['nextActionsSet','Next Action Set'],['lost','Lost'],['sales','Sold']];
 export const missingActionLabels:Record<string,string>={customersUpdated:'Update customer',videosAdded:'Add a video',videosSent:'Send a video',nextActionsSet:'Schedule follow-up',tasksCompleted:'Complete task'};
 const query=(params:Record<string,string|number>)=>new URLSearchParams(Object.entries(params).map(([key,value])=>[key,String(value)])).toString();
@@ -17,6 +18,7 @@ export const trafficApi={
  actions:(params:Record<string,string|number>,options?:RequestInit)=>fetchApi<TrafficAction[]>('/daily-traffic/actions?'+query(params),options),
  queue:(params:Record<string,string|number>,options?:RequestInit)=>fetchApi<TrafficQueueRow[]>('/daily-traffic/queue?'+query(params),options),
  diary:(params:Record<string,string|number>,options?:RequestInit)=>fetchApi<DiaryItem[]>('/daily-traffic/diary?'+query(params),options),
+ customers:(params:Record<string,string|number>,options?:RequestInit)=>fetchApi<TrafficCustomer[]>('/daily-traffic/customers?'+query(params),options),
 };
 export function exportDailyTraffic(data:TrafficData,scope:string){
  const rows:unknown[][]=[['Daily PULSE / Traffic report',scope],['Workday',data.date],['Timezone',data.timezone],['Generated',data.computedAt],['Daily new customers',data.summary.newCustomers],['Fully covered',data.summary.fullyCovered],['Team coverage',data.summary.coveragePercent===null?'Not applicable':data.summary.coveragePercent+'%'],

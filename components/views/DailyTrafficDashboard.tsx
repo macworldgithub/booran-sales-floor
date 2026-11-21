@@ -12,6 +12,7 @@ import {Pagination} from '@/components/ui/Pagination';
 import {LeadAssignment} from '@/components/customer/LeadAssignment';
 import {ManagerApprovals} from '@/components/customer/ManagerApprovals';
 import {DailyIntegrationTools} from './DailyIntegrationTools';
+import {DailyNewTracking} from './DailyNewTracking';
 
 const button='min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50';
 const colours:Record<TrafficState,string>={green:'bg-emerald-500',amber:'bg-amber-400',red:'bg-red-500',grey:'bg-slate-400'};
@@ -32,7 +33,7 @@ export function DailyTrafficDashboard({rooftop,onOpenLead,onOpenSms}:Props) {
  const allowed=manager||user?.role==='sales_consultant';
  const [date,setDate]=useState(''),[revision,setRevision]=useState(0),[stored,setStored]=useState<{key:string;data:TrafficData}|null>(null),[error,setError]=useState<string|null>(null);
  const [selection,setSelection]=useState<Selection|null>(null),[queue,setQueue]=useState<'unassigned'|'overdue'|'approvals'|null>(null),[showEmpty,setShowEmpty]=useState(false),[tools,setTools]=useState(false);
- const scope=JSON.stringify([user?.id,user?.role,rooftop,date]),data=stored?.key===scope?stored.data:null;
+ const scope=JSON.stringify([user?.id,user?.role,user?.site,user?.allowedSites,rooftop,date]),data=stored?.key===scope?stored.data:null;
  const refresh=useCallback(()=>setRevision(value=>value+1),[]);
  useRefreshOnResume(refresh);
  useEffect(()=>{const timer=window.setInterval(()=>{if(document.visibilityState==='visible')refresh();},20000);window.addEventListener('booran:data-changed',refresh);return()=>{clearInterval(timer);window.removeEventListener('booran:data-changed',refresh);};},[refresh]);
@@ -57,6 +58,7 @@ export function DailyTrafficDashboard({rooftop,onOpenLead,onOpenSms}:Props) {
    <p className="text-xs text-slate-500">Priority queues show current status. Traffic lights below refer only to {data.date}.{data.dailyUnassigned>0?` ${data.dailyUnassigned} daily-new customers still need an owner and remain in the team coverage target.`:''}</p>
    {queue==='approvals'&&manager&&<ManagerApprovals key={rooftop} rooftop={rooftop} revision={revision} onOpenLead={onOpenLead}/>}
    {(queue==='unassigned'||queue==='overdue')&&<TrafficQueue key={`${scope}-${queue}`} rooftop={rooftop} kind={queue} revision={revision} onOpen={id=>void open(id)} busy={busy} onChanged={refresh}/>}
+   <DailyNewTracking key={scope} rooftop={rooftop} date={data.date} summary={data.summary} revision={revision} busy={busy} onOpen={id=>void open(id)}/>
    <section aria-label={manager?'Team daily metrics':'My daily metrics'} className="space-y-3"><h3 className="font-bold">{manager?'Team':'My'} daily metrics</h3><div className="grid grid-cols-2 gap-2 lg:grid-cols-4">{trafficColumns.map(([metric,title])=><div key={metric} className="min-w-0 rounded-xl border bg-slate-50 p-2"><p className="px-2 text-xs font-semibold">{title}</p><TrafficMetricButton progress={data.summary} metric={metric} name={manager?'Team':'Me'} onClick={()=>choose(metric)}/></div>)}</div><p className="text-xs text-slate-600">Diary Items includes due work, outstanding carry-forwards and new leads for this day. Next Action Set retains the existing daily coverage light. Lost counts approved losses; Sold counts sold outcomes for the day.</p></section>
    <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-bold">{manager?'Salespeople':'My progress'}</h3><label className="inline-flex min-h-11 items-center gap-2 text-xs"><input type="checkbox" checked={showEmpty} onChange={event=>setShowEmpty(event.target.checked)}/>Show people with no daily workload</label></div>
    {!people.length&&<p className="rounded-lg bg-slate-50 p-3 text-sm">No applicable work or activity for this workday.</p>}

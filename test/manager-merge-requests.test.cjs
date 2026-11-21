@@ -55,3 +55,22 @@ test('a completed transfer removes its form immediately and stale polling cannot
   assert.ok(view.child(), 'a genuinely new review version must remain reviewable');
   view.cleanup();
 });
+
+test('already-linked reviews select the current primary, require confirmation and submit only once before clearing',async t=>{
+ const harness=hookHarness();t.after(()=>harness.cleanup());let finish,resolved=0;const calls=[];
+ const module={exports:{}},compiled=ts.transpileModule(readFileSync('components/customer/ManagerMergeRequests.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+ const mocks={react:harness.react,'@/lib/api':{fetchApi:(url,options)=>{calls.push({url,options});return new Promise(resolve=>{finish=resolve;});}},'./CustomerMerge':{MergeCustomerSummary:()=>null}};
+ new Function('require','module','exports',compiled)(id=>mocks[id]||require(id),module,module.exports);
+ const current={...review(),incomingPrimaryId:'current',candidates:[lead('other','Previous candidate'),lead('current','Current primary')]};
+ const render=()=>harness.render(()=>module.exports.MergeReview({review:current,onOpenLead(){},onResolved(){resolved++;},onRefresh(){}}));
+ let tree=render();assert.equal(nodes(tree).find(node=>node.type==='select').props.value,'current');
+ let button=nodes(tree).find(node=>node.type==='button'&&node.props.children==='Transfer missing details and clear review');assert.equal(button.props.disabled,true);
+ nodes(tree).find(node=>node.type==='input'&&node.props.type==='checkbox').props.onChange({target:{checked:true}});tree=render();button=nodes(tree).find(node=>node.type==='button'&&node.props.children==='Transfer missing details and clear review');
+ const first=button.props.onClick(),second=button.props.onClick();assert.equal(calls.length,1);assert.equal(JSON.parse(calls[0].options.body).primaryId,'current');
+ finish({success:true});await Promise.all([first,second]);assert.equal(resolved,1);
+});
+
+test('a changed surviving primary resets the manager confirmation',async()=>{
+ const view=mount();view.render();await settle();view.render();const original=view.child();
+ const next=review();next.incomingPrimaryId='primary';view.refresh(next);view.render();await settle();view.render();assert.notEqual(view.child().key,original.key);view.cleanup();
+});
