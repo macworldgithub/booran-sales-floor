@@ -28,6 +28,51 @@ import { LeadAssignment } from '@/components/customer/LeadAssignment';
 import {BulkLeadAssignment} from '@/components/customer/BulkLeadAssignment';
 import { useDialog } from '@/lib/use-dialog';
 
+export function getLeadAssignmentHighlight(lead: Lead) {
+  const isUnassigned = !lead.owner_name || lead.owner_name === 'Unassigned' || !lead.owner_id || lead.owner_name === 'Floor';
+  const isNew = lead.status === 'new_lead';
+  const isConnex = lead.source === 'Connex' || Boolean(lead.deal_id?.startsWith('CONNEX')) || lead.external?.source === 'connex';
+  const isMark = Boolean(lead.owner_name && /^Mark(?:\s|$)/i.test(lead.owner_name));
+  const isClosed = lead.status === 'sold' || lead.status === 'lost';
+
+  if (isClosed) return null;
+
+  if (isUnassigned && isNew) {
+    return {
+      type: 'unassigned_new' as const,
+      label: 'New · Needs Assignment',
+      shortLabel: 'Needs Assignment',
+      rowClass: 'bg-amber-50/70 hover:bg-amber-100/70 border-l-4 border-l-amber-500',
+      mobileClass: 'border-l-4 border-l-amber-500 bg-amber-50/50',
+      badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold',
+    };
+  }
+
+  if (isUnassigned) {
+    return {
+      type: 'unassigned' as const,
+      label: 'Awaiting Assignment',
+      shortLabel: 'Unassigned',
+      rowClass: 'bg-amber-50/40 hover:bg-amber-100/50 border-l-4 border-l-amber-400',
+      mobileClass: 'border-l-4 border-l-amber-400 bg-amber-50/30',
+      badgeClass: 'bg-amber-100 text-amber-800 border-amber-300',
+    };
+  }
+
+  if (isConnex && isMark) {
+    return {
+      type: 'connex_mark' as const,
+      label: 'Connex · System Assisted to Mark',
+      shortLabel: 'Assisted to Mark',
+      rowClass: 'bg-purple-50/60 hover:bg-purple-100/60 border-l-4 border-l-purple-500',
+      mobileClass: 'border-l-4 border-l-purple-500 bg-purple-50/40',
+      badgeClass: 'bg-purple-100 text-purple-900 border-purple-300 font-bold',
+    };
+  }
+
+  return null;
+}
+
 interface LeadsViewProps {
   assignedStaff?: { id: string; name: string } | null;
   onClearStaff?: () => void;
@@ -113,14 +158,14 @@ export function LeadsView({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase font-mono">
-              Booran leads
+              Customer 360
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
               {totalLeads.toLocaleString()} Total Records
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight font-heading uppercase">
-            Leads & Pipeline Management
+            Customer 360
           </h2>
           <p className="text-xs text-slate-500">
             Real prospects, contact intervals, vehicle inquiries and diary entries across Booran Group rooftops.
@@ -190,7 +235,9 @@ export function LeadsView({
           </select>
           {user?.canAllocate && <select aria-label="Lead assignment" value={assignment} onChange={event => { setAssignment(event.target.value); setCurrentPage(1); }} className="rounded-lg border px-3 py-2 text-xs">
             <option value="all">Any assignment</option>
+            <option value="needs_allocation">Needs Assignment (Unassigned & Mark Connex)</option>
             <option value="unassigned">Unassigned</option>
+            <option value="connex_mark">Connex (System Assisted to Mark)</option>
             <option value="assigned">Assigned</option>
           </select>}
         </div>
@@ -251,11 +298,15 @@ export function LeadsView({
               No leads found matching your criteria.
             </div>
           ) : (
-            leads.map((lead) => (
+            leads.map((lead) => {
+              const highlight = getLeadAssignmentHighlight(lead);
+              return (
               <div
                 key={lead._id}
                 onClick={() => onSelectLead(lead)}
-                className="p-3.5 space-y-2.5 active:bg-slate-50 transition-colors cursor-pointer"
+                className={`p-3.5 space-y-2.5 active:bg-slate-50 transition-colors cursor-pointer ${
+                  highlight ? highlight.mobileClass : ''
+                }`}
               >
                 {/* Top: Customer & Status */}
                 <div className="flex items-start justify-between gap-2">
@@ -272,13 +323,20 @@ export function LeadsView({
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase font-mono ${getStatusBadge(
-                      lead.status
-                    )}`}
-                  >
-                    {lead.status.replace('_', ' ')}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase font-mono ${getStatusBadge(
+                        lead.status
+                      )}`}
+                    >
+                      {lead.status.replace('_', ' ')}
+                    </span>
+                    {highlight && (
+                      <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold border uppercase tracking-tight ${highlight.badgeClass}`}>
+                        {highlight.shortLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <EngagementIndicator engagement={lead.engagement} active={['new_lead', 'following_up', 'returned'].includes(lead.status)} />
@@ -323,7 +381,7 @@ export function LeadsView({
                   </button>
                 </div>
               </div>
-            ))
+            );})
           )}
         </div>
 
@@ -359,10 +417,12 @@ export function LeadsView({
                   </td>
                 </tr>
               ) : (
-                leads.map((lead) => (
+                leads.map((lead) => {
+                  const highlight = getLeadAssignmentHighlight(lead);
+                  return (
                   <tr
                     key={lead._id}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    className={`${highlight ? highlight.rowClass : 'hover:bg-slate-50/80'} transition-colors cursor-pointer group`}
                     onClick={() => onSelectLead(lead)}
                   >
                     {/* Customer */}
@@ -421,9 +481,17 @@ export function LeadsView({
 
                     {/* Consultant */}
                     <td className="py-3 px-4" onClick={event => event.stopPropagation()}>
-                      <span className="font-semibold text-slate-800">
-                        {lead.owner_name || 'Unassigned'}
-                      </span>
+                      <div className="flex flex-col items-start gap-1">
+                        <span className={`font-semibold ${highlight?.type === 'unassigned' || highlight?.type === 'unassigned_new' ? 'text-amber-800 font-bold' : 'text-slate-800'}`}>
+                          {lead.owner_name || 'Unassigned'}
+                        </span>
+                        {highlight && (
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono tracking-tight border ${highlight.badgeClass}`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                            {highlight.label}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Actions */}
@@ -445,7 +513,7 @@ export function LeadsView({
                       </div>
                     </td>
                   </tr>
-                ))
+                );})
               )}
             </tbody>
           </table>

@@ -27,6 +27,7 @@ interface MobileNavProps {
   selectedRooftop: string;
   setSelectedRooftop: (rooftop: string) => void;
   leadsCount?: number;
+  newLeadsCount?: number;
   inventoryCount?: number;
   actionItemsCount?: number;
 }
@@ -39,6 +40,7 @@ export function MobileNav({
   selectedRooftop,
   setSelectedRooftop,
   leadsCount = 0,
+  newLeadsCount = 0,
   inventoryCount = 0,
   actionItemsCount = 0,
 }: MobileNavProps) {
@@ -49,7 +51,7 @@ export function MobileNav({
 
   const navItems = [
     { id: 'today', label: 'Today Command Center', icon: LayoutDashboard },
-    { id: 'leads', label: 'Leads Centre (CRM)', icon: Users, badge: leadsCount },
+    { id: 'leads', label: 'Customer 360', icon: Users, badge: newLeadsCount > 0 ? newLeadsCount : undefined },
     { id: 'inventory', label: 'Live Inventory', icon: Car, badge: inventoryCount },
     { id: 'calendar', label: 'Showroom Floor', icon: Calendar },
     { id: 'appraisals', label: 'Appraisals & Wholesale', icon: Car },

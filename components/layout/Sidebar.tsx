@@ -28,6 +28,7 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   role: import('@/lib/auth').AuthUser['role'];
   leadsCount?: number;
+  newLeadsCount?: number;
   inventoryCount?: number;
   actionItemsCount?: number;
   selectedRooftop: string;
@@ -39,6 +40,7 @@ export function Sidebar({
   setActiveTab,
   role,
   leadsCount = 0,
+  newLeadsCount = 0,
   inventoryCount = 0,
   actionItemsCount = 0,
   selectedRooftop,
@@ -49,9 +51,9 @@ export function Sidebar({
     { id: 'today', label: 'Today', icon: LayoutDashboard },
     {
       id: 'leads',
-      label: 'Leads Centre (CRM)',
+      label: 'Customer 360',
       icon: Users,
-      badge: leadsCount > 0 ? leadsCount.toLocaleString() : undefined,
+      badge: newLeadsCount > 0 ? newLeadsCount.toLocaleString() : undefined,
       source: 'flwup_crm',
     },
     {

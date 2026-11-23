@@ -17,6 +17,7 @@ interface BottomNavProps {
   setActiveTab: (tab: string) => void;
   onOpenMore: () => void;
   leadsCount?: number;
+  newLeadsCount?: number;
   inventoryCount?: number;
   actionItemsCount?: number;
 }
@@ -27,6 +28,7 @@ export function BottomNav({
   setActiveTab,
   onOpenMore,
   leadsCount = 1727,
+  newLeadsCount = 0,
   inventoryCount = 2477,
   actionItemsCount = 1022,
 }: BottomNavProps) {
@@ -38,9 +40,9 @@ export function BottomNav({
     },
     {
       id: 'leads',
-      label: 'Leads',
+      label: 'Customer 360',
       icon: Users,
-      badge: leadsCount > 999 ? `${(leadsCount / 1000).toFixed(1)}k` : leadsCount,
+      badge: newLeadsCount > 0 ? (newLeadsCount > 999 ? `${(newLeadsCount / 1000).toFixed(1)}k` : newLeadsCount) : undefined,
     },
     {
       id: 'inventory',

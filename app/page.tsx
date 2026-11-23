@@ -200,6 +200,7 @@ function BooranSalesFloorApp() {
         selectedRooftop={selectedRooftop}
         setSelectedRooftop={setSelectedRooftop}
         leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        newLeadsCount={unifiedSummary?.crm?.newLeads ?? 0}
         inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
         actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
@@ -398,6 +399,7 @@ function BooranSalesFloorApp() {
         setActiveTab={setActiveTab}
         onOpenMore={() => setIsMobileNavOpen(true)}
         leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        newLeadsCount={unifiedSummary?.crm?.newLeads ?? 0}
         inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
         actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
@@ -410,6 +412,7 @@ function BooranSalesFloorApp() {
         selectedRooftop={selectedRooftop}
         setSelectedRooftop={setSelectedRooftop}
         leadsCount={unifiedSummary?.crm?.totalLeads ?? 0}
+        newLeadsCount={unifiedSummary?.crm?.newLeads ?? 0}
         inventoryCount={unifiedSummary?.inventory?.totalVehicles ?? 0}
         actionItemsCount={unifiedSummary?.inventory?.openActionItems ?? 0}
       />
