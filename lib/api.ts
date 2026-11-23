@@ -203,6 +203,8 @@ export const appointmentApi = {
   getAppointments: (params?: Record<string, string | number>, options?: RequestInit) => fetchApi<Appointment[]>(`/appointments?${new URLSearchParams(Object.entries(params || {}).map(([key, value]) => [key, String(value)]))}`, options),
   createAppointment: (data: Partial<Appointment>) =>
     fetchApi<Appointment>('/appointments', { method: 'POST', body: JSON.stringify(data) }),
+  updateStatus: (id: string, status: 'Confirmed' | 'Completed' | 'No Show' | 'Cancelled') =>
+    fetchApi<Appointment>(`/crm/appointments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 };
 
 // ─── STAFF ───────────────────────────────────────────────────────────────────
