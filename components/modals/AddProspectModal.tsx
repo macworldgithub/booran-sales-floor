@@ -234,7 +234,47 @@ export function AddProspectModal({
             />
           </div>
 
-          <details className="space-y-2 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Trade-in vehicle (optional)</summary><VehicleLookup key={dealership} rooftop={dealership} onResult={setTrade} />{trade && <p className="text-xs">{[trade.rego, trade.vin, trade.year, trade.make, trade.model].filter(Boolean).join(' · ')}<button type="button" className="ml-2 underline" onClick={() => setTrade(null)}>Remove trade</button></p>}</details>
+          <details className="space-y-2 rounded-lg border p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-slate-800">Trade-in vehicle (optional)</summary>
+            <VehicleLookup key={dealership} rooftop={dealership} onResult={setTrade} />
+            {trade && (
+              <div className="mt-2 space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800">
+                    {[trade.year, trade.make, trade.model].filter(Boolean).join(' ') || 'Trade Vehicle'}
+                  </span>
+                  <button type="button" className="text-red-600 hover:underline" onClick={() => setTrade(null)}>
+                    Remove trade
+                  </button>
+                </div>
+                <p className="text-slate-600">
+                  {[trade.rego ? `Rego: ${trade.rego} (${trade.state || 'VIC'})` : null, trade.vin ? `VIN: ${trade.vin}` : null, trade.bodyType, trade.colour].filter(Boolean).join(' · ')}
+                </p>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {trade.registration?.status && (
+                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${trade.registration.status === 'REGISTERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {trade.registration.status} {trade.registration.expiryDate ? `(Exp: ${trade.registration.expiryDate})` : ''}
+                    </span>
+                  )}
+                  {trade.riskFlags?.isStolen && (
+                    <span className="inline-block rounded bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
+                      🚨 STOLEN ALERT
+                    </span>
+                  )}
+                  {trade.riskFlags?.isWrittenOff && (
+                    <span className="inline-block rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+                      ⚠️ WOVR WRITTEN-OFF
+                    </span>
+                  )}
+                  {trade.source && (
+                    <span className="inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                      {trade.source}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </details>
           <div className="pt-2 flex justify-end gap-2">
             <button
               type="button"

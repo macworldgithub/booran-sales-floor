@@ -38,7 +38,42 @@ export function DealWorkflowActions({ leadId, rooftop = '' }: { leadId: string; 
         <h3 className="font-bold">Register deal</h3>
         <label className="block">Stock number<input className={field} value={stockNumber} onChange={e => setStockNumber(e.target.value)} placeholder="An available vehicle at this dealership" /></label>
         <label className="block">Related trade appraisal<select className={field} value={appraisalId} onChange={e => setAppraisalId(e.target.value)}><option value="">Automatically link the only active trade</option><option value="none">No trade for this deal</option>{workflow?.appraisals.map(row => <option key={row._id} value={row._id}>{row.rego || row.vin}</option>)}</select></label>
-        <details><summary className="cursor-pointer font-semibold">Vehicle without a stock number</summary><VehicleLookup rooftop={rooftop} onResult={setVehicle} />{vehicle && <p>{[vehicle.rego, vehicle.vin, vehicle.make, vehicle.model].filter(Boolean).join(' · ')}</p>}</details>
+        <details className="space-y-2 rounded-lg border border-slate-200 p-2.5">
+          <summary className="cursor-pointer font-semibold text-slate-800">Vehicle without a stock number</summary>
+          <VehicleLookup rooftop={rooftop} onResult={setVehicle} />
+          {vehicle && (
+            <div className="mt-2 space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-slate-800">
+                  {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle Details'}
+                </span>
+                <button type="button" className="text-red-600 hover:underline" onClick={() => setVehicle(null)}>
+                  Clear vehicle
+                </button>
+              </div>
+              <p className="text-slate-600">
+                {[vehicle.rego ? `Rego: ${vehicle.rego} (${vehicle.state || 'VIC'})` : null, vehicle.vin ? `VIN: ${vehicle.vin}` : null, vehicle.bodyType, vehicle.colour].filter(Boolean).join(' · ')}
+              </p>
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {vehicle.registration?.status && (
+                  <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold ${vehicle.registration.status === 'REGISTERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                    {vehicle.registration.status} {vehicle.registration.expiryDate ? `(Exp: ${vehicle.registration.expiryDate})` : ''}
+                  </span>
+                )}
+                {vehicle.riskFlags?.isStolen && (
+                  <span className="inline-block rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-800">
+                    🚨 STOLEN
+                  </span>
+                )}
+                {vehicle.riskFlags?.isWrittenOff && (
+                  <span className="inline-block rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-800">
+                    ⚠️ WOVR
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </details>
         <div className="grid gap-2 sm:grid-cols-2"><label>Sale price (AUD)<input className={field} type="number" min={0} step="0.01" value={salePrice} onChange={e => setSalePrice(e.target.value)} /></label>{(manager || user?.viewCost) && <label>Cost (AUD)<input className={field} type="number" min={0} step="0.01" value={cost} onChange={e => setCost(e.target.value)} /></label>}</div>
         <label className="block">Deal / delivery notes<textarea className={field} maxLength={3000} value={notes} onChange={e => setNotes(e.target.value)} /></label>
         <button type="button" className={button} disabled={!stockNumber.trim() && !vehicle?.vin} onClick={() => run(async () => {
