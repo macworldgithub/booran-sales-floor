@@ -67,8 +67,13 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       (path[0] === 'leads' && path[2] === 'media' && path[4] === 'content') ||
       (path[0] === 'deliveries' && path[2] === 'accessories' && path[4] === 'proof')
     );
+    const pdfDownload = ['GET', 'HEAD'].includes(request.method) && path.length === 2 && path[0] === 'daily-traffic' && path[1] === 'pdf';
     const responseType = response.headers.get('content-type') || '';
     if (privateImage && /^image\/(?:jpeg|png|webp|gif|heic|heif)$/.test(responseType)) outgoing.set('Content-Type', responseType);
+    if (pdfDownload && response.ok) {
+      outgoing.set('Content-Type', responseType.startsWith('application/pdf') ? 'application/pdf' : responseType.startsWith('text/html') ? 'text/html; charset=utf-8' : responseType);
+      if (response.headers.get('content-disposition')) outgoing.set('Content-Disposition', response.headers.get('content-disposition')!);
+    }
     if (archiveDownload && response.ok) {
       outgoing.set('Content-Type', 'application/octet-stream');
       outgoing.set('Content-Disposition', response.headers.get('content-disposition') || 'attachment');

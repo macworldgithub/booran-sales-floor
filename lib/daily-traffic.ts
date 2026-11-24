@@ -30,3 +30,34 @@ export function exportDailyTraffic(data:TrafficData,scope:string){
  const url=URL.createObjectURL(new Blob(['\ufeff'+rows.map(row=>row.map(cell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}));
  const link=document.createElement('a');link.href=url;link.download='daily-pulse-traffic-'+data.date+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+export async function downloadDailyPulsePdf(data:TrafficData,scope:string,user?:{name?:string;role?:string}|null){
+ const params=new URLSearchParams({date:data.date,rooftop:scope});
+ if(user?.name)params.set('userName',user.name);
+ if(user?.role)params.set('userRole',user.role);
+ const endpoint='/api/daily-traffic/pdf?'+params.toString();
+ try{
+  const res=await fetch(endpoint,{method:'GET',headers:{Accept:'application/pdf, text/html, */*'}});
+  if(!res.ok)throw new Error('PDF request failed');
+  const contentType=res.headers.get('content-type')||'';
+  if(contentType.includes('application/pdf')){
+   const blob=await res.blob();
+   const blobUrl=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=blobUrl;
+   link.download='daily-pulse-wrap-'+data.date+'.pdf';
+   link.click();
+   setTimeout(()=>URL.revokeObjectURL(blobUrl),2000);
+   return;
+  }
+  const html=await res.text();
+  const printWindow=window.open('','_blank');
+  if(printWindow){
+   printWindow.document.write(html);
+   printWindow.document.close();
+   printWindow.focus();
+   setTimeout(()=>{try{printWindow.print();}catch(_){}},500);
+  }
+ }catch(_){
+  window.open(endpoint,'_blank');
+ }
+}
