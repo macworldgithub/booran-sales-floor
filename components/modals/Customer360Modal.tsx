@@ -240,18 +240,18 @@ export function Customer360Modal({
             />
           )}
 
-          <CustomerDetails key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
+          <CustomerDetails key={`details-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
           {(lead.source || lead.business_name) && <div className="space-y-1 text-xs text-slate-600">
             {lead.business_name && <p>{lead.business_name}</p>}
             {lead.source && <p>{[lead.source, lead.source_channel, lead.source_stage].filter(Boolean).join(' · ')}</p>}
             {lead.source_comments && <p className="whitespace-pre-wrap">{lead.source_comments}</p>}
             {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
-          {user?.canAllocate && <LeadAssignment key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {user?.canAllocate && <LeadAssignment key={`assign-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
           <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />
           {!!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
           {!!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
-          <LeadFollowUp key={`${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
+          <LeadFollowUp key={`followup-${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
           <CustomerConsent key={`consent-${lead._id}`} lead={lead} onUpdated={updated=>onLeadUpdated?.(updated)}/>
           {(!lead.next_action||lead.next_action.status==='completed')&&lead.loss_review?.status!=='pending'&&!['sold','lost'].includes(lead.status)&&<p className="rounded-lg bg-blue-50 p-3 text-sm">Next best action: record a customer contact and choose the next follow-up date above.</p>}
           <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />

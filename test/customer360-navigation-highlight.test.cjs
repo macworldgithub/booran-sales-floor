@@ -132,3 +132,40 @@ test('getLeadAssignmentHighlight identifies unassigned new leads and Connex lead
   });
   assert.equal(soldLead, null);
 });
+
+test('Customer360Modal uses unique React keys across all direct sibling sections so re-renders never duplicate CustomerDetails', () => {
+  const noop = () => null;
+  const harness = hookHarness();
+  const { Customer360Modal } = load('components/modals/Customer360Modal.tsx', {
+    react: harness.react,
+    'lucide-react': new Proxy({}, { get: () => noop }),
+    '@/lib/auth': { useAuth: () => ({ user: { id: 'u1', name: 'Manager', role: 'sales_manager', canAllocate: true } }) },
+    '@/lib/use-dialog': { useDialog: () => ({ current: null }) },
+    '@/lib/api': { leadApi: {} },
+    '@/components/customer/EngagementIndicator': { EngagementIndicator: noop },
+    '@/components/customer/CustomerMessages': { CustomerMessages: noop },
+    '@/components/customer/CustomerPhoneEditor': { CustomerPhoneEditor: noop },
+    '@/components/customer/CustomerEmailEditor': { CustomerEmailEditor: noop },
+    '@/components/customer/CustomerMerge': { CustomerMerge: noop },
+    '@/components/customer/LeadAssignment': { LeadAssignment: noop },
+    '@/components/customer/LostLeadReview': { LostLeadReview: noop },
+    '@/components/customer/LeadFollowUp': { LeadFollowUp: noop },
+    '@/components/customer/WorkflowHistory': { WorkflowHistory: noop },
+    '@/components/customer/DealWorkflowActions': { DealWorkflowActions: noop },
+    '@/components/customer/ConnexLeadActions': { ConnexLeadActions: noop },
+    '@/components/customer/CustomerConsent': { CustomerConsent: noop },
+    '@/components/customer/CustomerActivityFeed': { CustomerActivityFeed: noop },
+  });
+
+  const lead = { _id: 'lead-123', name: 'Test Lead', status: 'new_lead', dealership: 'South Morang Hyundai', source: 'Nextgate', owner_id: 'rep-1' };
+  const tree = harness.render(() => Customer360Modal({ lead, isOpen: true, onClose() {} }));
+  const body = nodes(tree).find(n => typeof n.props?.className === 'string' && n.props.className.includes('overflow-y-auto'));
+  assert.ok(body, 'Customer360Modal body container exists');
+  const keys = (Array.isArray(body.props.children) ? body.props.children : [body.props.children])
+    .filter(child => child && typeof child === 'object' && child.key != null)
+    .map(child => child.key);
+  assert.ok(keys.includes('details-lead-123'));
+  assert.ok(keys.includes('assign-lead-123'));
+  assert.equal(new Set(keys).size, keys.length, `Duplicate React sibling keys found: ${keys.join(', ')}`);
+  harness.cleanup();
+});
