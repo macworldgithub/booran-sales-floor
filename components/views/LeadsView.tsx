@@ -492,9 +492,9 @@ export function LeadsView({
                           {lead.owner_name || 'Unassigned'}
                         </span>
                         {highlight && (
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono tracking-tight border ${highlight.badgeClass}`}>
+                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] uppercase font-mono tracking-tight border whitespace-nowrap ${highlight.badgeClass}`}>
                             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                            {highlight.label}
+                            {highlight.shortLabel}
                           </span>
                         )}
                       </div>
