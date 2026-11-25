@@ -63,14 +63,15 @@ export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead:
   }, [lead._id, lead.dealership, user?.canAllocate, canSms, olderLead]);
 
   const pending = lead.loss_review?.status === 'pending';
+  const alreadySold = lead.status === 'sold';
   const section = useRef<HTMLElement>(null);
   useEffect(() => { if (requestOpen) section.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [requestOpen]);
   useEffect(() => {
-    if (!pending || !user?.canAllocate) return;
+    if (!pending || alreadySold || !user?.canAllocate) return;
     let active = true;
     leadApi.getAssignees(lead._id).then(result => { if (active) setPeople(result.data || []); }).catch(error => { if (active) setError(error.message); });
     return () => { active = false; };
-  }, [pending, user?.canAllocate, lead._id]);
+  }, [pending, alreadySold, user?.canAllocate, lead._id]);
 
   const describeSmsOutcome = (finalSms?: { status: string; reason?: string; error?: string | null }) => {
     if (!finalSms) return;
@@ -82,12 +83,13 @@ export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead:
   const run = async (action?: LossAction, approveNow = false) => {
     setBusy(true); setError(''); setSmsNotice('');
     try {
+      const effectiveNotes = action === 'return' && alreadySold && !notes.trim() ? 'Deal already completed (Sold)' : notes;
       const smsOptions = user?.canAllocate ? { sendFinalSms, ...(sendFinalSms ? { finalSmsBody } : {}) } : {};
       const result = action && lead.loss_review
         ? await oversightApi.reviewLoss(lead._id, {
             reviewId: lead.loss_review.id,
             action,
-            notes,
+            notes: effectiveNotes,
             assigneeId: assignee || undefined,
             ...(linkedConnex ? { connexLostReason: connexReason } : {}),
             ...(action === 'approve' ? smsOptions : {}),
@@ -144,14 +146,19 @@ export function LostLeadReview({ lead, onUpdated, requestOpen = false }: { lead:
         {lead.lost_final_sms.error ? ` · ${lead.lost_final_sms.error}` : ''}
       </p>
     )}
-    {(pending && user?.canAllocate || !pending && !['sold', 'lost'].includes(lead.status)) && <label className="block text-xs font-semibold">Loss category<select className="ml-2 min-h-11 max-w-full rounded-lg border p-2" value={connexReason} onChange={event => setConnexReason(event.target.value)}>{connexOptions.map(value => <option key={value}>{value}</option>)}</select><span className="mt-1 block font-normal">Standard categories apply to every lead source; the manager reviews the full reason.</span></label>}
+    {(pending && !alreadySold && user?.canAllocate || !pending && !['sold', 'lost'].includes(lead.status)) && <label className="block text-xs font-semibold">Loss category<select className="ml-2 min-h-11 max-w-full rounded-lg border p-2" value={connexReason} onChange={event => setConnexReason(event.target.value)}>{connexOptions.map(value => <option key={value}>{value}</option>)}</select><span className="mt-1 block font-normal">Standard categories apply to every lead source; the manager reviews the full reason.</span></label>}
     {pending && user?.canAllocate && <>
-      <label className="block text-xs font-semibold">Manager notes<textarea value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} className="mt-1 block w-full rounded-lg border p-2" /></label>
-      {smsControls}
+      {alreadySold && <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">This customer already has a completed sale (Sold). Clear this pending loss request without affecting the completed deal.</p>}
+      <label className="block text-xs font-semibold">Manager notes<textarea value={notes} maxLength={2000} onChange={e => setNotes(e.target.value)} placeholder={alreadySold ? 'Optional note (e.g. Deal completed)' : ''} className="mt-1 block w-full rounded-lg border p-2" /></label>
+      {!alreadySold && smsControls}
       <div className="flex flex-wrap gap-2">
-        {([['approve', 'Approve loss'], ['call', 'Call customer myself'], ['return', 'Return to salesperson']] as const).map(([action, label]) => <button key={action} disabled={busy || (action !== 'approve' && !notes.trim())} onClick={() => run(action)} className="rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50">{label}</button>)}
+        {alreadySold ? (
+          <button disabled={busy} onClick={() => run('return')} className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Clear pending loss request</button>
+        ) : (
+          ([['approve', 'Approve loss'], ['call', 'Call customer myself'], ['return', 'Return to salesperson']] as const).map(([action, label]) => <button key={action} disabled={busy || (action !== 'approve' && !notes.trim())} onClick={() => run(action)} className="rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50">{label}</button>)
+        )}
       </div>
-      <div className="flex flex-wrap gap-2"><select aria-label="Reassign lost lead to" value={assignee} onChange={event => setAssignee(event.target.value)} className="max-w-full rounded-lg border p-2"><option value="">Choose salesperson</option>{people.map(person => <option value={person.id} key={person.id}>{person.name}</option>)}</select><button disabled={busy || !assignee || !notes.trim()} onClick={() => run('reassign')} className="rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50">Reassign with notes</button></div>
+      {!alreadySold && <div className="flex flex-wrap gap-2"><select aria-label="Reassign lost lead to" value={assignee} onChange={event => setAssignee(event.target.value)} className="max-w-full rounded-lg border p-2"><option value="">Choose salesperson</option>{people.map(person => <option value={person.id} key={person.id}>{person.name}</option>)}</select><button disabled={busy || !assignee || !notes.trim()} onClick={() => run('reassign')} className="rounded-lg border bg-white px-3 py-2 text-xs font-semibold disabled:opacity-50">Reassign with notes</button></div>}
       {lead.phone && <a href={`tel:${lead.phone}`} className="inline-block font-semibold text-blue-700">Call {lead.phone}</a>}
     </>}
     {!pending && !['sold', 'lost'].includes(lead.status) && <details open={requestOpen || undefined}>

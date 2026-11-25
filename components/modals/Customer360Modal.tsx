@@ -227,7 +227,7 @@ export function Customer360Modal({
                   <button
                     key={st}
                     onClick={() => handleStatusChange(st)}
-                    disabled={isUpdatingStatus || isSubmittingNote || lead.loss_review?.status === 'pending' || (st === 'lost' && ['lost', 'sold'].includes(lead.status))}
+                    disabled={isUpdatingStatus || isSubmittingNote || (lead.loss_review?.status === 'pending' && st !== 'sold') || (st === 'lost' && ['lost', 'sold'].includes(lead.status))}
                     className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
                       lead.status === st
                         ? 'bg-red-600 text-white shadow-sm'
