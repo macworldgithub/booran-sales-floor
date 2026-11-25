@@ -320,6 +320,7 @@ function BooranSalesFloorApp() {
         focusMessages={Boolean(replyLeadId && replyLeadId === selectedLead?._id)}
         onLeadUpdated={handleLeadUpdated}
         onLeadMerged={primary => setSelectedLead(primary)}
+        onOpenLead={target => { setReplyLeadId(''); setSelectedLead(target); }}
         onOpenBookDrive={(l) => {
           setBookDriveLead(l);
           setIsBookDriveOpen(true);

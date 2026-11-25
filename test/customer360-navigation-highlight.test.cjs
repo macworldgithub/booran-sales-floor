@@ -155,6 +155,8 @@ test('Customer360Modal uses unique React keys across all direct sibling sections
     '@/components/customer/ConnexLeadActions': { ConnexLeadActions: noop },
     '@/components/customer/CustomerConsent': { CustomerConsent: noop },
     '@/components/customer/CustomerActivityFeed': { CustomerActivityFeed: noop },
+    '@/components/customer/CustomerHistoryTab': { CustomerHistoryTab: noop },
+    '@/components/customer/CustomerBusinessTab': { CustomerBusinessTab: noop },
   });
 
   const lead = { _id: 'lead-123', name: 'Test Lead', status: 'new_lead', dealership: 'South Morang Hyundai', source: 'Nextgate', owner_id: 'rep-1' };

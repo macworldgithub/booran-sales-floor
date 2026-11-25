@@ -11,6 +11,9 @@ import {
   CustomerMedia,
   CustomerMessage,
   CustomerMessageHistory,
+  CustomerHistoryData,
+  CustomerBusinessData,
+  BusinessSearchHit,
 } from './types';
 
 import type { RecordingDetails } from './video-recording';
@@ -107,6 +110,22 @@ export const leadApi = {
   getOrganization: () => fetchApi<any>('/crm/organization'),
   syncFlwup: (options?: { rooftop_id?: string; token?: string }) =>
     fetchApi<any>('/leads/sync-flwup', { method: 'POST', body: JSON.stringify(options || {}) }),
+  getHistory: (id: string, includeBusiness = true, options?: RequestInit) =>
+    fetchApi<CustomerHistoryData>(`/leads/${encodeURIComponent(id)}/history?includeBusiness=${includeBusiness}`, options),
+  getBusiness: (id: string, options?: RequestInit) =>
+    fetchApi<CustomerBusinessData>(`/leads/${encodeURIComponent(id)}/business`, options),
+  searchBusinesses: (id: string, search = '', options?: RequestInit) =>
+    fetchApi<BusinessSearchHit[]>(`/leads/${encodeURIComponent(id)}/business/search?search=${encodeURIComponent(search)}`, options),
+  searchBusinessPeople: (id: string, search = '', options?: RequestInit) =>
+    fetchApi<Lead[]>(`/leads/${encodeURIComponent(id)}/business/people-search?search=${encodeURIComponent(search)}`, options),
+  attachBusiness: (id: string, payload: { businessId?: string; name?: string; abn?: string; industry?: string; phone?: string; email?: string; address?: string; notes?: string; role?: string; isPrimary?: boolean }) =>
+    fetchApi<{ business: CustomerBusinessData; lead: Lead }>(`/leads/${encodeURIComponent(id)}/business/attach`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateBusinessLink: (id: string, businessId: string, payload: { role?: string; isPrimary?: boolean; name?: string; abn?: string; industry?: string; phone?: string; email?: string; address?: string; notes?: string }) =>
+    fetchApi<{ business: CustomerBusinessData; lead: Lead }>(`/leads/${encodeURIComponent(id)}/business/${encodeURIComponent(businessId)}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  detachBusiness: (id: string, businessId: string) =>
+    fetchApi<{ business: CustomerBusinessData; lead: Lead }>(`/leads/${encodeURIComponent(id)}/business/${encodeURIComponent(businessId)}`, { method: 'DELETE' }),
+  addPersonToBusiness: (id: string, businessId: string, payload: { existingLeadId?: string; name?: string; phone?: string; email?: string; role?: string; isPrimary?: boolean }) =>
+    fetchApi<{ business: CustomerBusinessData; lead: Lead }>(`/leads/${encodeURIComponent(id)}/business/${encodeURIComponent(businessId)}/people`, { method: 'POST', body: JSON.stringify(payload) }),
 };
 
 export const customerMessageApi = {

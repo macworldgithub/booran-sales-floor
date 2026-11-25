@@ -35,6 +35,8 @@ import { DealWorkflowActions } from '@/components/customer/DealWorkflowActions';
 import { ConnexLeadActions } from '@/components/customer/ConnexLeadActions';
 import { CustomerConsent } from '@/components/customer/CustomerConsent';
 import { CustomerActivityFeed } from '@/components/customer/CustomerActivityFeed';
+import { CustomerHistoryTab } from '@/components/customer/CustomerHistoryTab';
+import { CustomerBusinessTab } from '@/components/customer/CustomerBusinessTab';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -43,6 +45,7 @@ interface Customer360ModalProps {
   onLeadUpdated?: (updatedLead: Lead) => void;
   onLeadMerged?: (primary: Lead) => void;
   onOpenBookDrive?: (lead: Lead) => void;
+  onOpenLead?: (targetLead: Lead) => void;
   focusMessages?: boolean;
 }
 
@@ -53,8 +56,10 @@ export function Customer360Modal({
   onLeadUpdated,
   onLeadMerged,
   onOpenBookDrive,
+  onOpenLead,
   focusMessages = false,
 }: Customer360ModalProps) {
+  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'business'>('profile');
   const [newNote, setNewNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -189,8 +194,32 @@ export function Customer360Modal({
             </div>
           </div>
 
+          {/* Profile / History / Business Tab Bar */}
+          <nav aria-label="Customer profile views" role="tablist" className="flex border-b border-slate-200 overflow-x-auto">
+            {([
+              ['profile', 'Profile'],
+              ['history', 'History'],
+              ['business', 'Business'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === id
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
           {/* Status & Quick Action Workflow */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-white">
+          {activeTab === 'profile' && <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-white">
             <div>
               <p className="text-xs font-bold text-slate-900 mb-1">CRM Deal Stage</p>
               <div className="flex flex-wrap gap-1.5">
@@ -223,9 +252,9 @@ export function Customer360Modal({
                 <span>Book Test Drive</span>
               </button>
             )}
-          </div>
+          </div>}
 
-          {lead.status === 'sold' && (
+          {activeTab === 'profile' && lead.status === 'sold' && (
             <SaleDetailsEditor
               key={`sale-${lead._id}-${lead.sold_at || ''}-${lead.delivery_date || ''}-${lead.deal_number || ''}`}
               lead={lead}
@@ -240,30 +269,30 @@ export function Customer360Modal({
             />
           )}
 
-          <CustomerDetails key={`details-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
-          {(lead.source || lead.business_name) && <div className="space-y-1 text-xs text-slate-600">
+          {activeTab === 'profile' && <CustomerDetails key={`details-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {activeTab === 'profile' && (lead.source || lead.business_name) && <div className="space-y-1 text-xs text-slate-600">
             {lead.business_name && <p>{lead.business_name}</p>}
             {lead.source && <p>{[lead.source, lead.source_channel, lead.source_stage].filter(Boolean).join(' · ')}</p>}
             {lead.source_comments && <p className="whitespace-pre-wrap">{lead.source_comments}</p>}
             {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
-          {user?.canAllocate && <LeadAssignment key={`assign-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
-          <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />
-          {!!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
-          {!!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
-          <LeadFollowUp key={`followup-${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
-          <CustomerConsent key={`consent-${lead._id}`} lead={lead} onUpdated={updated=>onLeadUpdated?.(updated)}/>
-          {(!lead.next_action||lead.next_action.status==='completed')&&lead.loss_review?.status!=='pending'&&!['sold','lost'].includes(lead.status)&&<p className="rounded-lg bg-blue-50 p-3 text-sm">Next best action: record a customer contact and choose the next follow-up date above.</p>}
-          <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />
-          {user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
-          <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />
-          <DealWorkflowActions key={`deal-actions-${lead._id}`} leadId={lead._id} rooftop={lead.dealership} />
-          <div ref={messagesRef}><CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
+          {activeTab === 'profile' && user?.canAllocate && <LeadAssignment key={`assign-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {activeTab === 'profile' && <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />}
+          {activeTab === 'profile' && !!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
+          {activeTab === 'profile' && !!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
+          {activeTab === 'profile' && <LeadFollowUp key={`followup-${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
+          {activeTab === 'profile' && <CustomerConsent key={`consent-${lead._id}`} lead={lead} onUpdated={updated=>onLeadUpdated?.(updated)}/>}
+          {activeTab === 'profile' && (!lead.next_action||lead.next_action.status==='completed')&&lead.loss_review?.status!=='pending'&&!['sold','lost'].includes(lead.status)&&<p className="rounded-lg bg-blue-50 p-3 text-sm">Next best action: record a customer contact and choose the next follow-up date above.</p>}
+          {activeTab === 'profile' && <LostLeadReview key={`loss-${lead._id}`} lead={lead} requestOpen={requestLost} onUpdated={updated => { setRequestLost(false); onLeadUpdated?.(updated); }} />}
+          {activeTab === 'profile' && user?.canAllocate && <CustomerMerge key={`merge-${lead._id}`} lead={lead} onMerged={primary => { (onLeadMerged || onLeadUpdated)?.(primary); }} />}
+          {activeTab === 'profile' && <WorkflowHistory key={`history-${lead._id}`} leadId={lead._id} />}
+          {activeTab === 'profile' && <DealWorkflowActions key={`deal-actions-${lead._id}`} leadId={lead._id} rooftop={lead.dealership} />}
+          {activeTab === 'profile' && <div ref={messagesRef}><CustomerMessages key={lead._id} lead={lead} contactBusy={editingPhone} onBusyChange={setSendingMessage} onMessageSent={() => {
             leadApi.getLead(lead._id).then((result) => { if (result.data) onLeadUpdated?.(result.data); }).catch(() => {});
-          }} /></div>
+          }} /></div>}
 
           {/* Timeline & Diary Entries */}
-          <div>
+          {activeTab === 'profile' && <div>
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 font-mono flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" />
               CRM Activity & Diary Notes
@@ -304,7 +333,24 @@ export function Customer360Modal({
                 </label>
               )}
             </form>
-          </div>
+          </div>}
+
+          {activeTab === 'history' && (
+            <CustomerHistoryTab
+              key={`tab-history-${lead._id}`}
+              lead={lead}
+              onLeadUpdated={onLeadUpdated}
+            />
+          )}
+
+          {activeTab === 'business' && (
+            <CustomerBusinessTab
+              key={`tab-business-${lead._id}`}
+              lead={lead}
+              onLeadUpdated={onLeadUpdated}
+              onOpenLead={onOpenLead}
+            />
+          )}
         </div>
       </div>
     </div>

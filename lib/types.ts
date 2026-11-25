@@ -77,6 +77,7 @@ export interface Lead {
   owner_name?: string;
   owner_id?: string | null;
   business_name?: string;
+  business_id?: string | null;
   source_channel?: string;
   source_stage?: string;
   source_owner?: string;
@@ -272,6 +273,108 @@ export interface StaffMember {
   conversionRate: string;
   loadCapacity: number;
   initials: string;
+}
+
+export interface CustomerHistoryItem {
+  id: string;
+  origin: 'deal' | 'dms_feed' | 'lead_sale' | string;
+  scope: 'customer' | 'business';
+  buyerName: string;
+  businessName: string | null;
+  vehicle: string;
+  make: string;
+  model: string;
+  year: number | null;
+  vin: string;
+  stockNumber: string;
+  dealNumber: string;
+  purchaseDate: string | null;
+  deliveryDate: string | null;
+  salePriceCents: number | null;
+  salesperson: string;
+  status: 'Delivered' | 'Completed' | 'Sold' | 'Registered' | 'Cancelled' | string;
+  statusRaw: string;
+  appraisalId: string | null;
+  leadId: string;
+}
+
+export interface CustomerHistorySummary {
+  totalVehiclesPurchased: number;
+  totalDeals: number;
+  lifetimeSpendCents: number | null;
+  pricedPurchasesCount: number;
+  lastPurchaseDate: string | null;
+  customerPurchasesCount: number;
+  businessPurchasesCount: number;
+}
+
+export interface CustomerServiceBookingSummary {
+  id: string;
+  startsAt: string;
+  vehicle: string;
+  status: string;
+  reference: string;
+}
+
+export interface CustomerHistoryData {
+  summary: CustomerHistorySummary;
+  items: CustomerHistoryItem[];
+  hasLinkedBusiness: boolean;
+  linkedBusinesses: { id: string; name: string; role: string }[];
+  appraisalsCount: number;
+  deliveriesCount: number;
+  notesCount: number;
+  serviceBookings: CustomerServiceBookingSummary[];
+}
+
+export interface BusinessEntity {
+  _id: string;
+  name: string;
+  abn: string;
+  industry: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  dealership: string;
+}
+
+export interface BusinessPersonSummary {
+  leadId: string;
+  name: string;
+  phone: string;
+  email: string;
+  role: string;
+  isPrimary: boolean;
+  status: string;
+  vehicle: string;
+  isCurrentPerson: boolean;
+  canOpen: boolean;
+}
+
+export interface BusinessAssociation {
+  business: BusinessEntity;
+  link: {
+    _id: string | null;
+    role: string;
+    isPrimary: boolean;
+    createdAt: string | null;
+    syncedFromLead?: boolean;
+  };
+  people: BusinessPersonSummary[];
+}
+
+export interface CustomerBusinessData {
+  person: { id: string; name: string; phone: string; email: string; dealership: string };
+  primaryBusinessId: string | null;
+  businesses: BusinessAssociation[];
+}
+
+export interface BusinessSearchHit {
+  _id: string;
+  name: string;
+  abn: string;
+  industry: string;
 }
 
 export interface UnifiedSummary {
