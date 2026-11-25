@@ -63,6 +63,7 @@ export function Customer360Modal({
   const [editingPhone, setEditingPhone] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const [requestLost, setRequestLost] = useState(false);
+  const [editingSaleDates, setEditingSaleDates] = useState(false);
   const [completeAction, setCompleteAction] = useState(true);
   const noteAttempt=useRef<{note:string;id:string}|null>(null), noteLock=useRef(false);
 
@@ -110,6 +111,7 @@ export function Customer360Modal({
       const res = await leadApi.updateLead(lead._id, { status: newStatus });
       if (res.success && res.data) {
         onLeadUpdated?.(res.data);
+        if (newStatus === 'sold' && user?.canAllocate) setEditingSaleDates(true);
         setToastMessage(`Status updated to ${newStatus}`);
         setTimeout(() => setToastMessage(null), 3000);
       }
@@ -223,6 +225,21 @@ export function Customer360Modal({
             )}
           </div>
 
+          {lead.status === 'sold' && (
+            <SaleDetailsEditor
+              key={`sale-${lead._id}-${lead.sold_at || ''}-${lead.delivery_date || ''}-${lead.deal_number || ''}`}
+              lead={lead}
+              canEdit={Boolean(user?.canAllocate)}
+              initialOpen={editingSaleDates}
+              onUpdated={(updated) => {
+                setEditingSaleDates(false);
+                onLeadUpdated?.(updated);
+                setToastMessage('Sale and delivery dates updated');
+                setTimeout(() => setToastMessage(null), 3000);
+              }}
+            />
+          )}
+
           <CustomerDetails key={lead._id} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />
           {(lead.source || lead.business_name) && <div className="space-y-1 text-xs text-slate-600">
             {lead.business_name && <p>{lead.business_name}</p>}
@@ -330,4 +347,112 @@ function CustomerDetails({ lead, onUpdated }: { lead: Lead; onUpdated: (lead: Le
       <button type="submit" disabled={busy} className="rounded-lg bg-slate-900 px-3 py-2 font-semibold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save details'}</button>
     </form>}
   </section>;
+}
+
+function melbourneDayInput(iso?: string) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (!Number.isFinite(+date)) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Melbourne', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
+
+function SaleDetailsEditor({ lead, canEdit, initialOpen, onUpdated }: { lead: Lead; canEdit: boolean; initialOpen: boolean; onUpdated: (lead: Lead) => void }) {
+  const [open, setOpen] = useState(initialOpen);
+  const [soldDate, setSoldDate] = useState(() => melbourneDayInput(lead.sold_at || lead.created_at));
+  const [deliveryDate, setDeliveryDate] = useState(() => melbourneDayInput(lead.delivery_date));
+  const [dealNumber, setDealNumber] = useState(() => lead.deal_number || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (initialOpen) setOpen(true);
+  }, [initialOpen]);
+
+  return (
+    <section aria-label="Sale and delivery details" className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-0.5 text-slate-800">
+          <p className="font-bold text-emerald-900">Sale &amp; Delivery Record</p>
+          <p>
+            Sold date: <strong>{lead.sold_at ? melbourneDayInput(lead.sold_at) : 'Today'}</strong>
+            {lead.delivery_date ? ` · Delivered: ${melbourneDayInput(lead.delivery_date)}` : ''}
+            {lead.deal_number ? ` · Deal: ${lead.deal_number}` : ''}
+          </p>
+        </div>
+        {canEdit && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => { setOpen(!open); setError(''); }}
+            className="rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 font-semibold text-emerald-900 hover:bg-emerald-100"
+          >
+            {open ? 'Cancel' : 'Correct sale / delivery date'}
+          </button>
+        )}
+      </div>
+      {open && canEdit && (
+        <form
+          className="grid gap-2 pt-2 sm:grid-cols-3"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!soldDate) { setError('Choose a sold date.'); return; }
+            setBusy(true); setError('');
+            try {
+              const res = await leadApi.updateLead(lead._id, {
+                sold_at: soldDate,
+                delivery_date: deliveryDate || undefined,
+                deal_number: dealNumber.trim(),
+              });
+              if (res.data) onUpdated(res.data);
+              setOpen(false);
+            } catch (reason) {
+              setError((reason as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="font-semibold text-slate-700">
+            Actual Sold Date
+            <input
+              type="date"
+              required
+              value={soldDate}
+              disabled={busy}
+              onChange={(e) => setSoldDate(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
+            />
+          </label>
+          <label className="font-semibold text-slate-700">
+            Delivery Date
+            <input
+              type="date"
+              value={deliveryDate}
+              disabled={busy}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
+            />
+          </label>
+          <label className="font-semibold text-slate-700">
+            Deal Number
+            <input
+              type="text"
+              maxLength={80}
+              placeholder="e.g. SM29263"
+              value={dealNumber}
+              disabled={busy}
+              onChange={(e) => setDealNumber(e.target.value)}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2"
+            />
+          </label>
+          {error && <p role="alert" className="sm:col-span-3 text-red-700">{error}</p>}
+          <div className="sm:col-span-3">
+            <button type="submit" disabled={busy} className="rounded-lg bg-emerald-800 px-3 py-2 font-semibold text-white hover:bg-emerald-900 disabled:opacity-50">
+              {busy ? 'Saving…' : 'Save actual sale date'}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
 }

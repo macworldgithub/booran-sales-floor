@@ -102,6 +102,7 @@ export function LeadsView({
   const [statusFilter, setStatusFilter] = useState('all');
   const [source, setSource] = useState('all');
   const [assignment, setAssignment] = useState('all');
+  const [missingContact, setMissingContact] = useState(false);
   const [ownerFilter,setOwnerFilter]=useState('');
   const rooftopFilter = selectedRooftop === 'All Locations' ? 'all' : selectedRooftop;
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,7 +114,7 @@ export function LeadsView({
   const { data: leads, pagination, isLoading, isRefreshing, error, refresh: fetchLeads } = usePaginatedQuery(
     leadApi.getLeads,
     { page: currentPage, limit: pageSize, search: searchQuery.trim(), status: statusFilter,
-    dealership: rooftopFilter, source, assignment, owner:ownerFilter.trim(), ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
+    dealership: rooftopFilter, source, assignment, ...(missingContact ? { missingContact: 'true' } : {}), owner:ownerFilter.trim(), ...(assignedStaff && { ownerId: assignedStaff.id }), sortBy: sort.split(':')[0], sortOrder: sort.split(':')[1] },
     setCurrentPage,
   );
   useEffect(() => {
@@ -131,6 +132,7 @@ export function LeadsView({
     setStatusFilter('all');
     setSource('all');
     setAssignment('all');
+    setMissingContact(false);
     onRooftopChange('All Locations');
     setSort('created_at:desc');
     setCurrentPage(1);
@@ -240,6 +242,10 @@ export function LeadsView({
             <option value="connex_mark">Connex (System Assisted to Mark)</option>
             <option value="assigned">Assigned</option>
           </select>}
+          <label className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs text-slate-700">
+            <input type="checkbox" checked={missingContact} onChange={e => { setMissingContact(e.target.checked); setCurrentPage(1); }} />
+            No phone &amp; email
+          </label>
         </div>
         {/* Status Pills (Scrollable on Mobile) */}
         <div className="flex overflow-x-auto no-scrollbar gap-1.5 pt-1 pb-0.5">
@@ -386,7 +392,7 @@ export function LeadsView({
         </div>
 
         {user?.canAllocate&&<label className="my-3 block text-sm font-semibold">Filter by current consultant name<input aria-label="Current consultant name" value={ownerFilter} onChange={event=>{setOwnerFilter(event.target.value);setCurrentPage(1);}} placeholder="Exact name, including former staff such as George Jacobs" className="mt-1 min-h-11 w-full rounded-lg border p-2 font-normal"/></label>}
-        <BulkLeadAssignment leads={leads}/>
+        <BulkLeadAssignment leads={leads} onCompleted={fetchLeads}/>
         {/* Desktop View: Full Data Table (sm+) */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full table-fixed text-left text-sm border-collapse [&_td_p]:whitespace-normal [&_td_p]:break-words [&_td_p]:overflow-visible [&_th]:px-2 [&_td]:px-2">

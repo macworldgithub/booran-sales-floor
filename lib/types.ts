@@ -120,6 +120,17 @@ export interface Lead {
     note: string;
   }[];
   post_sales_followup?: any;
+  sold_at?: string;
+  delivery_date?: string;
+  deal_number?: string;
+  lost_at?: string;
+  lost_final_sms?: {
+    status: string;
+    sent_at?: string;
+    message_id?: string;
+    body?: string;
+    error?: string;
+  };
 }
 
 export interface Vehicle {

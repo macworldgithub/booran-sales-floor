@@ -33,6 +33,27 @@ export const crmApi = {
             error: string;
         }[];
     }>('/leads/bulk-assignment', { method: 'POST', body: JSON.stringify({ assigneeId, leads: leads.map(lead => ({ id: lead._id, expectedOwnerId: lead.owner_id || null })) }) }),
+    bulkStatus: (leadIds: string[], payload: { status: 'sold' | 'lost'; soldAt?: string; deliveryDate?: string; dealNumber?: string; reason?: string }) => fetchApi<{
+        updated: string[];
+        errors: { id: string; error: string }[];
+    }>('/leads/bulk-status', { method: 'POST', body: JSON.stringify({ leadIds, ...payload }) }),
+    lostSmsSettings: (rooftop: string, signal?: AbortSignal) => fetchApi<{
+        enabled: boolean;
+        template: string;
+        defaultTemplate: string;
+        smsConfigured: boolean;
+        updated_at?: string | null;
+        updated_by_name?: string | null;
+    }>(`/crm/lost-sms-settings?rooftop=${encodeURIComponent(rooftop)}`, { signal }),
+    saveLostSmsSettings: (dealership: string, payload: { enabled: boolean; template: string }) => fetchApi('/crm/lost-sms-settings', { method: 'PUT', body: JSON.stringify({ dealership, ...payload }) }),
+    leadSourceSettings: (rooftop: string, signal?: AbortSignal) => fetchApi<{
+        dealership: string;
+        skipDealerSocketNextgateLeads: boolean;
+        skipDealerSocketWebsiteLeads: boolean;
+        updatedAt?: string | null;
+        updatedByName?: string | null;
+    }>(`/crm/lead-source-settings?rooftop=${encodeURIComponent(rooftop)}`, { signal }),
+    saveLeadSourceSettings: (dealership: string, payload: { skipDealerSocketNextgateLeads: boolean; skipDealerSocketWebsiteLeads: boolean }) => fetchApi('/crm/lead-source-settings', { method: 'PUT', body: JSON.stringify({ dealership, ...payload }) }),
     library: (rooftop: string, signal?: AbortSignal) => fetchApi<{
         id: string;
         title: string;
