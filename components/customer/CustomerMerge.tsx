@@ -34,7 +34,7 @@ export function CustomerMerge({ lead, onMerged }: { lead: Lead; onMerged: (lead:
   return <section aria-label="Manager customer merge" className="min-w-0 space-y-3 rounded-xl border border-amber-200 p-3 text-xs">
     <button type="button" disabled={busy} onClick={() => { setOpen(!open); setError(''); }} aria-expanded={open} className="min-h-11 text-left font-bold text-blue-700">{open ? 'Close merge review' : 'Manager: review duplicates / merge'}</button>
     {open && <>
-      <p>Select the primary customer to keep and the secondary to retire. Missing details, diary notes, messages, media and linked work transfer to the primary. Its status and salesperson stay in place.</p>
+      <p>Select the primary customer to keep and the secondary to retire. Missing details, additional mobiles/emails, diary notes, messages, media and linked work transfer to the primary. If the primary is unassigned and the secondary is assigned, the secondary&apos;s assignee and status also carry across.</p>
       <label className="block">Find secondary by customer name or mobile<input aria-label="Find secondary customer" value={search} disabled={busy} onChange={event => { setSearch(event.target.value); setSecondaryId(''); }} className="mt-1 min-h-11 w-full min-w-0 rounded-lg border p-2" /></label>
       {!related.length && <p>No matching secondary was found at this dealership. Search by name if a mobile is missing.</p>}
       {!!related.length && <>

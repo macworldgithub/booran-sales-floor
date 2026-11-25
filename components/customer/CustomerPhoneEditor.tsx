@@ -45,6 +45,11 @@ export function CustomerPhoneEditor({ lead, disabled = false, onUpdated, onEditi
   return <div className="min-w-0">
     <p className="text-[10px] uppercase font-bold text-slate-400 font-mono">Mobile</p>
     <p className="break-words text-xs font-semibold text-slate-800">{number || 'Not provided'}</p>
+    {!!lead.alternate_phones?.length && (
+      <p className="break-words text-[11px] text-slate-500 mt-0.5">
+        Additional: {lead.alternate_phones.join(', ')}
+      </p>
+    )}
     <button type="button" disabled={disabled} onClick={() => { setError(''); setEditing(true); onEditingChange(true); }} className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-red-700 hover:underline disabled:opacity-50">
       {number ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}{number ? 'Edit number' : 'Add number'}
     </button>

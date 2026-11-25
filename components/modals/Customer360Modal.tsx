@@ -279,7 +279,12 @@ export function Customer360Modal({
           {activeTab === 'profile' && user?.canAllocate && <LeadAssignment key={`assign-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
           {activeTab === 'profile' && <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />}
           {activeTab === 'profile' && !!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}
-          {activeTab === 'profile' && !!lead.alternate_phones?.length && <p className="text-xs text-slate-600">Other mobiles from merged enquiries: {lead.alternate_phones.join(', ')}</p>}
+          {activeTab === 'profile' && !!(lead.alternate_phones?.length || lead.alternate_emails?.length) && (
+            <div className="space-y-1 text-xs text-slate-600">
+              {!!lead.alternate_phones?.length && <p>Additional mobiles: {lead.alternate_phones.join(', ')}</p>}
+              {!!lead.alternate_emails?.length && <p>Additional emails: {lead.alternate_emails.join(', ')}</p>}
+            </div>
+          )}
           {activeTab === 'profile' && <LeadFollowUp key={`followup-${lead._id}-${lead.owner_id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
           {activeTab === 'profile' && <CustomerConsent key={`consent-${lead._id}`} lead={lead} onUpdated={updated=>onLeadUpdated?.(updated)}/>}
           {activeTab === 'profile' && (!lead.next_action||lead.next_action.status==='completed')&&lead.loss_review?.status!=='pending'&&!['sold','lost'].includes(lead.status)&&<p className="rounded-lg bg-blue-50 p-3 text-sm">Next best action: record a customer contact and choose the next follow-up date above.</p>}

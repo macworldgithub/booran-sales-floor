@@ -58,6 +58,7 @@ export interface Lead {
   external?: { id: string; source: string; opportunity_status?: string; details_revealed?: boolean };
   source_refs?: { source: string; deal_id?: string; sms_campaign?: { stage?: string; active?: boolean }; nexgate?: { stage?: string; comments?: string } }[];
   alternate_phones?: string[];
+  alternate_emails?: string[];
 
   _id: string;
   id?: string;
