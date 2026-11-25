@@ -5,7 +5,8 @@ export type DpSettings = { monthlyUnitsTarget: number | null; annualUnitsTarget:
   serviceTargets: { csi: number; technicianEfficiency: number; repairHours: number; retention: number; claimCycleDays: number };
   widgets: string[]; customKpis: { title: string; metric: string; target: number; direction: 'above' | 'below' }[] };
 export type ServiceValues = { csi: number | null; csiResponses: number; claimsOpened: number | null; claimsClosed: number | null; claimCycleDays: number | null;
-  technicianEfficiency: number | null; averageRepairHours: number | null; revenueCents: number | null; retention: number | null; retentionEligible: number; repairs: number; records: number };
+  technicianEfficiency: number | null; averageRepairHours: number | null; revenueCents: number | null; retention: number | null; retentionEligible: number; repairs: number; records: number;
+  warrantySubmitted?: number | null; warrantyFlagged?: number | null; warrantyActiveFlags?: number | null; warrantyTotal?: number | null; warrantyAwaitingReview?: number | null; warrantyUploading?: number | null; warrantyFlagReasons?: Record<string, number> };
 export type DpReport = {
   computedAt: string; timezone: string; range: { mode: string; first: string; last: string; today: string; days: number };
   availableSites: string[]; sites: string[]; settings: DpSettings; settingsRevision: number; modules: { id: string; title: string }[];
@@ -19,9 +20,9 @@ export type DpReport = {
     hotModels: { name: string; stock: number; enquiries: number; sold30: number }[];
     aging: StockDetail[] };
   service: ServiceValues & { health: Health; signals: Record<string, Health>; targets: DpSettings['serviceTargets']; bookings: number; source: string; updatedAt: string | null;
-    departments: (ServiceValues & { department: string; health: Health; signals: Record<string, Health> })[];
+    departments: (ServiceValues & { department: string; health: Health; signals: Record<string, Health>; warrantyFlags?: number })[];
     trend: (ServiceValues & { month: string })[] };
-  benchmarks: { site: string; units: number; target: number | null; attainment: number | null; grossCents: number | null; financialCoverage: number | null; conversion: number | null; stockUnits: number; stockValueCents: number | null; daysSupply: number | null; turnProxy: number | null; inventoryTurn: number | null; csi: number | null; serviceRevenueCents: number | null; signal: Health }[];
+  benchmarks: { site: string; units: number; target: number | null; attainment: number | null; grossCents: number | null; financialCoverage: number | null; conversion: number | null; stockUnits: number; stockValueCents: number | null; daysSupply: number | null; turnProxy: number | null; inventoryTurn: number | null; csi: number | null; serviceRevenueCents: number | null; signal: Health; warrantySubmitted?: number | null; warrantyFlagged?: number | null; warrantyActiveFlags?: number | null; warrantyTotal?: number | null }[];
   alerts: { id: string; module: string; tone: Health; title: string; detail: string }[];
   customKpis: { title: string; metric: string; target: number; direction: string; value: number | null; signal: Health }[];
   sources: { name: string; state: string; detail: string }[]; definitions: Record<string, string>;
@@ -30,7 +31,9 @@ export type StockDetail = { id: string; site: string; stockNumber?: string; vin?
 export const serviceFields = ['csiPoints','csiResponses','claimsOpened','claimsClosed','claimCycleHours','claimCycleSamples','productiveHours','availableHours','repairHours','repairs','revenueCents','retainedCustomers','eligibleCustomers'] as const;
 export type ServiceEntry = { dealership: string; date: string; department: string; revision: number } & Record<typeof serviceFields[number], number | null>;
 export type SaleDetail = { id: string; dealership: string; at: string; leadId?: string; stockNumber?: string; vin?: string; make?: string; model?: string; ownerName: string; units: number; grossCents: number | null; revenueCents: number | null; origin: string };
-export type DpDetail = SaleDetail | StockDetail | (ServiceEntry & { id: string; site: string });
+export type WarrantyFlag = { reasonCode: string; reasonLabel: string; instruction?: string; flaggedAt?: string; flaggedBy?: string; resolvedAt?: string | null };
+export type WarrantyDetail = { id: string; caseNumber: string; roNumber: string; claimNumber: string; site: string; siteId: string; dealership: string; date: string; createdAt: string; submittedAt: string | null; status: 'Draft' | 'Uploading' | 'Awaiting Review' | 'Flagged' | 'Submitted' | 'Closed' | 'Withdrawn'; make: string; model: string; year: number | string; vin: string; technicianName: string; concernTitle: string; faultCategory: string; flagCount: number; activeFlags: number; flagHistory: WarrantyFlag[] };
+export type DpDetail = SaleDetail | StockDetail | WarrantyDetail | (ServiceEntry & { id: string; site: string });
 export const dpQuery = (params: Record<string, string | number>) => new URLSearchParams(Object.entries(params).map(([key,value]) => [key,String(value)])).toString();
 export const dpApi = {
   summary: (params: Record<string,string|number>, options?: RequestInit) => fetchApi<DpReport>('/dp/dashboard?' + dpQuery(params), options),
