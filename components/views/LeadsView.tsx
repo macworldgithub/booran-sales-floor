@@ -487,7 +487,7 @@ export function LeadsView({
 
                     {/* Consultant */}
                     <td className="py-3 px-4" onClick={event => event.stopPropagation()}>
-                      <div className="flex flex-col items-start gap-1">
+                      <div className="flex flex-col items-start gap-1.5">
                         <span className={`font-semibold ${highlight?.type === 'unassigned' || highlight?.type === 'unassigned_new' ? 'text-amber-800 font-bold' : 'text-slate-800'}`}>
                           {lead.owner_name || 'Unassigned'}
                         </span>
@@ -497,13 +497,21 @@ export function LeadsView({
                             {highlight.shortLabel}
                           </span>
                         )}
+                        {user?.canAllocate && (
+                          <button
+                            type="button"
+                            onClick={() => setAssigningLead(lead)}
+                            className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                          >
+                            Assign
+                          </button>
+                        )}
                       </div>
                     </td>
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
-                        {user?.canAllocate && <button type="button" onClick={() => setAssigningLead(lead)} className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">Assign</button>}
                         <button
                           onClick={() => onSelectLead(lead)}
                           className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
