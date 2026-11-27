@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { fetchApi } from '@/lib/api';
 import { crmApi } from '@/lib/crm-updates';
 
-type Sync = { kind: string; dealership: string; address?: string; sourceRecords?: number; sourceActive?: number; sourceMissingOwner?: number; customers?: number; missingPhone?: number; missingEmail?: number; last_success?: string; snapshotAt?: string; error?: string };
+type Sync = { kind: string; dealership: string; address?: string; sourceRecords?: number; sourceActive?: number; sourceMissingOwner?: number; customers?: number; missingPhone?: number; missingEmail?: number; last_success?: string; snapshotAt?: string; status?: string; testDrives?: number; error?: string };
 type Status = { states: Sync[]; email: { address: string; category: string; configured: boolean; imported?: number; pendingMerges?: number; needsReview?: number }[] };
 
 export function LeadIntegrationStatus({ rooftop, revision }: { rooftop: string; revision: number }) {
@@ -49,6 +49,13 @@ export function LeadIntegrationStatus({ rooftop, revision }: { rooftop: string; 
       {state.error && <p className="text-red-700">{state.error}</p>}
     </div>)}
     {data && !data.states.some(state => state.kind === 'dealersocket') && <p>Waiting for the next source sync. Existing customers remain available.</p>}
+    {data?.states.filter(state => state.kind === 'virtualyard').map(state => <div className="mt-3 space-y-1" key={`virtualyard-${state.dealership}`}>
+      <h4 className="font-bold">Virtual Yard · {state.dealership}</h4>
+      <p>{state.status === 'succeeded' ? 'Connected' : state.status === 'running' ? 'Sync in progress' : 'Sync paused or awaiting setup'} · {state.sourceRecords ?? 0} leads · {state.testDrives ?? 0} linked test-drive records in the latest import.</p>
+      {state.last_success && <p>Last successful import: {new Date(state.last_success).toLocaleString('en-AU', { timeZone: 'Australia/Melbourne' })}.</p>}
+      {state.error && <p className="text-amber-800">{state.error}</p>}
+      <p className="text-slate-600">Imported enquiries arrive unassigned. Existing staff notes, allocation and consent are preserved.</p>
+    </div>)}
     {data?.email.map(inbox => {
       const state = data.states.find(state => state.address?.toLowerCase() === inbox.address.toLowerCase());
       return <div className="mt-3 space-y-1" key={inbox.address}>
