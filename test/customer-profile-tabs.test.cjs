@@ -20,6 +20,7 @@ test('Customer360Modal renders Profile/History/Business tabs cleanly and switche
   const harness = hookHarness();
   const MockHistory = () => null;
   const MockBusiness = () => null;
+  const MockVirtualYard = () => null;
 
   const { Customer360Modal } = load('components/modals/Customer360Modal.tsx', {
     react: harness.react,
@@ -42,15 +43,18 @@ test('Customer360Modal renders Profile/History/Business tabs cleanly and switche
     '@/components/customer/CustomerActivityFeed': { CustomerActivityFeed: noop },
     '@/components/customer/CustomerHistoryTab': { CustomerHistoryTab: MockHistory },
     '@/components/customer/CustomerBusinessTab': { CustomerBusinessTab: MockBusiness },
+    '@/components/customer/VirtualYardSourceDetails': { VirtualYardSourceDetails: MockVirtualYard },
   });
 
-  const lead = { _id: 'lead-999', name: 'Colin Beruld', status: 'following_up', dealership: 'South Morang Hyundai', source: 'Nextgate', owner_id: 'rep-1' };
+  const lead = { _id: 'lead-999', name: 'Example Buyer', status: 'following_up', dealership: 'BYD South Morang', source: 'Virtual Yard', owner_id: 'rep-1', external: { virtualyard: { lead_id: '12345' } } };
   const renderModal = () => Customer360Modal({ lead, isOpen: true, onClose() {} });
 
   let tree = harness.render(renderModal);
   const tabs = nodes(tree).filter(n => n.props?.role === 'tab');
   assert.deepEqual(tabs.map(t => text(t).trim()), ['Profile', 'History', 'Business']);
   assert.equal(tabs[0].props['aria-selected'], true);
+  const source = nodes(tree).find(n => n.type === MockVirtualYard);
+  assert.deepEqual(source.props, { type: 'leads', id: lead._id });
   assert.equal(nodes(tree).some(n => n.type === MockHistory), false, 'History tab should not mount on initial Profile view');
   assert.equal(nodes(tree).some(n => n.type === MockBusiness), false, 'Business tab should not mount on initial Profile view');
 

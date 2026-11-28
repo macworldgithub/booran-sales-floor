@@ -37,6 +37,7 @@ import { CustomerConsent } from '@/components/customer/CustomerConsent';
 import { CustomerActivityFeed } from '@/components/customer/CustomerActivityFeed';
 import { CustomerHistoryTab } from '@/components/customer/CustomerHistoryTab';
 import { CustomerBusinessTab } from '@/components/customer/CustomerBusinessTab';
+import { VirtualYardSourceDetails } from '@/components/customer/VirtualYardSourceDetails';
 
 interface Customer360ModalProps {
   lead: Lead | null;
@@ -274,8 +275,10 @@ export function Customer360Modal({
             {lead.business_name && <p>{lead.business_name}</p>}
             {lead.source && <p>{[lead.source, lead.source_channel, lead.source_stage].filter(Boolean).join(' · ')}</p>}
             {lead.source_comments && <p className="whitespace-pre-wrap">{lead.source_comments}</p>}
-            {lead.external && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
+            {lead.external?.id && <p>{lead.source} reference {lead.external.id}{lead.external.opportunity_status ? ` · ${lead.external.opportunity_status}` : ''}{!lead.external.details_revealed && !lead.phone ? ' · Contact details pending' : ''}</p>}
           </div>}
+          {activeTab === 'profile' && (lead.external?.virtualyard?.lead_id || lead.source_refs?.some(ref => ref.external?.virtualyard?.lead_id)) &&
+            <VirtualYardSourceDetails key={`virtualyard-${lead._id}`} type="leads" id={lead._id} />}
           {activeTab === 'profile' && user?.canAllocate && <LeadAssignment key={`assign-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} />}
           {activeTab === 'profile' && <ConnexLeadActions key={`connex-${lead._id}`} lead={lead} onUpdated={updated => onLeadUpdated?.(updated)} onRequestLost={() => setRequestLost(true)} />}
           {activeTab === 'profile' && !!lead.source_refs?.length && <details className="rounded-xl border p-3 text-xs"><summary className="cursor-pointer font-semibold">Linked source enquiries ({lead.source_refs.length})</summary>{lead.source_refs.map((source, index) => <div className="mt-2 space-y-1" key={`${source.deal_id}-${index}`}><p>{source.source} · {source.deal_id} · {source.sms_campaign?.stage || source.nexgate?.stage}</p>{source.nexgate?.comments && <p className="whitespace-pre-wrap">{source.nexgate.comments}</p>}</div>)}</details>}

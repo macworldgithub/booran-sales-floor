@@ -8,6 +8,7 @@ import { usePaginatedQuery } from '@/lib/use-paginated-query';
 import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { Appointment } from '@/lib/types';
+import { VirtualYardSourceDetails } from '@/components/customer/VirtualYardSourceDetails';
 
 interface CalendarViewProps {
   assignedStaff?: { id: string; name: string } | null;
@@ -90,7 +91,7 @@ export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop, a
                   <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
                     <Clock className="w-5 h-5 text-red-500" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-bold text-slate-900">{appt.prospectName}</h4>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-800">
@@ -102,6 +103,12 @@ export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop, a
                       <strong>{appt.consultantName}</strong>
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">{appt.notes}</p>
+                    {appt.virtualyard?.id && (
+                      <div className="mt-2 space-y-1">
+                        {appt.virtualyard.status && <p className="text-xs text-slate-600">Virtual Yard · {appt.virtualyard.status}</p>}
+                        <VirtualYardSourceDetails type="appointments" id={appt._id} />
+                      </div>
+                    )}
                   </div>
                 </div>
 
