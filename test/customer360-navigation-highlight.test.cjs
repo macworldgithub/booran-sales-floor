@@ -55,6 +55,7 @@ test('Sidebar renames Leads Centre to Customer 360 and uses newLeadsCount for no
 
 test('getLeadAssignmentHighlight identifies unassigned new leads and Connex leads assisted to Mark', () => {
   const { getLeadAssignmentHighlight } = load('components/views/LeadsView.tsx', {
+    '@/components/customer/VirtualYardCsvUpload': { VirtualYardCsvUpload: () => null },
     react: { useState: () => [null, () => {}], useEffect() {}, useCallback: fn => fn },
     '@/lib/auth': { useAuth: () => ({ user: null }) },
     '@/lib/use-paginated-query': { usePaginatedQuery: () => ({ data: [], pagination: {} }) },

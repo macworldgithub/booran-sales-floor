@@ -91,3 +91,24 @@ test('media proxy rejects oversized and cross-origin uploads before contacting t
   assert.equal(rejected.status, 403);
   assert.equal(calls, 0);
 });
+
+test('Virtual Yard CSV upload preserves the original bytes and enforces the file size limit', async () => {
+  const path = ['integrations', 'virtualyard', 'csv'];
+  const url = new URL('https://floor.test/api/integrations/virtualyard/csv?file=test-drives.csv');
+  const bytes = new TextEncoder().encode('\n\uFEFFId,Details,Lead,Tags,Status\r\n1,"Test, \u00e9",,,Booked\r\n');
+  let calls = 0;
+  const proxy = uploadProxy(async (target, options) => {
+    calls++;
+    assert.equal(target.searchParams.get('file'), 'test-drives.csv');
+    assert.equal(options.headers.get('content-type'), 'text/csv');
+    assert.deepEqual(new Uint8Array(options.body), bytes);
+    return Response.json({ success: true });
+  });
+  const send = body => {
+    const req = new Request(url, { method: 'POST', headers: { 'content-type': 'text/csv' }, body });
+    return proxy.POST({ nextUrl: url, method: req.method, headers: req.headers, body: req.body }, { params: Promise.resolve({ path }) });
+  };
+  assert.equal((await send(bytes)).status, 200);
+  assert.equal((await send(new Uint8Array(2 * 1024 * 1024 + 1))).status, 413);
+  assert.equal(calls, 1);
+});

@@ -36,6 +36,7 @@ function mountView(filename, name) {
     '@/components/customer/HoldingCost': { HoldingCostValue: () => null },
     '@/components/customer/EngagementIndicator': { EngagementIndicator: () => null, InventoryEngagementSummary: () => null },
     '@/components/customer/BulkLeadAssignment': { BulkLeadAssignment: () => null },
+    '@/components/customer/VirtualYardCsvUpload': { VirtualYardCsvUpload: () => null },
     '@/lib/crm-updates': { needsActionToday: () => true },
     react: hookReact,
     '@/lib/auth': { useAuth: () => ({ user: { role: 'manager', site: 'South Morang', canAllocate: true }, locations: ['BYD South Morang', 'South Morang Hyundai'] }) },

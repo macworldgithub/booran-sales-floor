@@ -2,6 +2,7 @@
 import { leadSources } from '@/lib/lead-sources';
 import { EngagementIndicator } from '@/components/customer/EngagementIndicator';
 import { RooftopOptions } from '@/components/ui/RooftopOptions';
+import { VirtualYardCsvUpload } from '@/components/customer/VirtualYardCsvUpload';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -183,6 +184,7 @@ export function LeadsView({
         </button>
       </div>
 
+      <VirtualYardCsvUpload rooftop={selectedRooftop} />
       {/* Filters and Controls */}
       {/* Filters and Controls */}
       <div className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-3">

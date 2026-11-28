@@ -23,10 +23,12 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       path.length === 6 && path[0] === 'public' && path[1] === 'trade-ins' && path[3] === 'photos' && path[5] === 'content'
     );
     const archiveDownload = ['GET', 'HEAD'].includes(request.method) && path.length === 5 && path[0] === 'iappraise' && path[1] === 'archive' && path[3] === 'media';
-    const headers = new Headers({ 'Content-Type': binaryUpload ? 'application/octet-stream' : 'application/json' });
+    const virtualyardCsv = request.method === 'POST' && path[0] === 'integrations' && path[1] === 'virtualyard' && path[2] === 'csv';
+    const csvUpload = virtualyardCsv && path.length === 3 && request.headers.get('content-type') === 'text/csv';
+    const headers = new Headers({ 'Content-Type': binaryUpload ? 'application/octet-stream' : csvUpload ? 'text/csv' : 'application/json' });
     let body: string | ArrayBuffer | undefined;
     if (!['GET', 'HEAD'].includes(request.method)) {
-      if (binaryUpload) {
+      if (binaryUpload || csvUpload) {
         const reader = request.body?.getReader();
         const chunks: Uint8Array[] = [];
         let size = 0;
@@ -37,7 +39,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
             size += value.byteLength;
             if (size > 2 * 1024 * 1024) {
               await reader.cancel();
-              return Response.json({ success: false, error: 'Upload chunks must not exceed 2 MB.' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
+              return Response.json({ success: false, error: csvUpload ? 'Each CSV file must be 2 MB or less.' : 'Upload chunks must not exceed 2 MB.' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
             }
             chunks.push(value);
           }
@@ -58,7 +60,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
       method: request.method,
       headers,
       body,
-      signal: AbortSignal.timeout(binaryUpload || archiveDownload ? 85000 : 25000),
+      signal: AbortSignal.timeout(binaryUpload || archiveDownload || virtualyardCsv ? 85000 : 25000),
       cache: 'no-store',
       redirect: 'error',
     });

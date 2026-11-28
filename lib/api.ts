@@ -28,10 +28,10 @@ export function getBaseUrl(): string { return '/api'; }
 
 export async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit & { timeoutMs?: number } = {}
+  options: RequestInit & { timeoutMs?: number; notifyDataChanged?: boolean } = {}
 ): Promise<{ success: boolean; data?: T; message?: string; pagination?: import('./use-paginated-query').PageMetadata; error?: string }> {
   const requestGeneration = sessionGeneration;
-  const { timeoutMs = 20000, ...requestOptions } = options;
+  const { timeoutMs = 20000, notifyDataChanged = true, ...requestOptions } = options;
   const headers = new Headers(options.headers);
   if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
 
@@ -58,7 +58,7 @@ export async function fetchApi<T>(
     if (!json || Array.isArray(json) || json.success !== true) throw new Error('The server returned an invalid response. Please retry.');
     const method = (options.method || 'GET').toUpperCase();
     const uploadChunk = method === 'PUT' && /^\/leads\/[^/]+\/media\/[^/]+\/content\?offset=/.test(endpoint);
-    if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !uploadChunk && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
+    if (notifyDataChanged && ['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !uploadChunk && !endpoint.startsWith('/auth/') && typeof window !== 'undefined') window.dispatchEvent(new Event('booran:data-changed'));
     return json;
   } catch (err: any) {
     if (err?.name === 'TimeoutError') throw new Error('The request took too long. Please retry.');

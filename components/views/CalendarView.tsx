@@ -9,6 +9,7 @@ import { QueryStatus } from '@/components/ui/QueryStatus';
 import { Pagination } from '@/components/ui/Pagination';
 import { Appointment } from '@/lib/types';
 import { VirtualYardSourceDetails } from '@/components/customer/VirtualYardSourceDetails';
+import { VirtualYardCsvUpload } from '@/components/customer/VirtualYardCsvUpload';
 
 interface CalendarViewProps {
   assignedStaff?: { id: string; name: string } | null;
@@ -55,6 +56,7 @@ export function CalendarView({ appointments, onOpenBookDrive, selectedRooftop, a
         </button>
       </div>
 
+      <VirtualYardCsvUpload rooftop={selectedRooftop} />
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
         {assignedStaff && <button type="button" onClick={() => { onClearStaff?.(); setPage(1); }} className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
           {assignedStaff.name} · Clear salesperson filter
