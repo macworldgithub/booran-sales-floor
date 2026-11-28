@@ -6,6 +6,8 @@ import { fetchApi } from '@/lib/api';
 
 const SITE = 'BYD South Morang';
 const endpoint = '/integrations/virtualyard/csv';
+const MAX_FILES = 16;
+const MAX_FILE_MB = 4;
 const button = 'min-h-10 rounded-lg border px-3 py-1.5 font-semibold disabled:opacity-50';
 type Result = { inserted: number; updated: number; unchanged: number; skipped: number };
 type Preview = {
@@ -40,23 +42,21 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
     setError('');
     setJobs([]);
     setRejectedFiles([]);
-    const staged: Job[] = [];
-    const rejected: { file: string; message: string }[] = [];
     try {
-      for (const file of files) {
-        setStatus(`Checking ${file.name}…`);
+      for (const [index, file] of files.entries()) {
+        setStatus(`Checking file ${index + 1} of ${files.length} · ${file.name}`);
         try {
           const result = await fetchApi<Preview>(`${endpoint}?file=${encodeURIComponent(file.name)}`, {
             body: file, method: 'POST', headers: { 'Content-Type': 'text/csv' }, timeoutMs: 85000, notifyDataChanged: false,
           });
           if (!result.data) throw new Error('The file preview was unavailable.');
-          staged.push(result.data);
+          const checked = result.data;
+          setJobs(current => [...current, checked]);
         } catch (reason) {
-          rejected.push({ file: file.name, message: reason instanceof Error ? reason.message : 'Could not preview the CSV.' });
+          const message = reason instanceof Error ? reason.message : 'Could not preview the CSV.';
+          setRejectedFiles(current => [...current, { file: file.name, message }]);
         }
       }
-      setJobs(staged);
-      setRejectedFiles(rejected);
     } finally {
       setBusy(false);
       setStatus('');
@@ -68,11 +68,12 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
     setError('');
     let saved = false;
     try {
-      for (const file of jobs) {
+      const importable = jobs.filter(file => file.id);
+      for (const [index, file] of importable.entries()) {
         if (!file.id || file.progress?.done) continue;
         let progress = file.progress;
         while (!progress?.done) {
-          setStatus(`Importing ${file.file} · ${progress?.processed ?? 0} of ${file.ready}`);
+          setStatus(`Importing file ${index + 1} of ${importable.length} · ${file.file} · ${progress?.processed ?? 0} of ${file.ready} records`);
           const response = await fetchApi<Progress>(`${endpoint}/${encodeURIComponent(file.id)}/apply`, {
             method: 'POST', body: '{}', timeoutMs: 85000, notifyDataChanged: false,
           });
@@ -91,11 +92,13 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
     }
   }
 
+  const readyFiles = jobs.filter(job => job.id).length;
+  const completedFiles = jobs.filter(job => job.progress?.done).length;
   return (
     <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
       <summary className="cursor-pointer font-semibold text-slate-900">Import Virtual Yard CSV</summary>
       <div className="mt-3 space-y-3">
-        <p className="text-xs text-slate-600">Upload Leads or Test Drives exports for BYD South Morang. Files can be up to 2 MB each.</p>
+        <p className="text-xs text-slate-600">Upload up to {MAX_FILES} Leads or Test Drives CSVs for BYD South Morang, up to {MAX_FILE_MB} MB and 10,000 rows per file.</p>
         <label className="block text-xs font-semibold">
           Virtual Yard CSV files
           <input type="file" accept=".csv,text/csv" multiple disabled={busy} className="mt-1 block max-w-full"
@@ -103,9 +106,9 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
               const selected = Array.from(event.target.files ?? []).sort((a, b) => a.name.localeCompare(b.name));
               setJobs([]);
               setRejectedFiles([]);
-              if (selected.length > 12 || selected.some(file => !/\.csv$/i.test(file.name) || file.size > 2 * 1024 * 1024)) {
+              if (selected.length > MAX_FILES || selected.some(file => !/\.csv$/i.test(file.name) || file.size > MAX_FILE_MB * 1024 * 1024)) {
                 setFiles([]);
-                setError('Select up to 12 CSV files of 2 MB each.');
+                setError(`Select up to ${MAX_FILES} CSV files of ${MAX_FILE_MB} MB each.`);
               } else {
                 setFiles(selected);
                 setError('');
@@ -114,6 +117,13 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
         </label>
         <button type="button" className={button} disabled={busy || !files.length} onClick={() => void preview()}>Preview files</button>
         {status && <p role="status" className="text-xs text-slate-600">{status}</p>}
+        {files.length > 0 && (
+          <dl aria-label="CSV file totals" aria-live="polite" className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-xs sm:grid-cols-3">
+            <div><dt className="text-slate-600">Files checked successfully</dt><dd className="font-bold">{jobs.length} of {files.length}</dd></div>
+            <div><dt className="text-slate-600">Files imported</dt><dd className="font-bold">{completedFiles} of {readyFiles} ready</dd></div>
+            <div><dt className="text-slate-600">Files that failed checks</dt><dd className="font-bold">{rejectedFiles.length}</dd></div>
+          </dl>
+        )}
         {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
         {rejectedFiles.length > 0 && (
           <ul className="space-y-1 text-xs text-red-700" aria-label="Files that need review">
@@ -130,7 +140,15 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
               </details>
             )}
             {job.progress && (
-              <p className="font-semibold">{job.progress.done ? 'Import complete' : `${job.progress.processed} of ${job.progress.total} processed`} · {job.progress.result.inserted.toLocaleString()} inserted · {job.progress.result.updated.toLocaleString()} updated · {job.progress.result.unchanged.toLocaleString()} unchanged · {job.progress.result.skipped.toLocaleString()} skipped</p>
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <p className="font-semibold">{job.progress.done ? 'Import complete' : `${job.progress.processed} of ${job.progress.total} processed`}</p>
+                <dl aria-label="Record totals for this file" className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  <div><dt className="inline text-slate-600">Inserted </dt><dd className="inline font-bold">{job.progress.result.inserted.toLocaleString()}</dd></div>
+                  <div><dt className="inline text-slate-600">Updated </dt><dd className="inline font-bold">{job.progress.result.updated.toLocaleString()}</dd></div>
+                  <div><dt className="inline text-slate-600">Unchanged </dt><dd className="inline font-bold">{job.progress.result.unchanged.toLocaleString()}</dd></div>
+                  <div><dt className="inline text-slate-600">Skipped </dt><dd className="inline font-bold">{job.progress.result.skipped.toLocaleString()}</dd></div>
+                </dl>
+              </div>
             )}
           </div>
         ))}

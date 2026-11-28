@@ -37,9 +37,9 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
             const { done, value } = await reader.read();
             if (done) break;
             size += value.byteLength;
-            if (size > 2 * 1024 * 1024) {
+            if (size > (csvUpload ? 4 : 2) * 1024 * 1024) {
               await reader.cancel();
-              return Response.json({ success: false, error: csvUpload ? 'Each CSV file must be 2 MB or less.' : 'Upload chunks must not exceed 2 MB.' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
+              return Response.json({ success: false, error: csvUpload ? 'Each CSV file must be 4 MB or less.' : 'Upload chunks must not exceed 2 MB.' }, { status: 413, headers: { 'Cache-Control': 'no-store' } });
             }
             chunks.push(value);
           }
