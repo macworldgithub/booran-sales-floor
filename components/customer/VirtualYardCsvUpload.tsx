@@ -29,6 +29,7 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [rejectedFiles, setRejectedFiles] = useState<{ file: string; message: string }[]>([]);
   const [busy, setBusy] = useState(false);
   if (!user || !managerRoles.includes(user.role) ||
     (user.role !== 'super_admin' && !locations.includes(SITE) && ![user.site, ...(user.allowedSites ?? [])].some(site => [SITE, 'South Morang'].includes(site))) ||
@@ -38,19 +39,24 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
     setBusy(true);
     setError('');
     setJobs([]);
+    setRejectedFiles([]);
     const staged: Job[] = [];
+    const rejected: { file: string; message: string }[] = [];
     try {
       for (const file of files) {
         setStatus(`Checking ${file.name}…`);
-        const result = await fetchApi<Preview>(`${endpoint}?file=${encodeURIComponent(file.name)}`, {
-          body: file, method: 'POST', headers: { 'Content-Type': 'text/csv' }, timeoutMs: 85000, notifyDataChanged: false,
-        });
-        if (!result.data) throw new Error('The file preview was unavailable.');
-        staged.push(result.data);
+        try {
+          const result = await fetchApi<Preview>(`${endpoint}?file=${encodeURIComponent(file.name)}`, {
+            body: file, method: 'POST', headers: { 'Content-Type': 'text/csv' }, timeoutMs: 85000, notifyDataChanged: false,
+          });
+          if (!result.data) throw new Error('The file preview was unavailable.');
+          staged.push(result.data);
+        } catch (reason) {
+          rejected.push({ file: file.name, message: reason instanceof Error ? reason.message : 'Could not preview the CSV.' });
+        }
       }
       setJobs(staged);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not preview the CSV.');
+      setRejectedFiles(rejected);
     } finally {
       setBusy(false);
       setStatus('');
@@ -96,6 +102,7 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
             onChange={event => {
               const selected = Array.from(event.target.files ?? []).sort((a, b) => a.name.localeCompare(b.name));
               setJobs([]);
+              setRejectedFiles([]);
               if (selected.length > 12 || selected.some(file => !/\.csv$/i.test(file.name) || file.size > 2 * 1024 * 1024)) {
                 setFiles([]);
                 setError('Select up to 12 CSV files of 2 MB each.');
@@ -108,10 +115,15 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
         <button type="button" className={button} disabled={busy || !files.length} onClick={() => void preview()}>Preview files</button>
         {status && <p role="status" className="text-xs text-slate-600">{status}</p>}
         {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
+        {rejectedFiles.length > 0 && (
+          <ul className="space-y-1 text-xs text-red-700" aria-label="Files that need review">
+            {rejectedFiles.map((item, i) => <li key={i}><strong>{item.file}</strong> · {item.message}</li>)}
+          </ul>
+        )}
         {jobs.map((job, index) => (
           <div key={job.id || `${job.file}-${index}`} className="space-y-1 rounded-lg border border-slate-200 p-3 text-xs">
             <p className="break-words font-semibold">{job.file} · {job.type === 'lead' ? 'Leads' : 'Test Drives'}</p>
-            <p>{job.ready.toLocaleString()} ready · {job.existing.toLocaleString()} already in Booran · {job.duplicates.toLocaleString()} repeated rows · {job.issues.toLocaleString()} issues</p>
+            <p>{job.ready.toLocaleString()} ready · {job.existing.toLocaleString()} matching Virtual Yard IDs · {job.duplicates.toLocaleString()} repeated rows · {job.issues.toLocaleString()} issues</p>
             {job.examples.length > 0 && (
               <details><summary className="cursor-pointer font-semibold">Rows that need review</summary>
                 <ul className="mt-1 list-disc space-y-1 pl-4">{job.examples.map((issue, i) => <li key={i}>Row {issue.row} · {issue.message}</li>)}</ul>
