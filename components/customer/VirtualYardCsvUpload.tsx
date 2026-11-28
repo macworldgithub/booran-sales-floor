@@ -37,38 +37,34 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
     (user.role !== 'super_admin' && !locations.includes(SITE) && ![user.site, ...(user.allowedSites ?? [])].some(site => [SITE, 'South Morang'].includes(site))) ||
     ![SITE, 'South Morang', 'All Locations'].includes(rooftop)) return null;
 
-  async function preview() {
-    setBusy(true);
-    setError('');
+  async function checkFiles() {
     setJobs([]);
     setRejectedFiles([]);
-    try {
-      for (const [index, file] of files.entries()) {
-        setStatus(`Checking file ${index + 1} of ${files.length} · ${file.name}`);
-        try {
-          const result = await fetchApi<Preview>(`${endpoint}?file=${encodeURIComponent(file.name)}`, {
-            body: file, method: 'POST', headers: { 'Content-Type': 'text/csv' }, timeoutMs: 85000, notifyDataChanged: false,
-          });
-          if (!result.data) throw new Error('The file preview was unavailable.');
-          const checked = result.data;
-          setJobs(current => [...current, checked]);
-        } catch (reason) {
-          const message = reason instanceof Error ? reason.message : 'Could not preview the CSV.';
-          setRejectedFiles(current => [...current, { file: file.name, message }]);
-        }
+    const checkedFiles: Job[] = [];
+    for (const [index, file] of files.entries()) {
+      setStatus(`Checking file ${index + 1} of ${files.length} · ${file.name}`);
+      try {
+        const { data } = await fetchApi<Preview>(`${endpoint}?file=${encodeURIComponent(file.name)}`, {
+          body: file, method: 'POST', headers: { 'Content-Type': 'text/csv' }, timeoutMs: 85000, notifyDataChanged: false,
+        });
+        if (!data) throw new Error('The file check was unavailable.');
+        checkedFiles.push(data);
+        setJobs(current => [...current, data]);
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : 'Could not check the CSV.';
+        setRejectedFiles(current => [...current, { file: file.name, message }]);
       }
-    } finally {
-      setBusy(false);
-      setStatus('');
     }
+    return checkedFiles;
   }
 
-  async function apply() {
+  async function runImport(resume = false) {
     setBusy(true);
     setError('');
     let saved = false;
     try {
-      const importable = jobs.filter(file => file.id);
+      const checkedFiles = resume ? jobs : await checkFiles();
+      const importable = checkedFiles.filter(file => file.id);
       for (const [index, file] of importable.entries()) {
         if (!file.id || file.progress?.done) continue;
         let progress = file.progress;
@@ -94,11 +90,12 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
 
   const readyFiles = jobs.filter(job => job.id).length;
   const completedFiles = jobs.filter(job => job.progress?.done).length;
+  const hasPendingImport = readyFiles > completedFiles;
   return (
     <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
       <summary className="cursor-pointer font-semibold text-slate-900">Import Virtual Yard CSV</summary>
       <div className="mt-3 space-y-3">
-        <p className="text-xs text-slate-600">Upload up to {MAX_FILES} Leads or Test Drives CSVs for BYD South Morang, up to {MAX_FILE_MB} MB and 10,000 rows per file.</p>
+        <p className="text-xs text-slate-600">Upload up to {MAX_FILES} Leads or Test Drives CSVs for BYD South Morang, up to {MAX_FILE_MB} MB and 10,000 rows per file. Import starts automatically after checking the files.</p>
         <label className="block text-xs font-semibold">
           Virtual Yard CSV files
           <input type="file" accept=".csv,text/csv" multiple disabled={busy} className="mt-1 block max-w-full"
@@ -115,7 +112,7 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
               }
             }} />
         </label>
-        <button type="button" className={button} disabled={busy || !files.length} onClick={() => void preview()}>Preview files</button>
+        <button type="button" className={button} disabled={busy || !files.length || hasPendingImport} onClick={() => void runImport()}>Check and import files</button>
         {status && <p role="status" className="text-xs text-slate-600">{status}</p>}
         {files.length > 0 && (
           <dl aria-label="CSV file totals" aria-live="polite" className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-xs sm:grid-cols-3">
@@ -152,9 +149,9 @@ export function VirtualYardCsvUpload({ rooftop }: { rooftop: string }) {
             )}
           </div>
         ))}
-        {jobs.some(job => job.id && !job.progress?.done) && (
-          <button type="button" className={`${button} bg-slate-900 text-white`} disabled={busy} onClick={() => void apply()}>
-            {error || jobs.some(job => job.progress) ? 'Resume import' : 'Apply import'}
+        {!busy && hasPendingImport && (
+          <button type="button" className={`${button} bg-slate-900 text-white`} onClick={() => void runImport(true)}>
+            Resume import
           </button>
         )}
       </div>

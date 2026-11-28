@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const ts = require('typescript');
 const { hookHarness, nodes } = require('./helpers/hook-harness.cjs');
 
-test('Virtual Yard upload previews valid files beside invalid files and resumes after a failed apply response', async () => {
+test('Virtual Yard upload checks files, starts importing automatically and resumes an interrupted import', async () => {
   const harness = hookHarness();
   const module = { exports: {} };
   const compiled = ts.transpileModule(readFileSync('components/customer/VirtualYardCsvUpload.tsx', 'utf8'), {
@@ -49,10 +49,11 @@ test('Virtual Yard upload previews valid files beside invalid files and resumes 
   select([{ name: 'large.csv', size: limit + 1 }]);
   assert.equal(buttons(view())[0].props.disabled, true);
   input.props.onChange({ target: { files: [new File(['bad'], 'bad.csv'), new File(['good'], 'good.csv')] } });
-  let tree = await click(view(), 'Preview files');
+  let tree = await click(view(), 'Check and import files');
   assert.ok(nodes(tree).find(node => node.props?.['aria-label'] === 'Files that need review'));
   assert.match(text(totals(tree)), /Files checked successfully1 of 2Files imported0 of 1 readyFiles that failed checks1/);
-  tree = await click(tree, 'Apply import');
+  assert.equal(applied, 2, 'The first click automatically starts import after the file checks');
+  assert.equal(buttons(tree).some(button => button.props.children === 'Apply import'), false);
   assert.ok(nodes(tree).find(node => node.props?.role === 'alert'));
   tree = await click(tree, 'Resume import');
   assert.equal(applied, 3);
